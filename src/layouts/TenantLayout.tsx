@@ -1,4 +1,4 @@
-import React, { Suspense, useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect, useCallback } from "react";
 import erpAiLogo from "@/assets/erpAI.png";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -64,7 +64,7 @@ interface NavItem {
   url: string;
   icon: LucideIcon;
   section?: string;
-  aiModule?: string; // If set, item only shows when this module is enabled
+  aiModule?: string;
 }
 
 const mainNav: (NavItem & { badge?: number })[] = [
@@ -96,6 +96,8 @@ const inventoryNav: NavItem[] = [
   { key: "wmsLabor", url: "/inventory/wms/labor", icon: Users, aiModule: "ai-wms" },
   { key: "inventoryStockTake", url: "/inventory/stock-take", icon: ClipboardCheck, section: "inventoryControl" },
   { key: "inventoryWriteOffs", url: "/inventory/write-offs", icon: Trash2 },
+  // Configuration (moved from Settings)
+  { key: "warehouses", url: "/settings/warehouses", icon: Warehouse, section: "inventoryConfiguration" },
 ];
 
 const accountingNav: NavItem[] = [
@@ -143,6 +145,13 @@ const accountingNav: NavItem[] = [
   { key: "zpppdv", url: "/accounting/reports/zpppdv", icon: FileText },
   { key: "reportSnapshots", url: "/accounting/report-snapshots", icon: FileText },
   { key: "revenueContracts", url: "/accounting/revenue-contracts", icon: TrendingUp, section: "ifrsModules" },
+  // Configuration (moved from Settings)
+  { key: "costCenters", url: "/settings/cost-centers", icon: Coins, section: "accountingConfiguration" },
+  { key: "taxRates", url: "/settings/tax-rates", icon: Percent },
+  { key: "currencies", url: "/settings/currencies", icon: DollarSign },
+  { key: "postingRules", url: "/settings/posting-rules", icon: BookOpen },
+  { key: "businessRules", url: "/settings/business-rules", icon: FileText },
+  { key: "accountingArchitecture", url: "/settings/accounting-architecture", icon: Layers },
 ];
 
 const analyticsNav: NavItem[] = [
@@ -175,6 +184,9 @@ const crmNav: NavItem[] = [
   { key: "leads", url: "/crm/leads", icon: Target },
   { key: "opportunities", url: "/crm/opportunities", icon: TrendingUp },
   { key: "meetings", url: "/crm/meetings", icon: CalendarDays },
+  // Configuration (moved from Settings)
+  { key: "partnerCategories", url: "/settings/partner-categories", icon: Handshake, section: "crmConfiguration" },
+  { key: "opportunityStages", url: "/settings/opportunity-stages", icon: TrendingUp },
 ];
 
 const salesNav: NavItem[] = [
@@ -184,6 +196,8 @@ const salesNav: NavItem[] = [
   { key: "salespeople", url: "/sales/salespeople", icon: UserCheck },
   { key: "salesPerformance", url: "/sales/sales-performance", icon: BarChart3 },
   { key: "webSettings", url: "/sales/web-settings", icon: Globe, section: "webSales" },
+  // Configuration (moved from Settings)
+  { key: "discountApprovalRules", url: "/settings/discount-rules", icon: Percent, section: "salesConfiguration" },
 ];
 
 const purchasingNav: NavItem[] = [
@@ -213,6 +227,8 @@ const hrNav: NavItem[] = [
   { key: "payrollBankReconciliation", url: "/hr/payroll/bank-reconciliation", icon: ArrowLeftRight },
   { key: "nonEmploymentIncome", url: "/hr/non-employment-income", icon: FileText },
   { key: "pppdReview", url: "/hr/payroll/pppd", icon: FileSpreadsheet },
+  // Configuration (moved from Settings)
+  { key: "payrollParamsTitle", url: "/settings/payroll-parameters", icon: Calculator, section: "hrConfiguration" },
   { key: "externalWorkers", url: "/hr/external-workers", icon: Users, section: "other" },
   { key: "insuranceRecords", url: "/hr/insurance", icon: Shield },
   { key: "eBolovanje", url: "/hr/ebolovanje", icon: Heart },
@@ -249,6 +265,8 @@ const documentsNav: NavItem[] = [
   { key: "dmsArchiving", url: "/documents/archiving", icon: FileText },
   { key: "dmsProjects", url: "/documents/projects", icon: Layers, section: "management" },
   { key: "erpDrive", url: "/drive", icon: HardDrive, section: "fileManagement" },
+  // Configuration (moved from Settings)
+  { key: "dmsSettings", url: "/settings/dms", icon: Settings, section: "dmsConfiguration" },
 ];
 
 const assetsNav: NavItem[] = [
@@ -296,41 +314,39 @@ const posNav: NavItem[] = [
   { key: "dailyReport", url: "/pos/daily-report", icon: FileText },
 ];
 
+// Cleaned up: removed items relocated to parent modules
 const settingsNav: NavItem[] = [
   { key: "companySettings", url: "/settings", icon: Settings, section: "settingsOrganization" },
   { key: "tenantProfile", url: "/settings/tenant-profile", icon: Building },
   { key: "legalEntities", url: "/settings/legal-entities", icon: Building2 },
   { key: "orgCompanies", url: "/settings/org-companies", icon: Building2 },
   { key: "locations", url: "/settings/locations", icon: MapPin },
-  { key: "warehouses", url: "/settings/warehouses", icon: Warehouse },
-  { key: "costCenters", url: "/settings/cost-centers", icon: Coins },
-  { key: "taxRates", url: "/settings/tax-rates", icon: Percent, section: "settingsFinance" },
-  { key: "currencies", url: "/settings/currencies", icon: DollarSign },
-  { key: "bankAccounts", url: "/settings/bank-accounts", icon: Landmark },
-  { key: "postingRules", url: "/settings/posting-rules", icon: BookOpen },
-  { key: "payrollParamsTitle", url: "/settings/payroll-parameters", icon: Calculator },
   { key: "users", url: "/settings/users", icon: Users, section: "settingsAccessWorkflows" },
   { key: "rolePermissions", url: "/settings/role-permissions", icon: Shield },
   { key: "approvalWorkflows", url: "/settings/approvals", icon: CheckSquare },
   { key: "pendingApprovalsPage", url: "/settings/pending-approvals", icon: ClipboardCheck },
-  { key: "businessRules", url: "/settings/business-rules", icon: FileText },
   { key: "modules", url: "/settings/modules", icon: Layers, section: "settingsModules" },
   { key: "integrations", url: "/settings/integrations", icon: Plug, section: "settingsIntegrations" },
   { key: "integrationHealth", url: "/settings/integration-health", icon: Activity },
-  { key: "partnerCategories", url: "/settings/partner-categories", icon: Handshake },
-  { key: "opportunityStages", url: "/settings/opportunity-stages", icon: TrendingUp },
-  { key: "discountApprovalRules", url: "/settings/discount-rules", icon: Percent },
+  { key: "notificationCategorySettings", url: "/settings/notification-categories", icon: Activity },
+  { key: "notificationHistory", url: "/settings/notification-history", icon: Clock },
   { key: "auditLog", url: "/settings/audit-log", icon: FileText, section: "settingsAuditData" },
   { key: "aiAuditLog", url: "/settings/ai-audit-log", icon: Shield },
   { key: "eventMonitor", url: "/settings/events", icon: Activity },
   { key: "dataProtection", url: "/settings/data-protection", icon: Shield },
   { key: "dataRetention", url: "/settings/data-retention", icon: Clock },
   { key: "securityIncidents", url: "/settings/security-incidents", icon: ShieldAlert },
-  { key: "accountingArchitecture", url: "/settings/accounting-architecture", icon: Layers, section: "settingsAdvanced" },
-  { key: "legacyImport", url: "/settings/legacy-import", icon: FileInput },
-  { key: "dmsSettings", url: "/settings/dms", icon: FolderOpen },
-  { key: "notificationCategorySettings", url: "/settings/notification-categories", icon: Activity },
+  { key: "legacyImport", url: "/settings/legacy-import", icon: FileInput, section: "settingsAdvanced" },
 ];
+
+// Sidebar group definitions for accordion behavior
+interface SidebarGroupDef {
+  id: string;
+  label: string;
+  items: NavItem[];
+  icon: LucideIcon;
+  module: string;
+}
 
 const CollapsibleNavGroup = React.memo(function CollapsibleNavGroup({
   label,
@@ -339,6 +355,8 @@ const CollapsibleNavGroup = React.memo(function CollapsibleNavGroup({
   t,
   icon: Icon,
   isModuleEnabled,
+  isOpen,
+  onToggle,
 }: {
   label: string;
   items: NavItem[];
@@ -347,6 +365,8 @@ const CollapsibleNavGroup = React.memo(function CollapsibleNavGroup({
   accentColor?: string;
   icon?: LucideIcon;
   isModuleEnabled?: (mod: string) => boolean;
+  isOpen: boolean;
+  onToggle: () => void;
 }) {
   // Filter items by aiModule toggle
   const filteredItems = items.filter((item) => {
@@ -356,30 +376,32 @@ const CollapsibleNavGroup = React.memo(function CollapsibleNavGroup({
 
   if (filteredItems.length === 0) return null;
 
-  const isActive = filteredItems.some((item) => currentPath.startsWith(item.url));
-
   return (
     <SidebarGroup className="py-0">
-      <Collapsible defaultOpen={isActive}>
+      <Collapsible open={isOpen} onOpenChange={onToggle}>
         <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2.5 mt-2 text-[14px] font-semibold text-sidebar-foreground/90 tracking-wide hover:text-sidebar-foreground transition-colors group">
           <span className="flex items-center gap-2.5">
             {Icon && <Icon className="h-[18px] w-[18px] opacity-80" />}
             {label}
           </span>
-          <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=open]:rotate-180 opacity-50" />
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 opacity-50 ${isOpen ? "rotate-180" : ""}`} />
         </CollapsibleTrigger>
-        <CollapsibleContent className="bg-sidebar-accent/30 rounded-md mx-1 mb-1">
+        <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up bg-sidebar-accent/30 rounded-md mx-1 mb-1">
           <SidebarGroupContent>
             <SidebarMenu>
               {filteredItems.map((item) => {
                 const itemActive = currentPath === item.url || (item.url !== "/dashboard" && currentPath.startsWith(item.url + "/"));
                 const isAiSection = item.section === "aiWarehouse" || item.section === "aiProduction";
+                const isConfigSection = item.section?.endsWith("Configuration");
                 return (
                   <React.Fragment key={item.key}>
                     {item.section && (
                       <li className="px-3 pt-2.5 pb-0.5">
-                        <span className={`text-[11px] font-medium tracking-wide flex items-center gap-1 ${isAiSection ? "text-primary/60" : "text-sidebar-foreground/40"}`}>
+                        <span className={`text-[11px] font-medium tracking-wide flex items-center gap-1 ${
+                          isAiSection ? "text-primary/60" : isConfigSection ? "text-sidebar-foreground/50" : "text-sidebar-foreground/40"
+                        }`}>
                           {isAiSection && <Sparkles className="h-3 w-3" />}
+                          {isConfigSection && <Settings className="h-3 w-3" />}
                           {t(item.section as any)}
                         </span>
                       </li>
@@ -423,6 +445,42 @@ export default function TenantLayout() {
   const isMobile = useIsMobile();
   const [aiSidebarOpen, setAiSidebarOpen] = useState(false);
   const { showOverlay, setShowOverlay } = useKeyboardShortcuts();
+
+  // Accordion state: track which sidebar group is currently open
+  const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+
+  // Determine active group from current path
+  const getActiveGroupId = useCallback((path: string): string | null => {
+    const groups: { id: string; items: NavItem[] }[] = [
+      { id: "crm", items: crmNav },
+      { id: "sales", items: salesNav },
+      { id: "pos", items: posNav },
+      { id: "purchasing", items: purchasingNav },
+      { id: "inventory", items: inventoryNav },
+      { id: "production", items: productionNav },
+      { id: "service", items: serviceNav },
+      { id: "loyalty", items: loyaltyNav },
+      { id: "accounting", items: accountingNav },
+      { id: "assets", items: assetsNav },
+      { id: "hr", items: hrNav },
+      { id: "documents", items: documentsNav },
+      { id: "analytics", items: analyticsNav },
+    ];
+    for (const g of groups) {
+      if (g.items.some((item) => path.startsWith(item.url))) return g.id;
+    }
+    return null;
+  }, []);
+
+  // Auto-expand active group on route change
+  useEffect(() => {
+    const active = getActiveGroupId(currentPath);
+    if (active) setOpenGroupId(active);
+  }, [currentPath, getActiveGroupId]);
+
+  const handleGroupToggle = useCallback((groupId: string) => {
+    setOpenGroupId((prev) => (prev === groupId ? null : groupId));
+  }, []);
 
   // Task 29: Critical insight badge count
   const { data: criticalInsightCount = 0 } = useQuery({
@@ -514,43 +572,43 @@ export default function TenantLayout() {
 
             {/* Sidebar groups — reordered per PRD Phase 4.6 */}
             {canAccess("crm") && (
-              <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} icon={Users} isModuleEnabled={isModuleEnabled} />
+              <CollapsibleNavGroup label={t("crm")} items={crmNav} currentPath={currentPath} t={t} icon={Users} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "crm"} onToggle={() => handleGroupToggle("crm")} />
             )}
             {canAccess("sales") && (
-              <CollapsibleNavGroup label={t("salesModule")} items={salesNav} currentPath={currentPath} t={t} icon={ShoppingCart} isModuleEnabled={isModuleEnabled} />
+              <CollapsibleNavGroup label={t("salesModule")} items={salesNav} currentPath={currentPath} t={t} icon={ShoppingCart} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "sales"} onToggle={() => handleGroupToggle("sales")} />
             )}
             {canAccess("pos") && (
-              <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} icon={Monitor} isModuleEnabled={isModuleEnabled} />
+              <CollapsibleNavGroup label={t("pos")} items={posNav} currentPath={currentPath} t={t} icon={Monitor} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "pos"} onToggle={() => handleGroupToggle("pos")} />
             )}
             {canAccess("purchasing") && (
-              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} icon={Truck} isModuleEnabled={isModuleEnabled} />
+              <CollapsibleNavGroup label={t("purchasing")} items={purchasingNav} currentPath={currentPath} t={t} icon={Truck} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "purchasing"} onToggle={() => handleGroupToggle("purchasing")} />
             )}
             {canAccess("inventory") && (
-              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} icon={Package} isModuleEnabled={isModuleEnabled} />
+              <CollapsibleNavGroup label={t("inventory")} items={inventoryNav} currentPath={currentPath} t={t} icon={Package} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "inventory"} onToggle={() => handleGroupToggle("inventory")} />
             )}
             {canAccess("production") && (
-              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} icon={Factory} isModuleEnabled={isModuleEnabled} />
+              <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} icon={Factory} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "production"} onToggle={() => handleGroupToggle("production")} />
             )}
             {canAccess("service") && (
-              <CollapsibleNavGroup label={t("serviceModule" as any)} items={serviceNav} currentPath={currentPath} t={t} icon={Wrench} isModuleEnabled={isModuleEnabled} />
+              <CollapsibleNavGroup label={t("serviceModule" as any)} items={serviceNav} currentPath={currentPath} t={t} icon={Wrench} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "service"} onToggle={() => handleGroupToggle("service")} />
             )}
             {canAccess("loyalty") && (
-              <CollapsibleNavGroup label={t("loyaltyModule" as any)} items={loyaltyNav} currentPath={currentPath} t={t} icon={Gift} isModuleEnabled={isModuleEnabled} />
+              <CollapsibleNavGroup label={t("loyaltyModule" as any)} items={loyaltyNav} currentPath={currentPath} t={t} icon={Gift} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "loyalty"} onToggle={() => handleGroupToggle("loyalty")} />
             )}
             {canAccess("accounting") && (
-              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} icon={Calculator} isModuleEnabled={isModuleEnabled} />
+              <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} icon={Calculator} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "accounting"} onToggle={() => handleGroupToggle("accounting")} />
             )}
             {canAccess("assets") && (
-              <CollapsibleNavGroup label={t("assetsModule" as any)} items={assetsNav} currentPath={currentPath} t={t} icon={Building2} isModuleEnabled={isModuleEnabled} />
+              <CollapsibleNavGroup label={t("assetsModule" as any)} items={assetsNav} currentPath={currentPath} t={t} icon={Building2} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "assets"} onToggle={() => handleGroupToggle("assets")} />
             )}
             {canAccess("hr") && (
-              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} icon={UserCheck} isModuleEnabled={isModuleEnabled} />
+              <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} icon={UserCheck} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "hr"} onToggle={() => handleGroupToggle("hr")} />
             )}
             {canAccess("documents") && (
-              <CollapsibleNavGroup label={t("documentsAndDrive")} items={documentsNav} currentPath={currentPath} t={t} icon={FolderOpen} isModuleEnabled={isModuleEnabled} />
+              <CollapsibleNavGroup label={t("documentsAndDrive")} items={documentsNav} currentPath={currentPath} t={t} icon={FolderOpen} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "documents"} onToggle={() => handleGroupToggle("documents")} />
             )}
             {canAccess("analytics") && (
-              <CollapsibleNavGroup label={t("analytics")} items={analyticsNav} currentPath={currentPath} t={t} icon={BarChart3} isModuleEnabled={isModuleEnabled} />
+              <CollapsibleNavGroup label={t("analytics")} items={analyticsNav} currentPath={currentPath} t={t} icon={BarChart3} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "analytics"} onToggle={() => handleGroupToggle("analytics")} />
             )}
           </SidebarContent>
 
@@ -558,7 +616,7 @@ export default function TenantLayout() {
             <SidebarFooter className="border-t border-sidebar-border p-0">
               <SidebarGroup className="py-0 flex flex-col-reverse">
                 <Collapsible defaultOpen={settingsNav.some((item) => currentPath.startsWith(item.url))}>
-                  <CollapsibleContent className="max-h-[40vh] overflow-y-auto bg-sidebar-accent/30 rounded-md mx-1 mb-1">
+                  <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up max-h-[40vh] overflow-y-auto bg-sidebar-accent/30 rounded-md mx-1 mb-1">
                     <SidebarGroupContent>
                       <SidebarMenu>
                         {settingsNav.filter((item) => {
@@ -566,9 +624,6 @@ export default function TenantLayout() {
                           if (item.url === "/settings/users") return canAccess("settings-users");
                           if (item.url === "/settings/role-permissions") return canAccess("settings-role-permissions");
                           if (item.url === "/settings/approvals") return canAccess("settings-approvals");
-                          if (item.url === "/settings/business-rules") return canAccess("settings-business-rules");
-                          if (item.url === "/settings/tax-rates") return canAccess("settings-tax-rates");
-                          if (item.url === "/settings/currencies") return canAccess("settings-currencies");
                           if (item.url === "/settings/audit-log") return canAccess("settings-audit-log");
                           if (item.url === "/settings/events") return canAccess("settings-events");
                           if (item.url === "/settings/integrations") return canAccess("settings-integrations");
