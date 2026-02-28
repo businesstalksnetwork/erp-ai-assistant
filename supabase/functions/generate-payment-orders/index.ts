@@ -16,15 +16,15 @@ function calcModel97(reference: string): string {
   return `97 ${String(ctrl).padStart(2, "0")}${digits}`;
 }
 
-/** Serbian treasury accounts for tax/contribution payments */
-const TREASURY_ACCOUNTS: Record<string, { account: string; purpose: string; model: string }> = {
-  pit: { account: "840-711111843-22", purpose: "Porez na zarade", model: "97" },
-  pio_employee: { account: "840-742221843-57", purpose: "PIO zaposleni", model: "97" },
-  pio_employer: { account: "840-742222843-64", purpose: "PIO poslodavac", model: "97" },
-  health_employee: { account: "840-742321843-81", purpose: "Zdravstveno zaposleni", model: "97" },
-  health_employer: { account: "840-742322843-88", purpose: "Zdravstveno poslodavac", model: "97" },
-  unemployment: { account: "840-742421843-08", purpose: "Nezaposlenost", model: "97" },
-  municipal_tax: { account: "840-711147843-13", purpose: "Prirez na porez na zarade", model: "97" },
+/** Serbian treasury accounts — consolidated account 840-4848-37 per Pravilnik (Sl. gl. RS 20/2024) */
+const TREASURY_ACCOUNTS: Record<string, { account: string; purpose: string; model: string; sifraPlacanja: string }> = {
+  pit: { account: "840-4848-37", purpose: "Porez na zarade", model: "97", sifraPlacanja: "254" },
+  pio_employee: { account: "840-4848-37", purpose: "PIO zaposleni", model: "97", sifraPlacanja: "254" },
+  pio_employer: { account: "840-4848-37", purpose: "PIO poslodavac", model: "97", sifraPlacanja: "254" },
+  health_employee: { account: "840-4848-37", purpose: "Zdravstveno zaposleni", model: "97", sifraPlacanja: "254" },
+  health_employer: { account: "840-4848-37", purpose: "Zdravstveno poslodavac", model: "97", sifraPlacanja: "254" },
+  unemployment: { account: "840-4848-37", purpose: "Nezaposlenost", model: "97", sifraPlacanja: "254" },
+  municipal_tax: { account: "840-4848-37", purpose: "Prirez na porez na zarade", model: "97", sifraPlacanja: "254" },
 };
 
 Deno.serve(async (req) => {
@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
     for (const [key, info] of Object.entries(TREASURY_ACCOUNTS)) {
       const amt = totals[key] || 0;
       if (amt <= 0) continue;
-      rows.push(`${idx},"${senderAccount}","${senderName}","${info.account}","Republika Srbija - ${info.purpose}",${amt.toFixed(2)},253,${info.model},,${reference},"${info.purpose} ${run.period_month}/${run.period_year}"`);
+      rows.push(`${idx},"${senderAccount}","${senderName}","${info.account}","Uprava za trezor",${amt.toFixed(2)},${info.sifraPlacanja},${info.model},,${reference},"${info.purpose} ${run.period_month}/${run.period_year}"`);
       idx++;
     }
 

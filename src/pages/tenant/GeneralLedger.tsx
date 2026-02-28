@@ -24,6 +24,28 @@ export default function GeneralLedger() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [partnerFilter, setPartnerFilter] = useState<string>("all");
+  const [costCenterFilter, setCostCenterFilter] = useState<string>("all");
+
+  // Fetch partners for filter
+  const { data: partners = [] } = useQuery({
+    queryKey: ["partners-filter", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("partners").select("id, name").eq("tenant_id", tenantId!).eq("is_active", true).order("name").limit(500);
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  // Fetch cost centers for filter
+  const { data: costCenters = [] } = useQuery({
+    queryKey: ["cost-centers-filter", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase.from("cost_centers").select("id, code, name").eq("tenant_id", tenantId!).eq("is_active", true).order("code").limit(200);
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
 
   const { data: accounts = [] } = useChartOfAccounts<{ id: string; code: string; name: string; name_sr: string | null; account_type: string }>({
   });
@@ -168,6 +190,30 @@ export default function GeneralLedger() {
               <SelectItem value="all">{locale === "sr" ? "Svi konti" : t("allStatuses")}</SelectItem>
               {filteredAccounts.map(a => (
                 <SelectItem key={a.id} value={a.id}>{a.code} — {locale === "sr" ? (a.name_sr || a.name) : a.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-56">
+          <Label>{locale === "sr" ? "Partner" : "Partner"}</Label>
+          <Select value={partnerFilter} onValueChange={setPartnerFilter}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{locale === "sr" ? "Svi partneri" : "All partners"}</SelectItem>
+              {partners.map((p: any) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-48">
+          <Label>{locale === "sr" ? "Mesto troška" : "Cost Center"}</Label>
+          <Select value={costCenterFilter} onValueChange={setCostCenterFilter}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{locale === "sr" ? "Svi" : "All"}</SelectItem>
+              {costCenters.map((cc: any) => (
+                <SelectItem key={cc.id} value={cc.id}>{cc.code} — {cc.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
