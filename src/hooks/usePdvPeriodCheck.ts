@@ -7,8 +7,11 @@ const MONTH_NAMES_SR = [
 ];
 
 export function usePdvPeriodCheck(tenantId: string | null, vatDate: string) {
-  const periodMonth = vatDate ? new Date(vatDate).getMonth() + 1 : null;
-  const periodYear = vatDate ? new Date(vatDate).getFullYear() : null;
+  // Guard against invalid dates
+  const parsedDate = vatDate ? new Date(vatDate) : null;
+  const isValidDate = parsedDate && !isNaN(parsedDate.getTime());
+  const periodMonth = isValidDate ? parsedDate.getMonth() + 1 : null;
+  const periodYear = isValidDate ? parsedDate.getFullYear() : null;
   const periodName = periodMonth && periodYear
     ? `${MONTH_NAMES_SR[periodMonth - 1]} ${periodYear}`
     : "";
@@ -16,17 +19,19 @@ export function usePdvPeriodCheck(tenantId: string | null, vatDate: string) {
   const { data: isLocked } = useQuery({
     queryKey: ["pdv-period-check", tenantId, periodYear, periodMonth],
     queryFn: async () => {
-      // pdv_periods uses start_date/end_date, not year/month columns
+      // pdv_periods uses start_date/end_date — check both monthly and quarterly periods
       const { data } = await supabase
         .from("pdv_periods")
         .select("is_locked")
         .eq("tenant_id", tenantId!)
         .lte("start_date", vatDate)
         .gte("end_date", vatDate)
+        .order("start_date", { ascending: false })
+        .limit(1)
         .maybeSingle();
       return !!data?.is_locked;
     },
-    enabled: !!tenantId && !!vatDate && !!periodMonth && !!periodYear,
+    enabled: !!tenantId && isValidDate && !!periodMonth && !!periodYear,
     staleTime: 60_000,
   });
 
