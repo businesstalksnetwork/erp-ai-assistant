@@ -19,6 +19,8 @@ interface PartnerRisk {
   totalExposure: number;
   badPayerScore: number;
   riskLevel: "low" | "medium" | "high" | "critical";
+  creditLimitRec: number;
+  paymentBehavior: "early" | "on-time" | "late" | "very-late";
 }
 
 export default function CustomerRiskScoring() {
@@ -96,6 +98,18 @@ export default function CustomerRiskScoring() {
         else if (score > 50) riskLevel = "high";
         else if (score > 30) riskLevel = "medium";
 
+        // Credit limit recommendation: based on avg monthly billing * risk multiplier
+        const avgMonthlyBilling = stats.totalInvoices > 0 ? exposure / Math.max(1, stats.totalInvoices / 12) : 0;
+        const riskMultiplier = riskLevel === "critical" ? 0.5 : riskLevel === "high" ? 1 : riskLevel === "medium" ? 1.5 : 2;
+        const creditLimitRec = Math.round(avgMonthlyBilling * riskMultiplier);
+
+        // Payment behavior classification
+        let paymentBehavior: PartnerRisk["paymentBehavior"] = "on-time";
+        if (avgDays <= 15) paymentBehavior = "early";
+        else if (avgDays <= 30) paymentBehavior = "on-time";
+        else if (avgDays <= 60) paymentBehavior = "late";
+        else paymentBehavior = "very-late";
+
         if (stats.totalInvoices > 0) {
           risks.push({
             partnerName: stats.name,
@@ -104,6 +118,8 @@ export default function CustomerRiskScoring() {
             totalExposure: Math.round(exposure),
             badPayerScore: score,
             riskLevel,
+            creditLimitRec,
+            paymentBehavior,
           });
         }
       }
@@ -178,6 +194,8 @@ export default function CustomerRiskScoring() {
                 <TableHead className="text-right">{t("Avg Days", "Prosečno dana")}</TableHead>
                 <TableHead className="text-right">{t("Overdue %", "Kašnjenje %")}</TableHead>
                 <TableHead className="text-right">{t("Exposure", "Izloženost")}</TableHead>
+                <TableHead className="text-right">{t("Credit Limit", "Kreditni limit")}</TableHead>
+                <TableHead>{t("Payment", "Plaćanje")}</TableHead>
                 <TableHead className="text-right">{t("Score", "Skor")}</TableHead>
                 <TableHead>{t("Risk", "Rizik")}</TableHead>
               </TableRow>
@@ -189,6 +207,12 @@ export default function CustomerRiskScoring() {
                   <TableCell className="text-right">{r.avgDaysToPay}</TableCell>
                   <TableCell className="text-right">{r.overdueRate}%</TableCell>
                   <TableCell className="text-right">{fmtNum(r.totalExposure)}</TableCell>
+                  <TableCell className="text-right">{fmtNum(r.creditLimitRec)}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {{ early: "⚡ Early", "on-time": "✓ On-time", late: "⏰ Late", "very-late": "🔴 Very Late" }[r.paymentBehavior]}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right font-bold">{r.badPayerScore}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={riskColors[r.riskLevel]}>
