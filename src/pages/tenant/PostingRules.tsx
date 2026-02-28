@@ -135,7 +135,7 @@ export default function PostingRules() {
 
   const deleteRuleMutation = useMutation({
     mutationFn: async (ruleId: string) => {
-      const { error } = await supabase.from("posting_rules").delete().eq("id", ruleId);
+      const { error } = await supabase.from("posting_rules").delete().eq("id", ruleId).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -198,7 +198,7 @@ export default function PostingRules() {
 
   const deleteMappingMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("account_mappings").delete().eq("id", id);
+      const { error } = await supabase.from("account_mappings").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {

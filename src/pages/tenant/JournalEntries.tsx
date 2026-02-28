@@ -188,7 +188,7 @@ export default function JournalEntries() {
     mutationFn: async (id: string) => {
       const entry = entries.find(e => e.id === id);
       if (entry?.status === "posted") throw new Error(t("cannotDeletePosted"));
-      const { error } = await supabase.from("journal_entries").delete().eq("id", id);
+      const { error } = await supabase.from("journal_entries").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["journal-entries"] }); toast({ title: t("success") }); },

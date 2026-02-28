@@ -134,7 +134,7 @@ export default function NonEmploymentIncome() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("non_employment_income").delete().eq("id", id);
+      const { error } = await supabase.from("non_employment_income").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {

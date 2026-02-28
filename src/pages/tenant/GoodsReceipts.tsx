@@ -198,7 +198,7 @@ export default function GoodsReceipts() {
             context: {},
             fallbackLines: [
               { accountCode: "1200", debit: totalValue, credit: 0, description: `Inventory - GRN ${f.receipt_number}`, sortOrder: 0 },
-              { accountCode: "2100", debit: 0, credit: totalValue, description: `AP/GRNI - GRN ${f.receipt_number}`, sortOrder: 1 },
+              { accountCode: "2200", debit: 0, credit: totalValue, description: `AP/GRNI - GRN ${f.receipt_number}`, sortOrder: 1 },
             ],
           });
           toast.success(t("grnJournalCreated"));

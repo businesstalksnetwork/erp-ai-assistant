@@ -120,7 +120,7 @@ export default function SalesOrderDetail() {
 
   const deleteLineMut = useMutation({
     mutationFn: async (lineId: string) => {
-      const { error } = await supabase.from("sales_order_lines").delete().eq("id", lineId);
+      const { error } = await supabase.from("sales_order_lines").delete().eq("id", lineId).eq("tenant_id", tenantId!);
       if (error) throw error;
       await recalcTotals();
     },
