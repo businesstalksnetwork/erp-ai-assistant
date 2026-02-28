@@ -11,9 +11,9 @@ const PAYMENT_TYPE_MAP: Record<string, number> = {
   other: 0, cash: 1, card: 2, check: 3, wire_transfer: 4, voucher: 5, mobile: 6,
 };
 
-// Default tax label mapping (used as fallback if device has none)
+// Default tax label mapping per Pravilnik: A=20%, B=10% reduced, G=0% exempt
 const DEFAULT_TAX_LABEL_MAP: Record<string, string> = {
-  "20": "A", "10": "G", "0": "E",
+  "20": "A", "10": "B", "0": "G",
 };
 
 function resolveTaxLabel(taxRate: number, deviceMap: Record<string, string> | null): string {
