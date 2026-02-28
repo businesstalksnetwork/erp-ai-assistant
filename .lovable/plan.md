@@ -1,43 +1,44 @@
 
-# V3.1 Audit — All 36 CR Bug Fixes: COMPLETED
 
-## Status: ✅ ALL BATCHES COMPLETE
+# Next Bug Fixes — Remaining Issues
 
-### Batch 1: Critical Security ✅
-- CR-06/CR-07: SEF webhook fail-closed auth + removed UUID enumeration
-- CR-14: NBS cron auth fail-closed
-- CR-13/CR-16: CROSO switched to service role key + .maybeSingle()
-- CR-24: Delete mutations scoped by tenant_id
-- CR-17: generate-payment-orders JWT auth added
+## 1. Supplier AP account 2100 → 2200 in Returns.tsx and GoodsReceipts.tsx
+The CR-22/CR-29 fix (changing supplier payment account from `2100` to `2200`) was applied to `SupplierInvoices.tsx` but two other files still use the wrong account:
 
-### Batch 2: Data Integrity ✅
-- CR-08/CR-09: Production waste operator precedence fixed
-- CR-11/CR-12: TaxLossCarryforward local state + debounced saves
-- CR-14: DeferredTax Math.abs() removed, signed DTA/DTL preserved
-- CR-13: IntercompanyEliminations GL posting path added
-- CR-23/CR-28: ThinCapitalization stale closure fixed + equity=0 handled
-- CR-25/CR-26: VatProRata stale closure + queryKey fixed
-- CR-05: compliance-checker tenant_id_param added to all 7 RPC calls
-- CR-04: Payroll RPC duplicate employer columns fixed
+- **`src/pages/tenant/Returns.tsx` line 247**: Supplier return fallback uses `accountCode: "2100"` → change to `"2200"`
+- **`src/pages/tenant/GoodsReceipts.tsx` line 201**: Goods receipt AP/GRNI fallback uses `accountCode: "2100"` → change to `"2200"`
 
-### Batch 3: High Priority ✅
-- CR-10: Serbian law article references corrected
-- CR-21: MultiPeriodReports Class 2 moved to liabilities
-- CR-22/CR-29: Supplier payment account 2100→2200
-- CR-34: CapitalGoods pro-rata inputs bounded 0-1
-- CR-36: foreignPerDiemRates regulation year updated to 2024
-- CR-35: Duplicate MobileFilterBar removed from Invoices
-- CR-31/CR-32: CROSO XML namespace + missing tags fixed
-- CR-33: generate-apr-xml builder chaining bug fixed
+## 2. Delete mutations missing tenant_id scoping (top 15 high-risk tables)
+Over 40 delete mutations use `.delete().eq("id", id)` without `.eq("tenant_id", tenantId!)`. While RLS provides a safety net, defense-in-depth requires the client-side filter. Priority files:
 
-### Batch 4: DB Migrations ✅
-- CR-01: execute_readonly_query hardened (system schema block, UNION block, LIMIT 100)
-- CR-02: Invoice double-post trigger blocks NULL-clearing
-- CR-15c: 6 RLS policies optimized to use get_user_tenant_ids()
-- CR-28b: thin_capitalization debt_equity_ratio returns NULL when equity=0
-- CR-30: UUID validation added for vatAccount.id in compliance-checker
+- `SalesOrderDetail.tsx` — `sales_order_lines`
+- `PostingRules.tsx` — `posting_rules`, `account_mappings`
+- `Warehouses.tsx` — `warehouses`
+- `LegalEntities.tsx` — `legal_entities`
+- `Products.tsx` — `products`
+- `Holidays.tsx` — `holidays`
+- `PayrollParameters.tsx` — `payroll_parameters`
+- `JournalEntries.tsx` — `journal_entries`
+- `Deferrals.tsx` — `deferrals`
+- `RecurringJournals.tsx` — `recurring_journals`
+- `ApprovalWorkflows.tsx` — `approval_workflows`
+- `NonEmploymentIncome.tsx` — `non_employment_income`
+- `AssetCategories.tsx` — `asset_categories`
+- `FiscalDevices.tsx` — `fiscal_devices`
+- `LeavePolicies.tsx` — `leave_policies`
 
-### Edge Functions Deployed ✅
-All 7 modified edge functions redeployed:
-sef-webhook, nbs-daily-cron, generate-croso-xml, generate-apr-xml,
-generate-payment-orders, sef-send-invoice, compliance-checker
+Each gets `.eq("tenant_id", tenantId!)` added to the delete chain.
+
+## 3. Returns.tsx — warehouse lookup from source invoice
+The TODO at line 172 falls back to `warehouses[0]` instead of looking up the source invoice/sales order's warehouse. Fix:
+- Query the `return_cases` record by `caseId` to get `source_id`
+- If `source_type === "invoice"`, look up `invoices.warehouse_id`
+- If `source_type === "sales_order"`, look up `sales_orders.warehouse_id`
+- Fall back to `warehouses[0]` only if no match
+
+## Summary
+- **2 accounting fixes** (AP account code)
+- **15 security hardening fixes** (delete tenant scoping)
+- **1 logic fix** (warehouse lookup in returns)
+- **~17 files modified**
+
