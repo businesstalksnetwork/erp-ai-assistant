@@ -1,62 +1,89 @@
 
 
-## Phase 1: Security & Data Integrity — 7 Items
+## Phase 2: Serbian Legal Compliance — 9 Items
 
-### Confirmed Findings
+### Audit Results
 
-| # | Bug | Status |
-|---|-----|--------|
-| 1.1 | RLS policies on `service_contracts` + 5 loyalty tables use `tenant_members` directly instead of `get_user_tenant_ids()` (which filters `status='active'`) | Confirmed — 6 policies need update |
-| 1.2 | Two triggers named `trg_check_journal_balance` — one on `journal_entries` (line 35, migration `20260215224033`), one on `journal_lines` (line 39, migration `20260228011858`) | Confirmed — collision on fresh install |
-| 1.3 | No DELETE policy on `notifications` — `deleteNotification()` and `clearAllRead()` silently fail | Confirmed — `useNotifications.ts` lines 121-148 call `.delete()` |
-| 1.4 | `sef-send-invoice` fetches invoice with `.eq('id', invoiceId)` only — no `.eq('company_id', companyId)` verification | Confirmed — line 249 |
-| 1.5 | POS stock adjustments in client-side loop — `consume_fifo_layers` + `adjust_inventory_stock` called per item, partial failures create phantom stock | Confirmed — `PosTerminal.tsx` lines 471-497 |
-| 1.6 | `redeem_loyalty_points` uses `SELECT * INTO` without `FOR UPDATE` — concurrent redemptions can overdraw balance | Confirmed — migration line 135 |
-| 1.7 | `execute_readonly_query` has no row limit, 10s timeout (too generous), and no `LIMIT` enforcement | Confirmed — migration `20260223165215` |
+| # | Finding | Status |
+|---|---------|--------|
+| 2.1 | `BilansUspeha.tsx` includes Class 8 ("Vanredni rashodi") — actually "Vanbilansna evidencija" (off-balance sheet), must be removed from P&L. Revenue fallback section is "50" instead of "60" | Confirmed — lines 23-28 and line 93 |
+| 2.2 | AOP position mapping for APR filing | Already exists — `aop_positions` table + `AopPositions.tsx` page + `get_aop_report` RPC. Needs seeding with official APR data and XML export wiring |
+| 2.3 | ZPDP 5-group tax depreciation | Partially exists — `fixed_assets` has `tax_group`, `tax_depreciation_rate`, `tax_depreciation_method` columns. Missing: UI for ZPDP group selection, declining-balance calculation per group, tax vs. accounting difference report |
+| 2.4 | Full PB-1 (Poreski Bilans) form (~70 line items) | Does not exist — no page, no table, no RPC |
+| 2.5 | SEF VAT support — currently hardcoded to SS (paušalci, 0% VAT) | Confirmed — `sef-send-invoice/index.ts` lines 76-90 hardcode `SS` category and `taxAmount = 0` |
+| 2.6 | PPP-PD hardcoded non-taxable amount 25000 | Confirmed — `generate-pppd-xml/index.ts` line 105 |
+| 2.7 | PP-PDV XML namespace wrong | Confirmed — `popdvAggregation.ts` line 342 uses `http://www.purs.gov.rs/pppdv` |
+| 2.8 | Document retention tracking | Already exists — `archive_book` table has `retention_period`/`retention_years`, `Archiving.tsx` and `ArchiveBook.tsx` pages exist. Missing: deletion blocking enforcement |
+| 2.9 | Kontni Okvir class label inaccuracies | Confirmed — `ImportChartOfAccounts.tsx` lines 44-55 have wrong labels for classes 1, 2, 4 |
 
 ### Implementation Plan
 
-#### 1.1: Fix RLS policies to use `get_user_tenant_ids()`
-- Migration: drop + recreate policies on `service_contracts`, `loyalty_programs`, `loyalty_members`, `loyalty_transactions`, `loyalty_rewards`, `loyalty_redemptions`
-- Replace `USING (tenant_id IN (SELECT tm.tenant_id FROM tenant_members tm WHERE tm.user_id = auth.uid()))` with `USING (tenant_id IN (SELECT get_user_tenant_ids(auth.uid())))`
+#### 2.1: Fix BilansUspeha Class 8 + revenue fallback
+- Remove Class 8 from `ACCOUNT_CLASSES` (line 27)
+- Fix revenue section fallback from `"50"` to `"60"` (line 93)
+- Fix expense section fallback from `"60"` to `"50"` (line 100)
 
-#### 1.2: Fix trigger naming collision
-- Migration: `DROP TRIGGER IF EXISTS trg_check_journal_balance ON journal_entries` (the old one)
-- Rename to `trg_check_journal_entry_status` or just drop it since the `journal_lines` version is the active constraint trigger
+#### 2.2: Seed AOP positions + wire APR XML export
+- Skip — infrastructure already exists. Create a migration to seed official APR AOP positions (Obrazac 1 and Obrazac 2) if the table is empty
+- Wire `generate-apr-xml` edge function to use `get_aop_report` RPC data
 
-#### 1.3: Add notifications DELETE policy
-- Migration: `CREATE POLICY "Users can delete own notifications" ON notifications FOR DELETE USING (auth.uid() = user_id)`
+#### 2.3: ZPDP tax depreciation UI + calculation
+- Add ZPDP group selector (I-V) to `AssetDepreciation.tsx` or asset detail page
+- Migration: create `calculate_tax_depreciation` RPC that applies declining-balance rates per ZPDP group
+- Add tax vs. accounting depreciation comparison view
 
-#### 1.4: Fix SEF invoice company verification
-- In `sef-send-invoice/index.ts` line 249: add `.eq('tenant_id', company.tenant_id)` to the invoice fetch query to verify invoice belongs to the same tenant/company
+#### 2.4: PB-1 Poreski Bilans form
+- Migration: create `pb1_line_items` reference table (~70 positions) and `pb1_submissions` table for saved forms
+- New page `PoreskiBilans.tsx` at `/accounting/reports/poreski-bilans`
+- Auto-populate from GL data + tax depreciation adjustments
+- Add route, nav entry, translations
 
-#### 1.5: Create `complete_pos_transaction` RPC
-- Migration: new function `complete_pos_transaction(p_tenant_id, p_session_id, p_items JSONB, p_payment_method, p_warehouse_id)` that atomically:
-  - Inserts POS transaction
-  - Loops items with `SELECT ... FOR UPDATE` on inventory
-  - Calls `consume_fifo_layers` and `adjust_inventory_stock` inside the same transaction
-  - Returns transaction data as JSONB
-- Code: refactor `PosTerminal.tsx` `completeSale` to call the new RPC instead of the client-side loop
+#### 2.5: SEF VAT category support
+- Refactor `generateUBLXml` in `sef-send-invoice/index.ts` to detect VAT registration from company profile
+- Map invoice tax rates to UBL categories: S (10%, 20%), AE (reverse charge), Z (zero-rated), E (exempt), O (out of scope), SS (paušalci)
+- Support credit note (381) and debit note (383) type codes
 
-#### 1.6: Fix loyalty points race condition
-- Migration: recreate `redeem_loyalty_points` with `SELECT * INTO v_member FROM loyalty_members WHERE id = p_member_id AND tenant_id = p_tenant_id FOR UPDATE`
+#### 2.6: Fix PPP-PD non-taxable amount
+- In `generate-pppd-xml/index.ts`: query `payroll_parameters` table for the period's non-taxable amount instead of hardcoded 25000
+- Add `NajnizaOsnovica` and `NajvisaOsnovica` XML tags
 
-#### 1.7: Harden `execute_readonly_query`
-- Migration: recreate function with:
-  - `statement_timeout` reduced to `5s`
-  - Force `LIMIT 100` if no LIMIT clause present
-  - Add `pg_catalog` to blocked schemas
+#### 2.7: Fix PP-PDV XML namespace
+- In `popdvAggregation.ts` line 342: change `http://www.purs.gov.rs/pppdv` to `urn:poreskauprava.gov.rs:pppdv`
+
+#### 2.8: Document retention deletion blocking
+- Skip — retention tracking already exists. Add a database trigger `trg_block_retention_delete` on `archive_book` that prevents deletion if `retention_years` hasn't expired
+
+#### 2.9: Fix Kontni Okvir class labels
+- In `ImportChartOfAccounts.tsx`: fix CLASS_NAMES:
+  - Class 1: "Zalihe" (not "Zalihe i stalna sredstva")
+  - Class 2: "Kratkoročna potraživanja, plasmani i gotovina" (not "Kratkoročne obaveze i PVR")
+  - Class 4: "Dugoročne i kratkoročne obaveze" (not "Kapital i dugoročne obaveze")
+
+### Scope for This Implementation
+
+Given the size of Phase 2, I recommend splitting into two batches:
+
+**Batch A (quick fixes — items 2.1, 2.6, 2.7, 2.8, 2.9):** Code fixes and small migrations — can be done in one pass.
+
+**Batch B (new features — items 2.2, 2.3, 2.4, 2.5):** AOP seeding, ZPDP depreciation, PB-1 form, SEF VAT — each is substantial and needs careful implementation.
 
 ### Files Modified
 
 | File | Change |
 |------|--------|
-| New migration SQL | Items 1.1–1.3, 1.5–1.7 (RLS, triggers, RPC, function hardening) |
-| `supabase/functions/sef-send-invoice/index.ts` | Item 1.4 — add tenant/company verification to invoice fetch |
-| `src/pages/tenant/PosTerminal.tsx` | Item 1.5 — replace client-side stock loop with `complete_pos_transaction` RPC call |
+| `src/pages/tenant/BilansUspeha.tsx` | 2.1 — remove Class 8, fix section fallbacks |
+| `src/components/accounting/ImportChartOfAccounts.tsx` | 2.9 — fix CLASS_NAMES labels |
+| `src/lib/popdvAggregation.ts` | 2.7 — fix XML namespace |
+| `supabase/functions/generate-pppd-xml/index.ts` | 2.6 — dynamic non-taxable amount |
+| New migration SQL | 2.8 — retention delete trigger |
+| New migration SQL | 2.2 — AOP seed data |
+| New migration SQL | 2.3 — tax depreciation RPC |
+| New migration SQL + new page | 2.4 — PB-1 tables + `PoreskiBilans.tsx` |
+| `supabase/functions/sef-send-invoice/index.ts` | 2.5 — VAT category support |
+| Routes, nav, translations | 2.4 — PB-1 route + nav entry |
 
 ### Execution Order
-1. Single migration covering items 1.1, 1.2, 1.3, 1.5, 1.6, 1.7
-2. `sef-send-invoice/index.ts` fix (item 1.4)
-3. `PosTerminal.tsx` refactor to use new RPC (item 1.5)
+1. Batch A migration (retention trigger) + code fixes (2.1, 2.7, 2.9)
+2. Edge function fixes (2.6 PPP-PD, 2.7 namespace)
+3. Batch B: AOP seeding (2.2), ZPDP depreciation (2.3), PB-1 form (2.4), SEF VAT (2.5)
 
