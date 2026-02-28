@@ -55,7 +55,7 @@ export default function WmsPicking() {
   const { data: pickTasks = [] } = useQuery({
     queryKey: ["wms-pick-tasks", tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("wms_tasks").select("*, products(name), from_bin:wms_bins!wms_tasks_from_bin_id_fkey(code), to_bin:wms_bins!wms_tasks_to_bin_id_fkey(code)").eq("tenant_id", tenantId!).eq("task_type", "pick").order("priority").order("created_at");
+      const { data, error } = await supabase.from("wms_tasks").select("*, products(name), from_bin:wms_bins!wms_tasks_from_bin_id_fkey(code, sort_order), to_bin:wms_bins!wms_tasks_to_bin_id_fkey(code)").eq("tenant_id", tenantId!).eq("task_type", "pick").order("pick_sequence", { ascending: true, nullsFirst: false }).order("priority").order("created_at");
       if (error) throw error;
       return data;
     },
@@ -99,19 +99,40 @@ export default function WmsPicking() {
       }));
       await supabase.from("wms_pick_wave_orders").insert(orderLinks);
 
-      // Generate pick tasks from order lines
+      // Collect all pick tasks first
+      const allTasks: any[] = [];
       for (const soId of selectedOrders) {
         const { data: soLines } = await supabase.from("sales_order_lines").select("product_id, quantity").eq("sales_order_id", soId);
         if (!soLines) continue;
         for (const line of soLines) {
           const { data: stock } = await supabase.from("wms_bin_stock").select("bin_id, quantity").eq("product_id", line.product_id).eq("warehouse_id", waveWarehouse).eq("tenant_id", tenantId!).eq("status", "available").order("quantity", { ascending: false }).limit(1);
           const fromBinId = stock?.[0]?.bin_id;
-          await supabase.from("wms_tasks").insert({
-            tenant_id: tenantId!, warehouse_id: waveWarehouse, task_type: "pick",
-            status: "pending", priority: 3, product_id: line.product_id,
+          allTasks.push({
+            tenant_id: tenantId!, warehouse_id: waveWarehouse, task_type: "pick" as const,
+            status: "pending" as const, priority: 3, product_id: line.product_id,
             quantity: line.quantity, from_bin_id: fromBinId || null, created_by: user?.id,
           });
         }
+      }
+
+      // Assign pick_sequence by bin sort_order (nearest-neighbor within zones)
+      if (allTasks.length > 0) {
+        const binIds = [...new Set(allTasks.map(t => t.from_bin_id).filter(Boolean))];
+        const { data: binInfo } = await supabase.from("wms_bins").select("id, zone_id, sort_order").in("id", binIds);
+        const binMap: Record<string, { zone_id: string; sort_order: number }> = {};
+        (binInfo || []).forEach((b: any) => { binMap[b.id] = { zone_id: b.zone_id, sort_order: b.sort_order ?? 9999 }; });
+
+        // Sort tasks by zone then sort_order for optimal pick path
+        allTasks.sort((a, b) => {
+          const binA = binMap[a.from_bin_id] || { zone_id: "", sort_order: 9999 };
+          const binB = binMap[b.from_bin_id] || { zone_id: "", sort_order: 9999 };
+          if (binA.zone_id !== binB.zone_id) return binA.zone_id.localeCompare(binB.zone_id);
+          return binA.sort_order - binB.sort_order;
+        });
+
+        // Assign pick_sequence
+        const tasksWithSequence = allTasks.map((t, i) => ({ ...t, pick_sequence: i + 1 }));
+        await supabase.from("wms_tasks").insert(tasksWithSequence);
       }
     },
     onSuccess: () => {
@@ -227,13 +248,14 @@ export default function WmsPicking() {
         <CardHeader><CardTitle>{t("activePickTasks")}</CardTitle></CardHeader>
         <CardContent>
           <Table>
-            <TableHeader><TableRow><TableHead>#</TableHead><TableHead>{t("product")}</TableHead><TableHead>{t("quantity")}</TableHead><TableHead>From Bin</TableHead><TableHead>{t("status")}</TableHead><TableHead className="w-24" /></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>#</TableHead><TableHead>{t("pickSequence")}</TableHead><TableHead>{t("product")}</TableHead><TableHead>{t("quantity")}</TableHead><TableHead>From Bin</TableHead><TableHead>{t("status")}</TableHead><TableHead className="w-24" /></TableRow></TableHeader>
             <TableBody>
               {pickTasks.filter((t: any) => t.status !== "cancelled").length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">{t("noResults")}</TableCell></TableRow>
               ) : pickTasks.filter((t: any) => t.status !== "cancelled").map((task: any) => (
                 <TableRow key={task.id}>
                   <TableCell className="font-mono text-xs">{task.task_number}</TableCell>
+                  <TableCell className="text-xs">{task.pick_sequence ?? "—"}</TableCell>
                   <TableCell>{task.products?.name || "—"}</TableCell>
                   <TableCell>{task.quantity}</TableCell>
                   <TableCell className="font-mono text-xs">{task.from_bin?.code || "—"}</TableCell>

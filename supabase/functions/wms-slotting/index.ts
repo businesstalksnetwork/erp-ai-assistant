@@ -52,7 +52,32 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // 1. Fetch ONLY active bins with available capacity (max_units > 0)
+    // 1. Refresh precomputed stats
+    await Promise.all([
+      supabase.rpc("refresh_wms_product_stats", { p_tenant_id: tenant_id, p_warehouse_id: warehouse_id }),
+      supabase.rpc("refresh_wms_affinity_pairs", { p_tenant_id: tenant_id, p_warehouse_id: warehouse_id }),
+    ]);
+
+    // 2. Fetch precomputed velocity from wms_product_stats
+    const { data: productStats } = await supabase
+      .from("wms_product_stats")
+      .select("product_id, picks_last_90d, velocity_score")
+      .eq("warehouse_id", warehouse_id)
+      .eq("tenant_id", tenant_id)
+      .gt("picks_last_90d", 0)
+      .order("velocity_score", { ascending: false })
+      .limit(50);
+
+    // 3. Fetch precomputed affinity from wms_affinity_pairs
+    const { data: affinityPairs } = await supabase
+      .from("wms_affinity_pairs")
+      .select("product_a_id, product_b_id, co_pick_count")
+      .eq("warehouse_id", warehouse_id)
+      .eq("tenant_id", tenant_id)
+      .order("co_pick_count", { ascending: false })
+      .limit(20);
+
+    // 4. Fetch active bins with available capacity
     const { data: bins } = await supabase
       .from("wms_bins")
       .select("id, code, bin_type, max_volume, max_weight, max_units, level, accessibility_score, zone_id, aisle_id, sort_order, wms_zones(name, zone_type, pick_method)")
@@ -63,7 +88,7 @@ serve(async (req) => {
       .order("accessibility_score", { ascending: false })
       .limit(200);
 
-    // 2. Fetch current bin stock
+    // 5. Fetch current bin stock
     const { data: binStock } = await supabase
       .from("wms_bin_stock")
       .select("bin_id, product_id, quantity, received_at")
@@ -71,58 +96,9 @@ serve(async (req) => {
       .eq("tenant_id", tenant_id)
       .eq("status", "available");
 
-    // 3. Fetch pick history (last 90 days) - limit to 5000 rows to prevent slow queries
-    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: pickHistory } = await supabase
-      .from("wms_tasks")
-      .select("product_id, from_bin_id, completed_at, order_reference")
-      .eq("warehouse_id", warehouse_id)
-      .eq("tenant_id", tenant_id)
-      .eq("task_type", "pick")
-      .eq("status", "completed")
-      .gte("completed_at", ninetyDaysAgo)
-      .order("completed_at", { ascending: false })
-      .limit(5000);
-
-    // 4. Calculate velocity scores (picks per week per SKU)
-    const velocityMap: Record<string, number> = {};
-    const orderProducts: Record<string, Set<string>> = {};
-
-    for (const pick of pickHistory || []) {
-      if (!pick.product_id) continue;
-      velocityMap[pick.product_id] = (velocityMap[pick.product_id] || 0) + 1;
-
-      if (pick.order_reference) {
-        if (!orderProducts[pick.order_reference]) {
-          orderProducts[pick.order_reference] = new Set();
-        }
-        orderProducts[pick.order_reference].add(pick.product_id);
-      }
-    }
-
-    const weeksInRange = 13;
-    const velocityScores: Record<string, number> = {};
-    for (const [pid, count] of Object.entries(velocityMap)) {
-      velocityScores[pid] = Math.round((count / weeksInRange) * 100) / 100;
-    }
-
-    // 5. Calculate co-occurrence affinity
-    const affinityMap: Record<string, Record<string, number>> = {};
-    for (const products of Object.values(orderProducts)) {
-      const arr = Array.from(products);
-      for (let i = 0; i < arr.length; i++) {
-        for (let j = i + 1; j < arr.length; j++) {
-          if (!affinityMap[arr[i]]) affinityMap[arr[i]] = {};
-          if (!affinityMap[arr[j]]) affinityMap[arr[j]] = {};
-          affinityMap[arr[i]][arr[j]] = (affinityMap[arr[i]][arr[j]] || 0) + 1;
-          affinityMap[arr[j]][arr[i]] = (affinityMap[arr[j]][arr[i]] || 0) + 1;
-        }
-      }
-    }
-
     // 6. Build current placement + stock quantity maps
     const currentPlacement: Record<string, string[]> = {};
-    const binStockQty: Record<string, number> = {}; // bin_id -> total qty
+    const binStockQty: Record<string, number> = {};
     for (const bs of binStock || []) {
       if (!currentPlacement[bs.product_id]) currentPlacement[bs.product_id] = [];
       currentPlacement[bs.product_id].push(bs.bin_id);
@@ -137,7 +113,7 @@ serve(async (req) => {
       binLookup[bin.id] = { ...bin, current_qty: currentQty, available_units: availableUnits };
     }
 
-    // 8. Call AI - only include bins with available capacity in the prompt
+    // 8. Call AI
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(
@@ -148,26 +124,21 @@ serve(async (req) => {
 
     const optimizationWeights = weights || { travel: 0.5, space: 0.3, affinity: 0.2 };
 
-    const topSkus = Object.entries(velocityScores)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 50);
+    const topSkus = (productStats || []).map((ps: any) => ({
+      id: ps.product_id,
+      velocity: ps.velocity_score,
+      picks: ps.picks_last_90d,
+    }));
 
-    // Only include bins with available capacity in the prompt
     const binsWithCapacity = Object.values(binLookup)
       .filter((b: any) => b.available_units > 0)
       .sort((a: any, b: any) => b.accessibility_score - a.accessibility_score)
       .slice(0, 100);
 
     const binSummary = binsWithCapacity.map((b: any) => ({
-      id: b.id,
-      code: b.code,
-      zone: b.wms_zones?.name,
-      zone_type: b.wms_zones?.zone_type,
-      level: b.level,
-      accessibility: b.accessibility_score,
-      type: b.bin_type,
-      available_units: b.available_units,
-      max_units: b.max_units,
+      id: b.id, code: b.code, zone: b.wms_zones?.name, zone_type: b.wms_zones?.zone_type,
+      level: b.level, accessibility: b.accessibility_score, type: b.bin_type,
+      available_units: b.available_units, max_units: b.max_units,
     }));
 
     const prompt = `You are a warehouse slotting optimization AI. Analyze this data and recommend SKU-bin reassignments to minimize pick travel time.
@@ -180,16 +151,13 @@ IMPORTANT CONSTRAINTS:
 - Prefer bins with higher accessibility scores for high-velocity SKUs
 
 TOP SKUs BY VELOCITY (picks/week):
-${topSkus.map(([id, v]) => `${id}: ${v} picks/week, current bins: ${(currentPlacement[id] || []).join(", ") || "none"}`).join("\n")}
+${topSkus.map((s: any) => `${s.id}: ${s.velocity} picks/week (${s.picks} in 90d), current bins: ${(currentPlacement[s.id] || []).join(", ") || "none"}`).join("\n")}
 
 AVAILABLE BINS (with capacity):
 ${JSON.stringify(binSummary)}
 
 CO-OCCURRENCE (top pairs):
-${Object.entries(affinityMap).slice(0, 20).map(([pid, pairs]) => {
-  const topPair = Object.entries(pairs).sort(([, a], [, b]) => b - a)[0];
-  return topPair ? `${pid} <-> ${topPair[0]}: ${topPair[1]} co-picks` : "";
-}).filter(Boolean).join("\n")}
+${(affinityPairs || []).map((p: any) => `${p.product_a_id} <-> ${p.product_b_id}: ${p.co_pick_count} co-picks`).join("\n")}
 
 Return a JSON object with:
 {
@@ -201,6 +169,8 @@ Return a JSON object with:
 
 Use the tool to return your answer.`;
 
+    const MODEL = "google/gemini-3-flash-preview";
+
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -208,6 +178,7 @@ Use the tool to return your answer.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        model: MODEL,
         messages: [
           { role: "system", content: "You are a warehouse operations optimization AI. Always respond with actionable slotting recommendations. Respect bin capacity constraints." },
           { role: "user", content: prompt },
@@ -289,7 +260,6 @@ Use the tool to return your answer.`;
       for (const rec of result.recommendations) {
         const targetBin = binLookup[rec.recommended_bin];
         if (!targetBin) {
-          // If recommended_bin is a code, not an ID, try to find by code
           const binByCode = Object.values(binLookup).find((b: any) => b.code === rec.recommended_bin);
           if (binByCode && (binByCode as any).available_units > 0) {
             rec.recommended_bin = (binByCode as any).id;
@@ -319,7 +289,7 @@ Use the tool to return your answer.`;
         user_id: caller.id,
         action_type: "slotting_optimization",
         module: "wms",
-        model_version: "gemini-3-flash-preview",
+        model_version: MODEL,
         reasoning: `WMS slotting: ${result.recommendations?.length || 0} recommendations, ${result.estimated_improvement?.travel_reduction_pct || 0}% travel reduction`,
       });
     } catch (logErr) {
