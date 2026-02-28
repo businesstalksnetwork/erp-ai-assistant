@@ -16,6 +16,9 @@ import { ResponsiveTable, type ResponsiveColumn } from "@/components/shared/Resp
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
+const escapeXml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+
 interface PPPPORow {
   employee_id: string;
   name: string;
@@ -97,8 +100,8 @@ export default function PPPPO() {
   </PodaciOIsplatiocu>
   <PodaciOPrimaocima>
 ${items.map((r, i) => `    <Primalac RedniBroj="${i + 1}">
-      <JMBG>${r.jmbg}</JMBG>
-      <ImePrezime>${r.name}</ImePrezime>
+      <JMBG>${escapeXml(r.jmbg)}</JMBG>
+      <ImePrezime>${escapeXml(r.name)}</ImePrezime>
       <BrutoDohodak>${r.gross.toFixed(2)}</BrutoDohodak>
       <Porez>${r.tax.toFixed(2)}</Porez>
       <PIO>${r.pio.toFixed(2)}</PIO>

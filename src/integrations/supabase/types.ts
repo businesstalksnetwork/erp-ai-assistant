@@ -13489,12 +13489,14 @@ export type Database = {
       }
       payroll_parameters: {
         Row: {
+          annual_leave_daily_rate: number | null
           created_at: string
           effective_from: string
           effective_to: string | null
           gazette_reference: string | null
           health_employee_rate: number
           health_employer_rate: number
+          holiday_multiplier: number | null
           id: string
           max_contribution_base: number
           meal_allowance_daily: number | null
@@ -13507,19 +13509,23 @@ export type Database = {
           overtime_multiplier: number | null
           pio_employee_rate: number
           pio_employer_rate: number
+          sickness_rate_employer: number | null
           tax_rate: number
           tenant_id: string
           transport_allowance_monthly: number | null
           unemployment_employee_rate: number
+          unemployment_employer_rate: number | null
           updated_at: string
         }
         Insert: {
+          annual_leave_daily_rate?: number | null
           created_at?: string
           effective_from: string
           effective_to?: string | null
           gazette_reference?: string | null
           health_employee_rate?: number
           health_employer_rate?: number
+          holiday_multiplier?: number | null
           id?: string
           max_contribution_base?: number
           meal_allowance_daily?: number | null
@@ -13532,19 +13538,23 @@ export type Database = {
           overtime_multiplier?: number | null
           pio_employee_rate?: number
           pio_employer_rate?: number
+          sickness_rate_employer?: number | null
           tax_rate?: number
           tenant_id: string
           transport_allowance_monthly?: number | null
           unemployment_employee_rate?: number
+          unemployment_employer_rate?: number | null
           updated_at?: string
         }
         Update: {
+          annual_leave_daily_rate?: number | null
           created_at?: string
           effective_from?: string
           effective_to?: string | null
           gazette_reference?: string | null
           health_employee_rate?: number
           health_employer_rate?: number
+          holiday_multiplier?: number | null
           id?: string
           max_contribution_base?: number
           meal_allowance_daily?: number | null
@@ -13557,10 +13567,12 @@ export type Database = {
           overtime_multiplier?: number | null
           pio_employee_rate?: number
           pio_employer_rate?: number
+          sickness_rate_employer?: number | null
           tax_rate?: number
           tenant_id?: string
           transport_allowance_monthly?: number | null
           unemployment_employee_rate?: number
+          unemployment_employer_rate?: number | null
           updated_at?: string
         }
         Relationships: [

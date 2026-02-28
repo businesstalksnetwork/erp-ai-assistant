@@ -191,19 +191,29 @@ export default function InvoiceForm() {
 
   const defaultTaxRate = taxRates.find((r) => r.is_default) || taxRates[0];
 
-  // Generate invoice number for new invoices
+  // Generate invoice number from tenant_settings prefix/sequence
   useEffect(() => {
     if (!isEdit && tenantId) {
       const year = new Date().getFullYear();
-      supabase
-        .from("invoices")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .gte("invoice_date", `${year}-01-01`)
-        .then(({ count }) => {
-          const num = ((count ?? 0) + 1).toString().padStart(5, "0");
-          form.setValue("invoiceNumber", `INV-${year}-${num}`);
-        });
+      Promise.all([
+        supabase
+          .from("invoices")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .gte("invoice_date", `${year}-01-01`),
+        supabase
+          .from("tenant_settings")
+          .select("settings")
+          .eq("tenant_id", tenantId)
+          .maybeSingle(),
+      ]).then(([countRes, settingsRes]) => {
+        const s = (settingsRes.data?.settings as Record<string, any>) || {};
+        const prefix = (s.invoice_prefix as string) || "INV";
+        const configuredSeq = parseInt(String(s.invoice_next_seq || "1"), 10);
+        const seq = Math.max(configuredSeq, (countRes.count ?? 0) + 1);
+        const num = seq.toString().padStart(5, "0");
+        form.setValue("invoiceNumber", `${prefix}-${year}-${num}`);
+      });
     }
   }, [isEdit, tenantId, form]);
 

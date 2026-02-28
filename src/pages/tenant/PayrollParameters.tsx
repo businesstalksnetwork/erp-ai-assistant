@@ -34,6 +34,7 @@ interface PayrollParams {
   health_employee_rate: number;
   health_employer_rate: number;
   unemployment_employee_rate: number;
+  unemployment_employer_rate: number;
   min_contribution_base: number;
   max_contribution_base: number;
   minimum_hourly_wage: number | null;
@@ -41,6 +42,9 @@ interface PayrollParams {
   transport_allowance_monthly: number | null;
   overtime_multiplier: number | null;
   night_work_multiplier: number | null;
+  holiday_multiplier: number | null;
+  sickness_rate_employer: number | null;
+  annual_leave_daily_rate: number | null;
   gazette_reference: string | null;
 }
 
@@ -54,6 +58,7 @@ type FormState = {
   health_employee_rate: string;
   health_employer_rate: string;
   unemployment_employee_rate: string;
+  unemployment_employer_rate: string;
   min_contribution_base: string;
   max_contribution_base: string;
   minimum_hourly_wage: string;
@@ -61,6 +66,9 @@ type FormState = {
   transport_allowance_monthly: string;
   overtime_multiplier: string;
   night_work_multiplier: string;
+  holiday_multiplier: string;
+  sickness_rate_employer: string;
+  annual_leave_daily_rate: string;
   gazette_reference: string;
 };
 
@@ -74,6 +82,7 @@ const defaultForm: FormState = {
   health_employee_rate: "5.15",
   health_employer_rate: "5.15",
   unemployment_employee_rate: "0.75",
+  unemployment_employer_rate: "0.75",
   min_contribution_base: "51297",
   max_contribution_base: "732820",
   minimum_hourly_wage: "371",
@@ -81,6 +90,9 @@ const defaultForm: FormState = {
   transport_allowance_monthly: "0",
   overtime_multiplier: "1.26",
   night_work_multiplier: "0.26",
+  holiday_multiplier: "1.10",
+  sickness_rate_employer: "65",
+  annual_leave_daily_rate: "0",
   gazette_reference: "",
 };
 
@@ -126,8 +138,8 @@ function FormFields({ f, setF, t }: {
         {field("pio_employer_rate", t("pioEmployer") + " (%)")}
         {field("health_employee_rate", t("healthEmployee") + " (%)")}
         {field("health_employer_rate", t("healthEmployer") + " (%)")}
-        {field("unemployment_employee_rate", t("unemploymentRate") + " (%)")}
-      </div>
+        {field("unemployment_employee_rate", t("unemploymentRate") + " - zaposleni (%)")}
+        {field("unemployment_employer_rate", "Nezaposlenost - poslodavac (%)")}
 
       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("contributionBases")}</h4>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -146,6 +158,10 @@ function FormFields({ f, setF, t }: {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {field("overtime_multiplier", t("overtimeMultiplier"))}
         {field("night_work_multiplier", t("nightWorkMultiplier"))}
+        {field("holiday_multiplier", "Praznik multiplikator")}
+        {field("sickness_rate_employer", "Bolovanje poslodavac (%)")}
+        {field("annual_leave_daily_rate", "Dnevnica godišnji (RSD)", "number", "1")}
+      </div>
       </div>
     </div>
   );
@@ -163,6 +179,7 @@ function formToPayload(f: FormState, tenantId: string) {
     health_employee_rate: parseFloat(f.health_employee_rate) / 100,
     health_employer_rate: parseFloat(f.health_employer_rate) / 100,
     unemployment_employee_rate: parseFloat(f.unemployment_employee_rate) / 100,
+    unemployment_employer_rate: parseFloat(f.unemployment_employer_rate) / 100,
     min_contribution_base: parseFloat(f.min_contribution_base),
     max_contribution_base: parseFloat(f.max_contribution_base),
     minimum_hourly_wage: parseFloat(f.minimum_hourly_wage) || 0,
@@ -170,6 +187,9 @@ function formToPayload(f: FormState, tenantId: string) {
     transport_allowance_monthly: parseFloat(f.transport_allowance_monthly) || 0,
     overtime_multiplier: parseFloat(f.overtime_multiplier) || 1.26,
     night_work_multiplier: parseFloat(f.night_work_multiplier) || 0.26,
+    holiday_multiplier: parseFloat(f.holiday_multiplier) || 1.10,
+    sickness_rate_employer: parseFloat(f.sickness_rate_employer) / 100,
+    annual_leave_daily_rate: parseFloat(f.annual_leave_daily_rate) || 0,
     gazette_reference: f.gazette_reference || null,
   };
 }
@@ -185,6 +205,7 @@ function paramsToForm(p: PayrollParams): FormState {
     health_employee_rate: String((p.health_employee_rate * 100).toFixed(2)),
     health_employer_rate: String((p.health_employer_rate * 100).toFixed(2)),
     unemployment_employee_rate: String((p.unemployment_employee_rate * 100).toFixed(2)),
+    unemployment_employer_rate: String(((p.unemployment_employer_rate ?? 0.0075) * 100).toFixed(2)),
     min_contribution_base: String(p.min_contribution_base),
     max_contribution_base: String(p.max_contribution_base),
     minimum_hourly_wage: String(p.minimum_hourly_wage ?? 0),
@@ -192,6 +213,9 @@ function paramsToForm(p: PayrollParams): FormState {
     transport_allowance_monthly: String(p.transport_allowance_monthly ?? 0),
     overtime_multiplier: String(p.overtime_multiplier ?? 1.26),
     night_work_multiplier: String(p.night_work_multiplier ?? 0.26),
+    holiday_multiplier: String(p.holiday_multiplier ?? 1.10),
+    sickness_rate_employer: String(((p.sickness_rate_employer ?? 0.65) * 100).toFixed(0)),
+    annual_leave_daily_rate: String(p.annual_leave_daily_rate ?? 0),
     gazette_reference: p.gazette_reference || "",
   };
 }
@@ -308,7 +332,8 @@ export default function PayrollParameters() {
                 { label: t("pioEmployer"), value: fmtPct(current.pio_employer_rate) },
                 { label: t("healthEmployee"), value: fmtPct(current.health_employee_rate) },
                 { label: t("healthEmployer"), value: fmtPct(current.health_employer_rate) },
-                { label: t("unemploymentRate"), value: fmtPct(current.unemployment_employee_rate) },
+                { label: "Nezaposlenost (zaposleni)", value: fmtPct(current.unemployment_employee_rate) },
+                { label: "Nezaposlenost (poslodavac)", value: fmtPct(current.unemployment_employer_rate ?? 0.0075) },
                 { label: t("minBase"), value: fmtRSD(current.min_contribution_base) },
                 { label: t("maxBase"), value: fmtRSD(current.max_contribution_base) },
               ].map((item) => (
@@ -326,6 +351,9 @@ export default function PayrollParameters() {
                 { label: t("transportAllowanceMonthly"), value: fmtRSD(current.transport_allowance_monthly ?? 0) },
                 { label: t("overtimeMultiplier"), value: `×${current.overtime_multiplier ?? 1.26}` },
                 { label: t("nightWorkMultiplier"), value: `+${((current.night_work_multiplier ?? 0.26) * 100).toFixed(0)}%` },
+                { label: "Praznik", value: `×${current.holiday_multiplier ?? 1.10}` },
+                { label: "Bolovanje poslodavac", value: `${(((current as any).sickness_rate_employer ?? 0.65) * 100).toFixed(0)}%` },
+                { label: "Dnevnica godišnji", value: fmtRSD((current as any).annual_leave_daily_rate ?? 0) },
               ].map((item) => (
                 <div key={item.label} className="bg-muted/50 rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
