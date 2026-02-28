@@ -1,89 +1,71 @@
 
 
-## Phase 2: Serbian Legal Compliance — 9 Items
+## Phase 3: Module Integration & Engine Consistency — 8 Items
 
-### Audit Results
+### Findings
 
-| # | Finding | Status |
+| # | Finding | Impact |
 |---|---------|--------|
-| 2.1 | `BilansUspeha.tsx` includes Class 8 ("Vanredni rashodi") — actually "Vanbilansna evidencija" (off-balance sheet), must be removed from P&L. Revenue fallback section is "50" instead of "60" | Confirmed — lines 23-28 and line 93 |
-| 2.2 | AOP position mapping for APR filing | Already exists — `aop_positions` table + `AopPositions.tsx` page + `get_aop_report` RPC. Needs seeding with official APR data and XML export wiring |
-| 2.3 | ZPDP 5-group tax depreciation | Partially exists — `fixed_assets` has `tax_group`, `tax_depreciation_rate`, `tax_depreciation_method` columns. Missing: UI for ZPDP group selection, declining-balance calculation per group, tax vs. accounting difference report |
-| 2.4 | Full PB-1 (Poreski Bilans) form (~70 line items) | Does not exist — no page, no table, no RPC |
-| 2.5 | SEF VAT support — currently hardcoded to SS (paušalci, 0% VAT) | Confirmed — `sef-send-invoice/index.ts` lines 76-90 hardcode `SS` category and `taxAmount = 0` |
-| 2.6 | PPP-PD hardcoded non-taxable amount 25000 | Confirmed — `generate-pppd-xml/index.ts` line 105 |
-| 2.7 | PP-PDV XML namespace wrong | Confirmed — `popdvAggregation.ts` line 342 uses `http://www.purs.gov.rs/pppdv` |
-| 2.8 | Document retention tracking | Already exists — `archive_book` table has `retention_period`/`retention_years`, `Archiving.tsx` and `ArchiveBook.tsx` pages exist. Missing: deletion blocking enforcement |
-| 2.9 | Kontni Okvir class label inaccuracies | Confirmed — `ImportChartOfAccounts.tsx` lines 44-55 have wrong labels for classes 1, 2, 4 |
+| 3.1 | 3 pages bypass posting rules engine — `InventoryStockTake.tsx`, `InventoryWriteOff.tsx`, `Otpremnina.tsx` call raw `createCodeBasedJournalEntry` instead of `postWithRuleOrFallback` | Tenant-configured GL overrides ignored; inconsistent posting behavior |
+| 3.2 | Fiscal period check only enforced in `JournalEntries.tsx` — all other 15+ posting touchpoints skip it | Users can post to closed/locked fiscal periods from any module |
+| 3.3 | `GoodsReceipts.tsx` uses client-side loop for `adjust_inventory_stock` (same pattern fixed in POS in Phase 1) — partial failures leave phantom stock | Data inconsistency on network failure mid-loop |
+| 3.4 | `Returns.tsx` calls `adjust_inventory_stock` in a client-side loop + up to 4 separate `postWithRuleOrFallback` calls — not atomic | COGS reversal, credit note, supplier return, and restock can partially fail |
+| 3.5 | `CreditDebitNotes.tsx` calls `adjust_inventory_stock` per line in a loop — same non-atomic pattern | Partial stock adjustments on failure |
+| 3.6 | No audit log entries created for GL postings — `audit_log` table exists but posting actions don't write to it | No trail for posted journal entries from sub-modules |
+| 3.7 | `partner.default_receivable_account` and `default_payable_account` fields exist but are never used in posting rule dynamic resolution | Partner-specific GL mapping ignored; all partners use hardcoded 2040/4350 |
+| 3.8 | Missing payment model codes for new pages — `InventoryStockTake`, `InventoryWriteOff`, `Otpremnina` have no `payment_models` entries | Cannot configure posting rules for these transaction types |
 
 ### Implementation Plan
 
-#### 2.1: Fix BilansUspeha Class 8 + revenue fallback
-- Remove Class 8 from `ACCOUNT_CLASSES` (line 27)
-- Fix revenue section fallback from `"50"` to `"60"` (line 93)
-- Fix expense section fallback from `"60"` to `"50"` (line 100)
+#### 3.1: Migrate 3 pages to `postWithRuleOrFallback`
+- `InventoryStockTake.tsx`: replace `createCodeBasedJournalEntry` with `postWithRuleOrFallback` using model code `STOCK_TAKE_SHORTAGE` / `STOCK_TAKE_SURPLUS`
+- `InventoryWriteOff.tsx`: use model code `INVENTORY_WRITE_OFF`
+- `Otpremnina.tsx`: use model code `SEVERANCE_PAYMENT`
 
-#### 2.2: Seed AOP positions + wire APR XML export
-- Skip — infrastructure already exists. Create a migration to seed official APR AOP positions (Obrazac 1 and Obrazac 2) if the table is empty
-- Wire `generate-apr-xml` edge function to use `get_aop_report` RPC data
+#### 3.2: Enforce fiscal period check in `postWithRuleOrFallback`
+- Add `checkFiscalPeriodOpen(tenantId, entryDate)` call inside `postWithRuleOrFallback` before creating the journal entry
+- All 24+ callers automatically get fiscal period enforcement
 
-#### 2.3: ZPDP tax depreciation UI + calculation
-- Add ZPDP group selector (I-V) to `AssetDepreciation.tsx` or asset detail page
-- Migration: create `calculate_tax_depreciation` RPC that applies declining-balance rates per ZPDP group
-- Add tax vs. accounting depreciation comparison view
+#### 3.3: Create `complete_goods_receipt` atomic RPC
+- Migration: new function that receives receipt ID, atomically confirms lines, adjusts inventory with `FOR UPDATE`, and creates GL entry
+- Refactor `GoodsReceipts.tsx` to call single RPC instead of client-side loop
 
-#### 2.4: PB-1 Poreski Bilans form
-- Migration: create `pb1_line_items` reference table (~70 positions) and `pb1_submissions` table for saved forms
-- New page `PoreskiBilans.tsx` at `/accounting/reports/poreski-bilans`
-- Auto-populate from GL data + tax depreciation adjustments
-- Add route, nav entry, translations
+#### 3.4: Create `process_return` atomic RPC
+- Migration: new function that atomically handles restock + up to 4 GL entries in a single transaction
+- Refactor `Returns.tsx` to call single RPC
 
-#### 2.5: SEF VAT category support
-- Refactor `generateUBLXml` in `sef-send-invoice/index.ts` to detect VAT registration from company profile
-- Map invoice tax rates to UBL categories: S (10%, 20%), AE (reverse charge), Z (zero-rated), E (exempt), O (out of scope), SS (paušalci)
-- Support credit note (381) and debit note (383) type codes
+#### 3.5: Create `process_credit_debit_note` atomic RPC
+- Migration: new function for atomic stock adjustment + GL posting per credit/debit note
+- Refactor `CreditDebitNotes.tsx`
 
-#### 2.6: Fix PPP-PD non-taxable amount
-- In `generate-pppd-xml/index.ts`: query `payroll_parameters` table for the period's non-taxable amount instead of hardcoded 25000
-- Add `NajnizaOsnovica` and `NajvisaOsnovica` XML tags
+#### 3.6: Add audit logging to `postWithRuleOrFallback`
+- After successful journal creation, insert into `audit_log` with `action: 'gl_post'`, `entity_type` from model code, and `entity_id` as the journal entry ID
 
-#### 2.7: Fix PP-PDV XML namespace
-- In `popdvAggregation.ts` line 342: change `http://www.purs.gov.rs/pppdv` to `urn:poreskauprava.gov.rs:pppdv`
+#### 3.7: Wire partner default accounts to posting context
+- In posting consumers that have a `partner_id`: look up `partners.default_receivable_account` and `default_payable_account`
+- Pass them as `partnerReceivableCode` / `partnerPayableCode` in the `DynamicContext`
+- Falls back to hardcoded "2040"/"4350" if partner fields are null
 
-#### 2.8: Document retention deletion blocking
-- Skip — retention tracking already exists. Add a database trigger `trg_block_retention_delete` on `archive_book` that prevents deletion if `retention_years` hasn't expired
-
-#### 2.9: Fix Kontni Okvir class labels
-- In `ImportChartOfAccounts.tsx`: fix CLASS_NAMES:
-  - Class 1: "Zalihe" (not "Zalihe i stalna sredstva")
-  - Class 2: "Kratkoročna potraživanja, plasmani i gotovina" (not "Kratkoročne obaveze i PVR")
-  - Class 4: "Dugoročne i kratkoročne obaveze" (not "Kapital i dugoročne obaveze")
-
-### Scope for This Implementation
-
-Given the size of Phase 2, I recommend splitting into two batches:
-
-**Batch A (quick fixes — items 2.1, 2.6, 2.7, 2.8, 2.9):** Code fixes and small migrations — can be done in one pass.
-
-**Batch B (new features — items 2.2, 2.3, 2.4, 2.5):** AOP seeding, ZPDP depreciation, PB-1 form, SEF VAT — each is substantial and needs careful implementation.
+#### 3.8: Seed new payment model codes
+- Migration: INSERT INTO `payment_models` for `STOCK_TAKE_SHORTAGE`, `STOCK_TAKE_SURPLUS`, `INVENTORY_WRITE_OFF`, `SEVERANCE_PAYMENT`
 
 ### Files Modified
 
 | File | Change |
 |------|--------|
-| `src/pages/tenant/BilansUspeha.tsx` | 2.1 — remove Class 8, fix section fallbacks |
-| `src/components/accounting/ImportChartOfAccounts.tsx` | 2.9 — fix CLASS_NAMES labels |
-| `src/lib/popdvAggregation.ts` | 2.7 — fix XML namespace |
-| `supabase/functions/generate-pppd-xml/index.ts` | 2.6 — dynamic non-taxable amount |
-| New migration SQL | 2.8 — retention delete trigger |
-| New migration SQL | 2.2 — AOP seed data |
-| New migration SQL | 2.3 — tax depreciation RPC |
-| New migration SQL + new page | 2.4 — PB-1 tables + `PoreskiBilans.tsx` |
-| `supabase/functions/sef-send-invoice/index.ts` | 2.5 — VAT category support |
-| Routes, nav, translations | 2.4 — PB-1 route + nav entry |
+| New migration SQL | 3.3 (`complete_goods_receipt` RPC), 3.4 (`process_return` RPC), 3.5 (`process_credit_debit_note` RPC), 3.8 (payment model seeds) |
+| `src/lib/postingHelper.ts` | 3.2 (fiscal period check), 3.6 (audit log insert) |
+| `src/pages/tenant/InventoryStockTake.tsx` | 3.1 — migrate to `postWithRuleOrFallback` |
+| `src/pages/tenant/InventoryWriteOff.tsx` | 3.1 — migrate to `postWithRuleOrFallback` |
+| `src/pages/tenant/Otpremnina.tsx` | 3.1 — migrate to `postWithRuleOrFallback` |
+| `src/pages/tenant/GoodsReceipts.tsx` | 3.3 — call `complete_goods_receipt` RPC |
+| `src/pages/tenant/Returns.tsx` | 3.4 — call `process_return` RPC |
+| `src/pages/tenant/CreditDebitNotes.tsx` | 3.5 — call `process_credit_debit_note` RPC |
+| `src/lib/postingRuleEngine.ts` | 3.7 — accept partner GL codes in DynamicContext |
 
 ### Execution Order
-1. Batch A migration (retention trigger) + code fixes (2.1, 2.7, 2.9)
-2. Edge function fixes (2.6 PPP-PD, 2.7 namespace)
-3. Batch B: AOP seeding (2.2), ZPDP depreciation (2.3), PB-1 form (2.4), SEF VAT (2.5)
+1. Migration: RPCs (3.3, 3.4, 3.5) + payment model seeds (3.8)
+2. `postingHelper.ts` enhancements (3.2 fiscal check + 3.6 audit log)
+3. Frontend refactors: 3.1 (3 pages), 3.3 (GoodsReceipts), 3.4 (Returns), 3.5 (CreditDebitNotes)
+4. Partner account wiring (3.7)
 
