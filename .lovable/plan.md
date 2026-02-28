@@ -1,71 +1,80 @@
 
 
-## Phase 7: General Improvements — Error Boundaries, Audit Trail, Bulk Ops, Notifications
+## Phase 8: AI Improvements (Days 22-35)
 
 ### Current State Assessment
 
 | Area | Status | Gaps |
 |------|--------|------|
-| Error Boundaries | `PageErrorBoundary` on all routes, global `ErrorBoundary` in layout | No error reporting/logging to audit_log; no recovery suggestions |
-| Audit Trail | 23 tables have triggers; `log_audit_event()` captures before/after state | ~30+ important tables missing triggers (bank_accounts, leave_requests, fleet_*, lease_contracts, etc.); AuditLog UI has hardcoded Serbian ("Pre izmene"/"Posle izmene"); no date range filter; no CSV export |
-| Bulk Operations | BulkEntitlementGenerator, WorkLogsBulk, BankStatement bulk confirm | No bulk delete/archive pattern; no bulk status change on invoices/orders |
-| Notifications | Bell + dropdown + realtime + preferences + role-based categories | No delete/clear old notifications; no "View All" page; dropdown limited to 50 items |
+| AI Copilot | Streaming chat with 12 tools, role-aware prompts, context-aware suggested questions, conversation history (pinned/tags) | No conversation search; suggested questions only cover ~10 routes; no quick-action buttons (e.g. "Run anomaly scan"); no feedback mechanism (👍/👎) |
+| AI Insights | Rule-based + Gemini enrichment across 30+ contexts via `ai-insights`, cached in `ai_insights_cache` with language support | Cache TTL is fixed (no manual refresh); no "explain this insight" drill-down; insights don't link to actionable pages |
+| Daily Digest | Time-aware briefing (Morning/Midday/Evening) with `ai-daily-digest` edge function | No weekly digest email content customization; no opt-out per digest section |
+| Proactive Agent | Checks overdue invoices, critical stock, expiring contracts, leave conflicts, stale opportunities, revenue concentration | No scheduled cron trigger (manual only); alerts don't create notifications automatically; missing checks for payroll deadlines and budget overruns |
+| AI Tools | 12 tools: query, trend, reminder, compare periods, what-if, KPI scorecard, explain account, search docs, partner dossier, cashflow forecast, anomaly detection, report generation | No "create draft invoice" or "create journal entry" write tools; no HR-specific tools (leave balance, headcount summary); invoice-ocr uses old `api.lovable.dev` URL |
+| Security | Prompt injection detection, rate limiting (20/min), token tracking, SQL validation | Good coverage, no major gaps |
+| Module Insights | `AiModuleInsights` on ~15 pages, `AiAnalyticsNarrative` on analytics pages | Missing from Fleet, Lease, Production calendar, DMS pages |
 
 ---
 
 ### Plan (7 items)
 
-#### 1. Add audit triggers to ~30 missing critical tables
-**DB migration** adding `AFTER INSERT OR UPDATE OR DELETE` triggers using `log_audit_event()` for: `bank_accounts`, `bank_reconciliations`, `bank_statements`, `leave_requests`, `leave_policies`, `fleet_vehicles`, `fleet_fuel_logs`, `fleet_service_orders`, `fleet_insurance`, `lease_contracts`, `approval_requests`, `budgets`, `cost_centers`, `departments`, `locations`, `legal_entities`, `employee_contracts`, `employee_salaries`, `assets`, `goods_receipts`, `dispatch_notes`, `internal_orders`, `internal_transfers`, `inventory_write_offs`, `inventory_stock_takes`, `exchange_rates`, `kalkulacije`, `kompenzacija`, `nivelacije`, `advance_payments`.
+#### 1. Fix invoice-ocr gateway URL (critical bug)
+`invoice-ocr/index.ts` uses old `https://api.lovable.dev/v1/chat/completions` URL — update to `https://ai.gateway.lovable.dev/v1/chat/completions` and update model to `google/gemini-2.5-flash`.
 
-#### 2. Improve AuditLog UI
-- Add date range filter (from/to date inputs)
-- Add CSV export button using existing `exportToCsv` utility
-- Replace hardcoded Serbian labels ("Pre izmene"/"Posle izmene") with `t()` calls
-- Add `entity_id` display and clickable link to the entity
-- Add new translation keys
+#### 2. Add AI feedback mechanism (👍/👎)
+- Create `ai_feedback` table: `id, tenant_id, user_id, conversation_id, message_index, feedback (thumbs_up/thumbs_down), comment, created_at`
+- Add thumbs up/down buttons on each AI response in `AiContextSidebar`
+- Optional comment on thumbs down
+- Track feedback for quality monitoring
 
-#### 3. Add bulk status operations for invoices
-- Add select-all checkbox + individual row checkboxes to invoice list
-- "Bulk Actions" dropdown: mark as paid, mark as sent, export selected
-- Uses existing `supabase.from("invoices").update()` with `.in("id", selectedIds)`
+#### 3. Expand Copilot suggested questions to all modules
+- Add suggested questions for: Fleet, Lease, Production, DMS, POS, Assets, Bank Reconciliation, Payroll, Settings
+- Add quick-action buttons below chat input: "📊 KPI Scorecard", "🔍 Anomaly Scan", "📈 Cash Forecast"
+- Total coverage: ~25 route prefixes (up from ~10)
 
-#### 4. Notifications: add clear/delete + "View All" page
-- Add `deleteNotification` and `clearAllRead` to `useNotifications` hook
-- Add "Clear read" button to `NotificationDropdown`
-- Create `/settings/notifications` page showing full notification history with filters
-- Add route to settings routes
+#### 4. Add proactive agent cron + auto-notifications
+- Add new checks: payroll run deadlines (5 days before month-end), budget overrun alerts (>90% spent), lease expiry (30 days)
+- Wire `proactive-ai-agent` to `create-notification` — each alert creates a notification for relevant roles
+- Add cron schedule in `config.toml` for daily execution
 
-#### 5. Error boundary: log crashes to audit_log
-- In `PageErrorBoundary` and `ErrorBoundary`, on `componentDidCatch`, insert a row into `audit_log` with `action: 'frontend_error'`, `entity_type: 'ui'`, and the error stack in `details`
-- Silent fire-and-forget — no user impact if insert fails
+#### 5. Add 2 new Copilot write tools
+- `create_draft_invoice`: Creates a draft invoice from natural language ("Create invoice for Partner X, 3x Product Y at 100 RSD")
+- `get_hr_summary`: Returns headcount, active leave requests, upcoming contract expirations, payroll status
+- Update tool count badge from "12 tools" to "14 tools"
 
-#### 6. Add missing translation keys for Phase 7 features
-- Add ~20 keys: `beforeChange`, `afterChange`, `dateFrom`, `dateTo`, `exportAuditLog`, `clearRead`, `viewAllNotifications`, `bulkActions`, `markAsPaid`, `markAsSent`, `selectAll`, `selectedCount`, `frontendError`, `notificationHistory`
+#### 6. Add AiModuleInsights to missing pages
+- Fleet Vehicles, Fleet Fuel Log, Fleet Service Orders
+- Lease Contracts
+- DMS Documents
+- Production Calendar
+- Assets list
+- Total: 7 additional pages
 
-#### 7. Update ENTITY_TYPES list in AuditLog
-- Current list has 14 types; expand to include the 30+ newly-triggered tables so they appear in the filter dropdown
+#### 7. Improve insight drill-down + actionable links
+- Make each insight card in `AiModuleInsights` clickable → navigates to relevant page
+- Add "Ask AI about this" button on insights → pre-fills Copilot with context
+- Add manual refresh button on `AiModuleInsights` (bypass cache)
 
 ### Files Modified
 
 | File | Change |
 |------|--------|
-| New migration SQL | Triggers for ~30 tables |
-| `src/pages/tenant/AuditLog.tsx` | Date filter, CSV export, i18n, entity link, expanded entity types |
-| `src/hooks/useNotifications.ts` | Add delete + clearAllRead |
-| `src/components/notifications/NotificationDropdown.tsx` | Clear read button |
-| `src/pages/tenant/NotificationHistory.tsx` | New full-page notification view |
-| `src/routes/settingsRoutes.tsx` | Add notification history route |
-| `src/components/ErrorBoundary.tsx` | Log to audit_log on catch |
-| `src/components/shared/PageErrorBoundary.tsx` | Log to audit_log on catch |
-| `src/i18n/translations.ts` | ~20 new keys |
-| `src/pages/tenant/Invoices.tsx` | Bulk select + bulk actions |
+| `supabase/functions/invoice-ocr/index.ts` | Fix gateway URL + model |
+| New migration SQL | `ai_feedback` table |
+| `src/components/ai/AiContextSidebar.tsx` | Feedback buttons, expanded questions, quick-action buttons |
+| `supabase/functions/proactive-ai-agent/index.ts` | New checks, auto-notification creation |
+| `supabase/config.toml` | Cron schedule for proactive agent |
+| `supabase/functions/ai-assistant/index.ts` | 2 new tools (create_draft_invoice, get_hr_summary) |
+| `src/components/shared/AiModuleInsights.tsx` | Clickable insights, "Ask AI" button, refresh button |
+| 7 page files | Add `<AiModuleInsights>` component |
+| `src/i18n/translations.ts` | ~15 new keys |
 
 ### Execution Order
-1. DB migration (audit triggers)
-2. Translation keys
-3. AuditLog UI improvements
-4. Error boundary audit logging
-5. Notification improvements
-6. Bulk invoice operations
-
+1. Fix invoice-ocr gateway URL (quick fix)
+2. DB migration (ai_feedback table)
+3. Translation keys
+4. Copilot feedback mechanism
+5. Expand suggested questions + quick actions
+6. New Copilot tools
+7. Proactive agent improvements
+8. AiModuleInsights expansion + drill-down
