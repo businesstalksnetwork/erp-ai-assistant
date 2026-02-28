@@ -61,7 +61,7 @@ export function OpportunityTagsBar({ opportunityId, tenantId, onActivity }: Prop
 
   const removeMutation = useMutation({
     mutationFn: async (tag: any) => {
-      const { error } = await supabase.from("opportunity_tags").delete().eq("id", tag.id);
+      const { error } = await supabase.from("opportunity_tags").delete().eq("id", tag.id).eq("tenant_id", tenantId!);
       if (error) throw error;
       onActivity("tag_removed", `Tag removed: ${tag.tag}`, { tag: tag.tag });
     },

@@ -66,7 +66,7 @@ export default function IntercompanyTransactions() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("intercompany_transactions").delete().eq("id", id).eq("status", "draft");
+      const { error } = await supabase.from("intercompany_transactions").delete().eq("id", id).eq("status", "draft").eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => {

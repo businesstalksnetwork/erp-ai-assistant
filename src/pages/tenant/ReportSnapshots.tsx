@@ -32,7 +32,7 @@ export default function ReportSnapshots() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("report_snapshots").delete().eq("id", id);
+      const { error } = await supabase.from("report_snapshots").delete().eq("id", id).eq("tenant_id", tenantId!);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["report-snapshots"] }); toast({ title: t("snapshotDeleted") }); },
