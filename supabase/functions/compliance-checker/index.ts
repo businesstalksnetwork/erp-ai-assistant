@@ -189,7 +189,7 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
       .eq("code", "4700")
       .maybeSingle();
 
-    if (vatAccount) {
+    if (vatAccount && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(vatAccount.id)) {
       const { data: vatBalance } = await supabase.rpc("execute_readonly_query", {
         query_text: `
           SELECT COALESCE(SUM(credit), 0) - COALESCE(SUM(debit), 0) as balance

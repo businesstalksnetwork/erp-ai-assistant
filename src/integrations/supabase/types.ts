@@ -22776,6 +22776,10 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: undefined
       }
+      calculate_payroll: {
+        Args: { p_payroll_run_id: string }
+        Returns: undefined
+      }
       calculate_payroll_for_run: {
         Args: { p_payroll_run_id: string }
         Returns: undefined

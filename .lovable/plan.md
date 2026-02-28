@@ -1,47 +1,43 @@
 
+# V3.1 Audit — All 36 CR Bug Fixes: COMPLETED
 
-# Batch 4: DB Migrations + Remaining Fixes
+## Status: ✅ ALL BATCHES COMPLETE
 
-## 1. Fix `execute_readonly_query` hardening (CR-01)
-**New SQL migration** to restore security features stripped in the last rewrite:
-- Block system schema access (`pg_catalog`, `information_schema`)
-- Block `UNION` / `UNION ALL` to prevent query chaining
-- Add forced `LIMIT 100` if no LIMIT clause present
-- Keep the existing tenant membership check and `SET LOCAL statement_timeout`
+### Batch 1: Critical Security ✅
+- CR-06/CR-07: SEF webhook fail-closed auth + removed UUID enumeration
+- CR-14: NBS cron auth fail-closed
+- CR-13/CR-16: CROSO switched to service role key + .maybeSingle()
+- CR-24: Delete mutations scoped by tenant_id
+- CR-17: generate-payment-orders JWT auth added
 
-## 2. Fix invoice double-post trigger (CR-02)
-**Same migration** — update `guard_invoice_double_post` trigger:
-- Also block clearing `journal_entry_id` to NULL once set: `IF OLD.journal_entry_id IS NOT NULL AND (NEW.journal_entry_id IS NULL OR NEW.journal_entry_id != OLD.journal_entry_id) THEN RAISE EXCEPTION`
+### Batch 2: Data Integrity ✅
+- CR-08/CR-09: Production waste operator precedence fixed
+- CR-11/CR-12: TaxLossCarryforward local state + debounced saves
+- CR-14: DeferredTax Math.abs() removed, signed DTA/DTL preserved
+- CR-13: IntercompanyEliminations GL posting path added
+- CR-23/CR-28: ThinCapitalization stale closure fixed + equity=0 handled
+- CR-25/CR-26: VatProRata stale closure + queryKey fixed
+- CR-05: compliance-checker tenant_id_param added to all 7 RPC calls
+- CR-04: Payroll RPC duplicate employer columns fixed
 
-## 3. Fix RLS policies — use `get_user_tenant_ids()` (CR-15c)
-**Same migration** — DROP and recreate all 6 new table policies to use `get_user_tenant_ids(auth.uid())` instead of inline subquery:
-- `tax_loss_carryforward`
-- `thin_capitalization`
-- `vat_prorata_coefficients`
-- `capital_goods_vat_register`
-- `deferred_tax_items`
-- `intercompany_eliminations`
+### Batch 3: High Priority ✅
+- CR-10: Serbian law article references corrected
+- CR-21: MultiPeriodReports Class 2 moved to liabilities
+- CR-22/CR-29: Supplier payment account 2100→2200
+- CR-34: CapitalGoods pro-rata inputs bounded 0-1
+- CR-36: foreignPerDiemRates regulation year updated to 2024
+- CR-35: Duplicate MobileFilterBar removed from Invoices
+- CR-31/CR-32: CROSO XML namespace + missing tags fixed
+- CR-33: generate-apr-xml builder chaining bug fixed
 
-## 4. Fix thin_capitalization generated column for equity=0 (CR-28b)
-**Same migration** — ALTER the `debt_equity_ratio` generated column:
-- `CASE WHEN equity_amount > 0 THEN related_party_debt / equity_amount ELSE NULL END`
+### Batch 4: DB Migrations ✅
+- CR-01: execute_readonly_query hardened (system schema block, UNION block, LIMIT 100)
+- CR-02: Invoice double-post trigger blocks NULL-clearing
+- CR-15c: 6 RLS policies optimized to use get_user_tenant_ids()
+- CR-28b: thin_capitalization debt_equity_ratio returns NULL when equity=0
+- CR-30: UUID validation added for vatAccount.id in compliance-checker
 
-## 5. Fix compliance-checker RPC calls (CR-05)
-**File:** `supabase/functions/compliance-checker/index.ts`
-- Add `tenant_id_param: tenantId` to ALL 7 `execute_readonly_query` RPC calls (lines 43, 192, 202, 237, 322, 354, 386)
-- The function already has `tenantId` in scope from the request body
-
-## 6. Remove duplicate MobileFilterBar in Invoices (CR-35)
-**File:** `src/pages/tenant/Invoices.tsx`
-- Delete lines 398-424 (the second identical `<MobileFilterBar>` block)
-
-## 7. Fix SEF `determineVatCategory` wall clock usage (CR-15)
-**File:** `supabase/functions/sef-send-invoice/index.ts`
-- Line 83 already accepts `invoiceDate` parameter and uses it correctly
-- The `generateUBLXml` call at line 96 passes `invoice.issue_date` — verify callers pass this. **No code change needed** if the function already receives `invoiceDate` from callers.
-
-## Summary
-- **1 SQL migration** with 4 schema fixes (execute_readonly_query, trigger, RLS policies, generated column)
-- **2 files edited**: compliance-checker/index.ts, Invoices.tsx
-- **Edge functions to redeploy**: compliance-checker
-
+### Edge Functions Deployed ✅
+All 7 modified edge functions redeployed:
+sef-webhook, nbs-daily-cron, generate-croso-xml, generate-apr-xml,
+generate-payment-orders, sef-send-invoice, compliance-checker
