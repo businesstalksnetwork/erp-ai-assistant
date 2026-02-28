@@ -1,101 +1,128 @@
 
 
-## Phase 4: Database & Security Hardening
+## Phase 5: Accounting/Legal Hardening
 
-Based on live database analysis, here are the confirmed issues and fixes.
+### Bug 1: CIT Tax Return ignores classes 7, 8, 9
 
-### Summary of Findings
+**File:** `src/pages/tenant/CitTaxReturn.tsx` lines 63-76
 
-| Category | Count | Risk |
-|----------|-------|------|
-| Functions with mutable search_path | 9 (4 SECURITY DEFINER) | HIGH — search_path hijack on security definer functions |
-| Child tables missing `tenant_id` | 29 | MEDIUM — RLS uses JOIN to parent, slower and harder to audit |
-| Tables with `tenant_id` but no index | 140 | MEDIUM — performance degradation on tenant-scoped queries |
+The CIT calculation only sums class 6 (revenue) and class 5 (expenses). The Serbian CoA has:
+- Class 7: Opening/closing balance entries (revenue + equity + expense types)
+- Class 8: Equity adjustments, off-balance items
+- Class 9: Cost accounting (expense type)
 
----
+The P&L calculation misses class 7 revenue/expense and class 9 expenses entirely.
 
-### Task 1: Fix 9 functions with mutable search_path
+**Fix:** Expand the calculation to use `account_type` instead of code prefix:
+- Revenue: `account_type === 'revenue'` (covers classes 6 and 7)
+- Expenses: `account_type === 'expense'` (covers classes 5, 7, 9)
 
-The 4 SECURITY DEFINER functions are the highest risk — an attacker could create a malicious function in a schema that appears earlier in search_path.
+Also: add `tax_adjustments_increase` and `tax_adjustments_decrease` input fields (columns already exist in DB but UI doesn't expose them), and compute `taxable_base = accounting_profit + adjustments_increase - adjustments_decrease`.
 
-**Migration:** `ALTER FUNCTION ... SET search_path = public;` for all 9 functions:
-- `change_service_order_status` (SECURITY DEFINER)
-- `consume_service_part` (SECURITY DEFINER)
-- `create_service_intake` (SECURITY DEFINER)
-- `generate_invoice_from_service_order` (SECURITY DEFINER)
-- `check_device_warranty`
-- `generate_service_order_number`
-- `generate_work_order_number`
-- `seed_tenant_chart_of_accounts`
-- `update_service_order_totals`
+### Bug 2: CIT Tax Return missing tax credits
 
-### Task 2: Add `tenant_id` to high-priority child tables
+**File:** `src/pages/tenant/CitTaxReturn.tsx` lines 78-90
 
-All 29 child tables currently use JOIN-based RLS (e.g., `invoice_id IN (SELECT id FROM invoices WHERE tenant_id IN ...)`). This works but is slower and prevents direct tenant filtering.
+The `tax_credits` column exists in DB but is never populated. The final tax should be `tax_amount - tax_credits`.
 
-**Priority tier (most queried / most security-sensitive) — 10 tables:**
+**Fix:** Add a `tax_credits` input field and use it in the calculation: `final_tax = Math.max(0, tax_amount - tax_credits)`.
 
-| Child Table | Parent FK | Backfill Source |
-|---|---|---|
-| `invoice_lines` | `invoice_id → invoices` | `invoices.tenant_id` |
-| `quote_lines` | `quote_id → quotes` | `quotes.tenant_id` |
-| `sales_order_lines` | `sales_order_id → sales_orders` | `sales_orders.tenant_id` |
-| `purchase_order_lines` | `purchase_order_id → purchase_orders` | `purchase_orders.tenant_id` |
-| `goods_receipt_lines` | `goods_receipt_id → goods_receipts` | `goods_receipts.tenant_id` |
-| `payroll_items` | `payroll_run_id → payroll_runs` | `payroll_runs.tenant_id` |
-| `bom_lines` | `bom_template_id → bom_templates` | `bom_templates.tenant_id` |
-| `production_consumption` | `production_order_id → production_orders` | `production_orders.tenant_id` |
-| `posting_rule_lines` | `posting_rule_id → posting_rules` | `posting_rules.tenant_id` |
-| `approval_steps` | `request_id → approval_requests` | `approval_requests.tenant_id` |
+### Bug 3: BilansStanja only maps classes 0-4
 
-**For each table:**
-1. `ADD COLUMN tenant_id UUID REFERENCES tenants(id)`
-2. Backfill from parent table
-3. `SET NOT NULL`
-4. Create index `idx_{table}_tenant` on `(tenant_id)`
-5. Update RLS to use direct `tenant_id` column instead of JOIN
+**File:** `src/pages/tenant/BilansStanja.tsx` lines 23-29, 171-173
 
-**Remaining 19 tables** (lower priority — can be done in Phase 5):
-`bank_reconciliation_lines`, `department_positions`, `dispatch_note_lines`, `eotpremnica_lines`, `fx_revaluation_lines`, `internal_goods_receipt_items`, `internal_order_items`, `internal_transfer_items`, `inventory_stock_take_items`, `inventory_write_off_items`, `kalkulacija_items`, `kompenzacija_items`, `nivelacija_items`, `quality_check_items`, `retail_prices`, `return_lines`, `service_order_lines`, `service_order_status_log`, `wms_return_lines`
+`ACCOUNT_CLASSES` only defines classes 0-4. Classes 5-9 exist in the CoA. The balance sheet correctly only shows 0-4 but the constants are incomplete for reference.
 
-### Task 3: Add missing `tenant_id` indexes on 140 tables
+More importantly, the assets/liabilities/equity grouping (lines 171-173) maps class 2 to liabilities and class 3 to liabilities, but class 3 is primarily equity in Serbian CoA, and class 4 contains both long-term liabilities and deferred revenue.
 
-**Migration:** Bulk `CREATE INDEX CONCURRENTLY` for all 140 tables that have `tenant_id` but no index on it. This is critical for RLS performance since every query runs `WHERE tenant_id IN (...)`.
+**Fix:** 
+- Update `ACCOUNT_CLASSES` to include all 10 classes (0-9) for completeness
+- Fix the grouping: assets = classes 0, 1; equity = class 3; liabilities = classes 2, 4
+- The current code puts class 3 in `liabilities` and class 4 in `equity` — swap these
 
-Split into batches of ~35 tables per migration to avoid timeout. Each index uses `IF NOT EXISTS`.
+### Bug 4: Invoice numbering ignores BusinessRules prefix/sequence
 
-### Task 4: Update application code for new `tenant_id` columns
+**File:** `src/pages/tenant/InvoiceForm.tsx` lines 194-207
 
-For the 10 child tables getting `tenant_id`, update insert/create operations in the frontend to include `tenant_id` when creating line items. Key files:
-- `InvoiceForm.tsx` — invoice_lines inserts
-- `QuoteForm.tsx` / quote creation — quote_lines
-- `SalesOrderForm.tsx` — sales_order_lines
-- `PurchaseOrderForm.tsx` — purchase_order_lines
-- `GoodsReceiptForm.tsx` — goods_receipt_lines
-- `PayrollRunDetail.tsx` — payroll_items
-- `ProductionOrderDetail.tsx` — production_consumption
-- `PostingRulesConfig.tsx` — posting_rule_lines
+Invoice number generation counts existing invoices for the year and generates `INV-{year}-{seq}`. It ignores the `invoice_prefix` and `invoice_next_seq` from `tenant_settings`. The BusinessRules page lets users configure these but they're never consumed.
 
----
+**Fix:** Fetch `tenant_settings` and use `invoice_prefix` for the prefix. For the sequence, use `Math.max(invoice_next_seq, existingCount + 1)` to respect the configured starting sequence while preventing duplicates.
+
+### Bug 5: Journal entry numbering ignores BusinessRules prefix/sequence
+
+**File:** `src/lib/journalUtils.ts` line 85
+
+`entryNumber` is generated as `JE-${Date.now().toString(36).toUpperCase()}` — a timestamp-based hash. This ignores `journal_prefix` and `journal_next_seq` from tenant_settings.
+
+**Fix:** Accept optional `prefix` and `nextSeq` params in the journal creation function. When provided, generate `{prefix}-{year}-{seq}`. Callers should fetch tenant_settings and pass these values.
+
+### Bug 6: PayrollParameters missing unemployment_employer_rate
+
+**File:** `src/pages/tenant/PayrollParameters.tsx` lines 26-85
+
+The `FormState` and `defaultForm` include `unemployment_employee_rate` but not `unemployment_employer_rate`. The DB column doesn't exist either (confirmed from schema). Serbian law requires employer unemployment contribution (currently 0.75%).
+
+**Fix:** Add migration for `unemployment_employer_rate` column on `payroll_parameters`. Add to FormState, defaultForm (0.75), FormFields UI, and formToPayload/paramsToForm converters.
+
+### Bug 7: PPP-PD review page missing OVP/OLA/BEN code validation
+
+**File:** `src/pages/tenant/PppdReview.tsx`
+
+The PPP-PD XML requires valid OVP (vrsta prihoda), OLA, and BEN codes for each employee. The review page shows them but doesn't validate or warn when they're empty.
+
+**Fix:** Add a validation banner counting items with missing `ovp_code` and display a warning before XML generation.
+
+### Bug 8: PPP-PO XML missing escapeXml on employee names
+
+**File:** `src/pages/tenant/reports/PPPPO.tsx` lines 92-109
+
+Employee names containing `&`, `<`, or `>` would produce malformed XML. Same class of bug as CR-HIGH-4.
+
+**Fix:** Add inline `escapeXml` utility and wrap `r.name`, `r.jmbg` in the XML template.
+
+### Bug 9: CIT Tax Return missing adjustments UI
+
+**File:** `src/pages/tenant/CitTaxReturn.tsx`
+
+The `cit_tax_returns` table has `tax_adjustments_increase`, `tax_adjustments_decrease`, `tax_credits`, `adjustment_details`, and `notes` columns, but none are exposed in the UI. Users can't enter non-deductible expenses or tax incentives.
+
+**Fix:** Add an expandable "Tax Adjustments" section with inputs for:
+- `tax_adjustments_increase` (non-deductible expenses)
+- `tax_adjustments_decrease` (tax incentives)  
+- `tax_credits` (investment credits, etc.)
+- `adjustment_details` (textarea for notes)
+
+Recalculate: `taxable_base = Math.max(0, accounting_profit + increase - decrease)`, `final_tax = Math.max(0, tax_amount - credits)`.
+
+### Bug 10: PayrollParameters missing PPP-PD parameter fields
+
+**File:** `src/pages/tenant/PayrollParameters.tsx`
+
+The `payroll_parameters` table is missing fields needed for accurate PPP-PD generation:
+- `holiday_multiplier` (for public holiday work)
+- `sickness_rate_employer` (first 30 days employer-paid sick leave rate, typically 65%)
+- `annual_leave_daily_rate` (vacation pay calculation base)
+
+**Fix:** Add migration for these 3 columns. Add to FormState/FormFields/payload converters.
 
 ### Execution Order
 
-1. **Migration 1:** Fix 9 function search_paths (quick, high-security-impact)
-2. **Migration 2:** Add `tenant_id` + backfill + NOT NULL + index + RLS update for 10 priority child tables
-3. **Migrations 3-6:** Add indexes on 140 tables (4 batches of ~35)
-4. **Code changes:** Update ~8 form files to pass `tenant_id` on line item inserts
+1. CIT Tax Return full upgrade: Bugs 1, 2, 9 — `CitTaxReturn.tsx`
+2. BilansStanja class grouping fix: Bug 3 — `BilansStanja.tsx`
+3. Sequential numbering: Bugs 4, 5 — `InvoiceForm.tsx`, `journalUtils.ts`
+4. PayrollParameters expansion: Bugs 6, 10 — migration + `PayrollParameters.tsx`
+5. PPP-PD/PPP-PO fixes: Bugs 7, 8 — `PppdReview.tsx`, `PPPPO.tsx`
 
 ### Files Modified
 
-| Item | Type |
+| File | Bugs |
 |------|------|
-| 6 database migrations | SQL |
-| `src/pages/tenant/InvoiceForm.tsx` | Code |
-| `src/pages/tenant/Quotes.tsx` or form | Code |
-| `src/pages/tenant/SalesOrders.tsx` or form | Code |
-| `src/pages/tenant/PurchaseOrders.tsx` or form | Code |
-| `src/pages/tenant/GoodsReceiptForm.tsx` | Code |
-| `src/pages/tenant/PayrollRunDetail.tsx` | Code |
-| `src/pages/tenant/ProductionOrderDetail.tsx` | Code |
-| `src/components/settings/PostingRulesConfig.tsx` | Code |
+| `src/pages/tenant/CitTaxReturn.tsx` | 1, 2, 9 |
+| `src/pages/tenant/BilansStanja.tsx` | 3 |
+| `src/pages/tenant/InvoiceForm.tsx` | 4 |
+| `src/lib/journalUtils.ts` | 5 |
+| `src/pages/tenant/PayrollParameters.tsx` | 6, 10 |
+| `src/pages/tenant/PppdReview.tsx` | 7 |
+| `src/pages/tenant/reports/PPPPO.tsx` | 8 |
+| 1-2 database migrations | 6, 10 |
 
