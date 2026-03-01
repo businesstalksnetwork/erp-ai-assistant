@@ -5704,6 +5704,75 @@ export type Database = {
           },
         ]
       }
+      document_signatures: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          ip_address: string | null
+          rejected_at: string | null
+          rejection_reason: string | null
+          requested_at: string
+          requested_by: string | null
+          signed_at: string | null
+          signer_email: string
+          signer_name: string | null
+          status: string
+          tenant_id: string
+          token: string
+          token_expires_at: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id?: string
+          ip_address?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          signed_at?: string | null
+          signer_email: string
+          signer_name?: string | null
+          status?: string
+          tenant_id: string
+          token?: string
+          token_expires_at?: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          ip_address?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          signed_at?: string | null
+          signer_email?: string
+          signer_name?: string | null
+          status?: string
+          tenant_id?: string
+          token?: string
+          token_expires_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_signatures_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_signatures_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_template_versions: {
         Row: {
           content: string
@@ -18270,6 +18339,258 @@ export type Database = {
           },
           {
             foreignKeyName: "report_snapshots_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_order_items: {
+        Row: {
+          course_number: number
+          created_at: string
+          id: string
+          notes: string | null
+          order_id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          ready_at: string | null
+          seat_number: number | null
+          sent_to_kitchen_at: string | null
+          served_at: string | null
+          status: string
+          tenant_id: string
+          unit_price: number
+        }
+        Insert: {
+          course_number?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id: string
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          ready_at?: string | null
+          seat_number?: number | null
+          sent_to_kitchen_at?: string | null
+          served_at?: string | null
+          status?: string
+          tenant_id: string
+          unit_price?: number
+        }
+        Update: {
+          course_number?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          ready_at?: string | null
+          seat_number?: number | null
+          sent_to_kitchen_at?: string | null
+          served_at?: string | null
+          status?: string
+          tenant_id?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_order_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_orders: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          opened_at: string
+          opened_by: string | null
+          status: string
+          table_id: string
+          tenant_id: string
+          total_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          status?: string
+          table_id: string
+          tenant_id: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opened_by?: string | null
+          status?: string
+          table_id?: string
+          tenant_id?: string
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_orders_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_tables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_reservations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          guest_email: string | null
+          guest_name: string
+          guest_phone: string | null
+          id: string
+          notes: string | null
+          party_size: number
+          reservation_date: string
+          reservation_time: string
+          status: string
+          table_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          guest_email?: string | null
+          guest_name: string
+          guest_phone?: string | null
+          id?: string
+          notes?: string | null
+          party_size?: number
+          reservation_date: string
+          reservation_time: string
+          status?: string
+          table_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          guest_email?: string | null
+          guest_name?: string
+          guest_phone?: string | null
+          id?: string
+          notes?: string | null
+          party_size?: number
+          reservation_date?: string
+          reservation_time?: string
+          status?: string
+          table_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_reservations_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_tables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_reservations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurant_tables: {
+        Row: {
+          capacity: number
+          created_at: string
+          id: string
+          is_active: boolean
+          position_x: number | null
+          position_y: number | null
+          shape: string
+          status: string
+          table_number: number
+          tenant_id: string
+          updated_at: string
+          zone: string
+        }
+        Insert: {
+          capacity?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          position_x?: number | null
+          position_y?: number | null
+          shape?: string
+          status?: string
+          table_number: number
+          tenant_id: string
+          updated_at?: string
+          zone?: string
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          position_x?: number | null
+          position_y?: number | null
+          shape?: string
+          status?: string
+          table_number?: number
+          tenant_id?: string
+          updated_at?: string
+          zone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_tables_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
