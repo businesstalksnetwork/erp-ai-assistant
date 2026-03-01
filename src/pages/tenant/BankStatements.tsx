@@ -351,7 +351,24 @@ export default function BankStatements() {
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  // Enhanced auto-match with confidence scoring
+  // BNK-01: Levenshtein-like name similarity for fuzzy matching
+  const nameSimilarity = (a: string, b: string): number => {
+    if (!a || !b) return 0;
+    const al = a.toLowerCase().trim();
+    const bl = b.toLowerCase().trim();
+    if (al === bl) return 1;
+    if (al.includes(bl) || bl.includes(al)) return 0.85;
+    // Bigram similarity
+    const bigrams = (s: string) => { const bg = new Set<string>(); for (let i = 0; i < s.length - 1; i++) bg.add(s.slice(i, i + 2)); return bg; };
+    const aBg = bigrams(al);
+    const bBg = bigrams(bl);
+    if (aBg.size === 0 || bBg.size === 0) return 0;
+    let intersection = 0;
+    aBg.forEach(bg => { if (bBg.has(bg)) intersection++; });
+    return (2 * intersection) / (aBg.size + bBg.size);
+  };
+
+  // Enhanced auto-match with fuzzy matching (BNK-01)
   const autoMatchMutation = useMutation({
     mutationFn: async (statementId: string) => {
       const { data: lines } = await supabase.from("bank_statement_lines").select("*").eq("statement_id", statementId).eq("match_status", "unmatched");
@@ -369,11 +386,15 @@ export default function BankStatements() {
           let confidence = 0;
           const docTotal = Number(doc.total);
           const lineAmt = Number(line.amount);
+          const amtDiffPct = Math.abs(docTotal - lineAmt) / Math.max(docTotal, 1);
 
+          // BNK-01: Exact match = 40pts, ±1% = 30pts, ±5% fuzzy = 20pts
           if (Math.abs(docTotal - lineAmt) < 0.01) confidence += 40;
-          else if (Math.abs(docTotal - lineAmt) / Math.max(docTotal, 1) < 0.01) confidence += 20;
+          else if (amtDiffPct <= 0.01) confidence += 30;
+          else if (amtDiffPct <= 0.05) confidence += 20;
           else continue;
 
+          // Reference matching
           const ref = line.payment_reference?.trim() || "";
           const invNum = doc.invoice_number?.trim() || "";
           if (ref && invNum && (ref.includes(invNum) || invNum.includes(ref))) confidence += 40;
@@ -383,10 +404,14 @@ export default function BankStatements() {
             if (refDigits.length > 3 && invDigits.length > 3 && (refDigits.includes(invDigits) || invDigits.includes(refDigits))) confidence += 25;
           }
 
-          const partnerName = line.partner_name?.toLowerCase() || "";
-          const docPartner = ((doc as any).partner_name || (doc as any).supplier_name || "").toLowerCase();
-          if (partnerName && docPartner && (partnerName.includes(docPartner) || docPartner.includes(partnerName))) confidence += 15;
+          // BNK-01: Fuzzy name similarity using bigrams
+          const partnerName = line.partner_name || "";
+          const docPartner = (doc as any).partner_name || (doc as any).supplier_name || "";
+          const sim = nameSimilarity(partnerName, docPartner);
+          if (sim >= 0.8) confidence += 15;
+          else if (sim >= 0.5) confidence += 8;
 
+          // Due date proximity
           if ((doc as any).due_date && line.line_date) {
             const daysDiff = Math.abs(new Date(line.line_date).getTime() - new Date((doc as any).due_date).getTime()) / 86400000;
             if (daysDiff <= 7) confidence += 5;

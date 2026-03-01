@@ -77,6 +77,7 @@ const PaymentOrderFormPage = React.lazy(() => import("@/pages/tenant/PaymentOrde
 const PaymentTemplates = React.lazy(() => import("@/pages/tenant/PaymentTemplates"));
 const InterestAccrual = React.lazy(() => import("@/pages/tenant/InterestAccrual"));
 const CesijaAsignacija = React.lazy(() => import("@/pages/tenant/CesijaAsignacija"));
+const SepaExport = React.lazy(() => import("@/pages/tenant/SepaExport"));
 
 const m = "accounting";
 const B = PageErrorBoundary;
@@ -159,5 +160,6 @@ export const accountingRoutes = (
     <Route path="accounting/payment-templates" element={<ProtectedRoute requiredModule={m}><B><PaymentTemplates /></B></ProtectedRoute>} />
     <Route path="accounting/interest-accrual" element={<ProtectedRoute requiredModule={m}><B><InterestAccrual /></B></ProtectedRoute>} />
     <Route path="accounting/cesija-asignacija" element={<ProtectedRoute requiredModule={m}><B><CesijaAsignacija /></B></ProtectedRoute>} />
+    <Route path="accounting/sepa-export" element={<ProtectedRoute requiredModule={m}><B><SepaExport /></B></ProtectedRoute>} />
   </>
 );
