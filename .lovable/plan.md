@@ -5,34 +5,34 @@
 
 | # | Bug | Status |
 |---|-----|--------|
-| CR5-01 | `document_signatures` RLS USING(true) → token-scoped + status/expiry checks | ✅ |
-| CR5-02 | `document-ocr` references `dms_documents` → fixed to `documents` | ✅ |
-| CR5-03 | `DocumentApprovals.tsx` tenant_id filter — false positive, already present | ✅ N/A |
-| CR5-04 | Approval counting race condition → DB-level count + status re-check | ✅ |
-| CR5-05 | `VatSpecialSchemes` not persisted → saved to `tenant_settings` | ✅ |
-| CR5-06 | Hardcoded NBS rate → configurable via `tenant_settings` | ✅ |
+| CR5-01 | `document_signatures` RLS tightened | ✅ |
+| CR5-02 | `document-ocr` table name fixed | ✅ |
+| CR5-03 | False positive — already present | ✅ N/A |
+| CR5-04 | Approval race condition fixed | ✅ |
+| CR5-05 | VatSpecialSchemes persisted | ✅ |
+| CR5-06 | NBS rate configurable | ✅ |
 
 ---
 
-## Phase 2: Contract Templates & AI (Next)
+## Phase 2: Contract Templates & AI ✅ DONE
 
-### 2A: HR Contract Template Engine
-- Create `hr_contract_templates` table with 14 pre-seeded Serbian templates
-- `HrContractTemplates.tsx` — template library with variable substitution
-- `HrContractGenerator.tsx` — AI-powered form with ZoR clause validation
+| # | Item | Status |
+|---|------|--------|
+| 2A | HR Contract Templates (14 types, `HrContractTemplates.tsx`) | ✅ |
+| 2A | HR Contract Generator (AI-powered, `HrContractGenerator.tsx`) | ✅ |
+| 2B | Business Contract Templates (20 types, `BusinessContractTemplates.tsx`) | ✅ |
+| 2C-AI04 | Tax Calendar (`TaxCalendar.tsx`) with Serbian deadlines | ✅ |
+| 2C-AI07 | Document Classifier in OCR pipeline | ✅ |
 
-### 2B: DMS Business Agreement Templates
-- Create `business_contract_templates` table with 20 pre-seeded templates
-- Auto-include Serbian legal clauses
-- `BusinessContractTemplates.tsx` — template picker with partner auto-fill
-
-### 2C: AI Enhancements
-- AI-04: Tax Calendar with Serbian deadlines
-- AI-07: Document Classifier in OCR pipeline
+### Routes Added
+- `hr/contract-templates` — HR contract template library
+- `hr/contract-generator` — AI-powered contract generation
+- `documents/business-contracts` — Business contract templates
+- `ai/tax-calendar` — Serbian tax deadline calendar
 
 ---
 
-## Phase 3: Module Upgrades (Future)
+## Phase 3: Module Upgrades (Next)
 - HR: Travel orders, org chart, overtime
 - POS: Manager override, loyalty
 - Banking: Fuzzy matching, SEPA pain.001
