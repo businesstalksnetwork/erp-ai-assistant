@@ -46,6 +46,9 @@ const DmsProjectDetail = React.lazy(() => import("@/pages/tenant/DmsProjectDetai
 const DocumentBrowser = React.lazy(() => import("@/pages/tenant/DocumentBrowser"));
 const DmsReports = React.lazy(() => import("@/pages/tenant/DmsReports"));
 const DmsSettings = React.lazy(() => import("@/pages/tenant/DmsSettings"));
+const DocumentTemplates = React.lazy(() => import("@/pages/tenant/DocumentTemplates"));
+const DocumentApprovals = React.lazy(() => import("@/pages/tenant/DocumentApprovals"));
+const DocumentSearch = React.lazy(() => import("@/pages/tenant/DocumentSearch"));
 
 // POS
 const PosHub = React.lazy(() => import("@/pages/tenant/PosHub"));
@@ -153,6 +156,9 @@ export const documentsRoutes = (
     <Route path="documents/browser" element={<ProtectedRoute requiredModule="documents"><B><DocumentBrowser /></B></ProtectedRoute>} />
     <Route path="documents/reports" element={<ProtectedRoute requiredModule="documents"><B><DmsReports /></B></ProtectedRoute>} />
     <Route path="documents/settings" element={<ProtectedRoute requiredModule="documents"><B><DmsSettings /></B></ProtectedRoute>} />
+    <Route path="documents/templates" element={<ProtectedRoute requiredModule="documents"><B><DocumentTemplates /></B></ProtectedRoute>} />
+    <Route path="documents/approvals" element={<ProtectedRoute requiredModule="documents"><B><DocumentApprovals /></B></ProtectedRoute>} />
+    <Route path="documents/search" element={<ProtectedRoute requiredModule="documents"><B><DocumentSearch /></B></ProtectedRoute>} />
   </>
 );
 

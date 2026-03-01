@@ -2517,6 +2517,71 @@ export type Database = {
           },
         ]
       }
+      bank_statement_line_matches: {
+        Row: {
+          bank_statement_line_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_id: string | null
+          match_type: string
+          matched_amount: number
+          supplier_invoice_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          bank_statement_line_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id?: string | null
+          match_type?: string
+          matched_amount?: number
+          supplier_invoice_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          bank_statement_line_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id?: string | null
+          match_type?: string
+          matched_amount?: number
+          supplier_invoice_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statement_line_matches_bank_statement_line_id_fkey"
+            columns: ["bank_statement_line_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statement_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_line_matches_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_line_matches_supplier_invoice_id_fkey"
+            columns: ["supplier_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_line_matches_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_statement_lines: {
         Row: {
           amount: number
@@ -5275,6 +5340,54 @@ export type Database = {
           },
         ]
       }
+      document_approval_steps: {
+        Row: {
+          acted_at: string | null
+          action: string
+          approver_user_id: string
+          comment: string | null
+          created_at: string
+          document_workflow_id: string
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          acted_at?: string | null
+          action?: string
+          approver_user_id: string
+          comment?: string | null
+          created_at?: string
+          document_workflow_id: string
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          acted_at?: string | null
+          action?: string
+          approver_user_id?: string
+          comment?: string | null
+          created_at?: string
+          document_workflow_id?: string
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_approval_steps_document_workflow_id_fkey"
+            columns: ["document_workflow_id"]
+            isOneToOne: false
+            referencedRelation: "document_workflows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_approval_steps_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_categories: {
         Row: {
           code: string
@@ -5443,6 +5556,107 @@ export type Database = {
           },
         ]
       }
+      document_template_versions: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          template_id: string
+          tenant_id: string
+          variables: Json
+          version_number: number
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          template_id: string
+          tenant_id: string
+          variables?: Json
+          version_number?: number
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          template_id?: string
+          tenant_id?: string
+          variables?: Json
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_template_versions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "document_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_template_versions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_templates: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          is_system: boolean
+          name: string
+          tenant_id: string
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          category?: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name: string
+          tenant_id: string
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_versions: {
         Row: {
           category_id: string | null
@@ -5541,6 +5755,64 @@ export type Database = {
           },
         ]
       }
+      document_workflows: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          document_id: string
+          id: string
+          initiated_at: string
+          initiated_by: string | null
+          status: string
+          tenant_id: string
+          workflow_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          document_id: string
+          id?: string
+          initiated_at?: string
+          initiated_by?: string | null
+          status?: string
+          tenant_id: string
+          workflow_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          initiated_at?: string
+          initiated_by?: string | null
+          status?: string
+          tenant_id?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_workflows_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_workflows_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_workflows_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "approval_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           category_id: string | null
@@ -5557,14 +5829,17 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          ocr_text: string | null
           protocol_number: string | null
           recipient: string | null
+          search_vector: unknown
           sender: string | null
           seq_number: number | null
           status: string
           subject: string | null
           tags: string[] | null
           tenant_id: string
+          thumbnail_url: string | null
           updated_at: string
           uploaded_by: string | null
           valid_until: string | null
@@ -5584,14 +5859,17 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          ocr_text?: string | null
           protocol_number?: string | null
           recipient?: string | null
+          search_vector?: unknown
           sender?: string | null
           seq_number?: number | null
           status?: string
           subject?: string | null
           tags?: string[] | null
           tenant_id: string
+          thumbnail_url?: string | null
           updated_at?: string
           uploaded_by?: string | null
           valid_until?: string | null
@@ -5611,14 +5889,17 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          ocr_text?: string | null
           protocol_number?: string | null
           recipient?: string | null
+          search_vector?: unknown
           sender?: string | null
           seq_number?: number | null
           status?: string
           subject?: string | null
           tags?: string[] | null
           tenant_id?: string
+          thumbnail_url?: string | null
           updated_at?: string
           uploaded_by?: string | null
           valid_until?: string | null
@@ -15396,6 +15677,51 @@ export type Database = {
           },
         ]
       }
+      pos_transaction_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          payment_method: string
+          reference: string | null
+          tenant_id: string
+          transaction_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          payment_method?: string
+          reference?: string | null
+          tenant_id: string
+          transaction_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          payment_method?: string
+          reference?: string | null
+          tenant_id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_transaction_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_transaction_payments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "pos_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pos_transactions: {
         Row: {
           buyer_id: string | null
@@ -23257,6 +23583,18 @@ export type Database = {
       run_monthly_depreciation: {
         Args: { p_month: number; p_tenant_id: string; p_year: number }
         Returns: string
+      }
+      search_documents: {
+        Args: { p_limit?: number; p_query: string; p_tenant_id: string }
+        Returns: {
+          created_at: string
+          file_type: string
+          id: string
+          name: string
+          rank: number
+          status: string
+          subject: string
+        }[]
       }
       seed_company_categories: {
         Args: { _tenant_id: string }
