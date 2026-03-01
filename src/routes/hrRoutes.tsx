@@ -38,6 +38,10 @@ const SpecialHours = React.lazy(() => import("@/pages/tenant/SpecialHours"));
 const Otpremnina = React.lazy(() => import("@/pages/tenant/Otpremnina"));
 const LeavePolicies = React.lazy(() => import("@/pages/tenant/LeavePolicies"));
 const LeaveAnalytics = React.lazy(() => import("@/pages/tenant/reports/LeaveAnalytics"));
+const EmployeeDashboard = React.lazy(() => import("@/pages/tenant/EmployeeDashboard"));
+const MyPayslips = React.lazy(() => import("@/pages/tenant/MyPayslips"));
+const MyLeaves = React.lazy(() => import("@/pages/tenant/MyLeaves"));
+const MyAttendance = React.lazy(() => import("@/pages/tenant/MyAttendance"));
 
 const m = "hr";
 const B = PageErrorBoundary;
@@ -80,5 +84,9 @@ export const hrRoutes = (
     <Route path="hr/severance" element={<ProtectedRoute requiredModule={m}><B><Otpremnina /></B></ProtectedRoute>} />
     <Route path="hr/leave-policies" element={<ProtectedRoute requiredModule={m}><B><LeavePolicies /></B></ProtectedRoute>} />
     <Route path="hr/leave-analytics" element={<ProtectedRoute requiredModule={m}><B><LeaveAnalytics /></B></ProtectedRoute>} />
+    <Route path="hr/my-dashboard" element={<ProtectedRoute requiredModule={m}><B><EmployeeDashboard /></B></ProtectedRoute>} />
+    <Route path="hr/my-payslips" element={<ProtectedRoute requiredModule={m}><B><MyPayslips /></B></ProtectedRoute>} />
+    <Route path="hr/my-leaves" element={<ProtectedRoute requiredModule={m}><B><MyLeaves /></B></ProtectedRoute>} />
+    <Route path="hr/my-attendance" element={<ProtectedRoute requiredModule={m}><B><MyAttendance /></B></ProtectedRoute>} />
   </>
 );

@@ -6519,6 +6519,66 @@ export type Database = {
           },
         ]
       }
+      employee_certifications: {
+        Row: {
+          created_at: string
+          credential_id: string | null
+          employee_id: string
+          expiry_date: string | null
+          id: string
+          issue_date: string | null
+          issuer: string | null
+          name: string
+          notes: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credential_id?: string | null
+          employee_id: string
+          expiry_date?: string | null
+          id?: string
+          issue_date?: string | null
+          issuer?: string | null
+          name: string
+          notes?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credential_id?: string | null
+          employee_id?: string
+          expiry_date?: string | null
+          id?: string
+          issue_date?: string | null
+          issuer?: string | null
+          name?: string
+          notes?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_certifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_certifications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_contracts: {
         Row: {
           contract_type: string
@@ -6585,6 +6645,60 @@ export type Database = {
           },
           {
             foreignKeyName: "employee_contracts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_education: {
+        Row: {
+          created_at: string
+          degree: string
+          employee_id: string
+          field_of_study: string | null
+          graduation_year: number | null
+          id: string
+          institution: string
+          notes: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          degree: string
+          employee_id: string
+          field_of_study?: string | null
+          graduation_year?: number | null
+          id?: string
+          institution: string
+          notes?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          degree?: string
+          employee_id?: string
+          field_of_study?: string | null
+          graduation_year?: number | null
+          id?: string
+          institution?: string
+          notes?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_education_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_education_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -6746,6 +6860,69 @@ export type Database = {
           },
           {
             foreignKeyName: "employee_salaries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_trainings: {
+        Row: {
+          certificate_url: string | null
+          cost: number | null
+          created_at: string
+          currency: string | null
+          employee_id: string
+          hours: number | null
+          id: string
+          notes: string | null
+          provider: string | null
+          tenant_id: string
+          title: string
+          training_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          certificate_url?: string | null
+          cost?: number | null
+          created_at?: string
+          currency?: string | null
+          employee_id: string
+          hours?: number | null
+          id?: string
+          notes?: string | null
+          provider?: string | null
+          tenant_id: string
+          title: string
+          training_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          certificate_url?: string | null
+          cost?: number | null
+          created_at?: string
+          currency?: string | null
+          employee_id?: string
+          hours?: number | null
+          id?: string
+          notes?: string | null
+          provider?: string | null
+          tenant_id?: string
+          title?: string
+          training_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_trainings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_trainings_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -14213,6 +14390,132 @@ export type Database = {
           requires_invoice?: boolean
         }
         Relationships: []
+      }
+      payment_order_batches: {
+        Row: {
+          batch_number: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          batch_number: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          batch_number?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_order_batches_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_orders: {
+        Row: {
+          amount: number
+          batch_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string | null
+          id: string
+          model: string | null
+          partner_id: string | null
+          payment_code: string | null
+          payment_date: string
+          recipient_account: string
+          recipient_name: string | null
+          reference_number: string | null
+          sender_account: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          batch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          id?: string
+          model?: string | null
+          partner_id?: string | null
+          payment_code?: string | null
+          payment_date?: string
+          recipient_account: string
+          recipient_name?: string | null
+          reference_number?: string | null
+          sender_account: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          batch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          id?: string
+          model?: string | null
+          partner_id?: string | null
+          payment_code?: string | null
+          payment_date?: string
+          recipient_account?: string
+          recipient_name?: string | null
+          reference_number?: string | null
+          sender_account?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_orders_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "payment_order_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_orders_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payroll_bank_reconciliation: {
         Row: {

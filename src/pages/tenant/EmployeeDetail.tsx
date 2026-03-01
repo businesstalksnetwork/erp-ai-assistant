@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { RateChangeHistory } from "@/components/hr/RateChangeHistory";
+import { EmployeeEducationTab } from "@/components/hr/EmployeeEducationTab";
 
 type EmploymentType = "full_time" | "part_time" | "contract" | "intern";
 
@@ -400,6 +401,7 @@ export default function EmployeeDetail() {
           <TabsTrigger value="assets">{t("assetsCrossEmployeeAssets" as any)}</TabsTrigger>
           <TabsTrigger value="documents">{t("documents")}</TabsTrigger>
           <TabsTrigger value="onboarding">{t("onboardingChecklists" as any)}</TabsTrigger>
+          <TabsTrigger value="education">Obrazovanje</TabsTrigger>
         </TabsList>
 
         {/* Personal Info */}
@@ -674,6 +676,11 @@ export default function EmployeeDetail() {
         {/* Onboarding */}
         <TabsContent value="onboarding">
           <EmployeeOnboardingTab employeeId={id!} tenantId={tenantId!} />
+        </TabsContent>
+
+        {/* Education & Skills */}
+        <TabsContent value="education">
+          <EmployeeEducationTab employeeId={id!} />
         </TabsContent>
       </Tabs>
 
