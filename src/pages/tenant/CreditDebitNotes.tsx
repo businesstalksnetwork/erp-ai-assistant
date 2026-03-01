@@ -79,14 +79,22 @@ export default function CreditDebitNotes() {
     enabled: !!tenantId,
   });
 
+  // P1-11 FIX: Read credit notes from invoices table (unified flow)
   const { data: creditNotes = [], isLoading: loadingCN } = useQuery({
-    queryKey: ["standalone-credit-notes", tenantId],
+    queryKey: ["credit-notes-unified", tenantId],
     queryFn: async () => {
-      const { data } = await supabase.from("credit_notes")
+      const { data } = await supabase.from("invoices")
         .select("*, partners(name), legal_entities(name)")
         .eq("tenant_id", tenantId!)
+        .eq("invoice_type", "credit_note")
         .order("created_at", { ascending: false });
-      return data || [];
+      // Map invoice fields to credit note display format
+      return (data || []).map((inv: any) => ({
+        ...inv,
+        credit_number: inv.invoice_number,
+        amount: inv.total,
+        issued_at: inv.invoice_date,
+      }));
     },
     enabled: !!tenantId,
   });
@@ -116,43 +124,83 @@ export default function CreditDebitNotes() {
     ];
   };
 
+  // P1-11 FIX: Save credit notes to invoices table with invoice_type='credit_note'
   const saveCreditNote = useMutation({
     mutationFn: async (f: NoteForm) => {
-      const payload = {
-        tenant_id: tenantId!, credit_number: f.number,
-        invoice_id: f.invoice_id || null, partner_id: f.partner_id || null,
-        legal_entity_id: f.legal_entity_id || null,
-        amount: f.amount, currency: f.currency, status: f.status,
-        notes: f.notes || null,
-        issued_at: f.status === "issued" ? new Date().toISOString() : null,
-      };
-      if (editId) {
-        const { error } = await supabase.from("credit_notes").update(payload).eq("id", editId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("credit_notes").insert([payload]);
-        if (error) throw error;
-      }
-      if (f.status === "issued" && f.amount > 0 && tenantId) {
-        // P2-07: Fetch actual VAT breakdown from linked invoice lines instead of hardcoded 20%
-        let totalTax = 0;
-        let totalNet = 0;
-        let effectiveTaxRate = 0.2; // fallback
-        if (f.invoice_id) {
-          const { data: invLines } = await supabase
-            .from("invoice_lines")
-            .select("line_total, tax_amount")
-            .eq("invoice_id", f.invoice_id);
-          if (invLines && invLines.length > 0) {
-            const invTotal = invLines.reduce((s, l) => s + Number(l.line_total || 0) + Number(l.tax_amount || 0), 0);
-            const invTax = invLines.reduce((s, l) => s + Number(l.tax_amount || 0), 0);
-            if (invTotal > 0) {
-              effectiveTaxRate = invTax / invTotal;
-            }
-          }
+      // Fetch VAT info from linked invoice
+      let effectiveTaxRate = 0.2;
+      let popdvField = "3.2";
+      if (f.invoice_id) {
+        const { data: invLines } = await supabase
+          .from("invoice_lines")
+          .select("line_total, tax_amount, tax_rate_value, popdv_field")
+          .eq("invoice_id", f.invoice_id);
+        if (invLines && invLines.length > 0) {
+          const invTotal = invLines.reduce((s, l) => s + Number(l.line_total || 0) + Number(l.tax_amount || 0), 0);
+          const invTax = invLines.reduce((s, l) => s + Number(l.tax_amount || 0), 0);
+          if (invTotal > 0) effectiveTaxRate = invTax / invTotal;
+          // Use popdv_field from original invoice lines
+          const firstPopdv = invLines.find(l => l.popdv_field)?.popdv_field;
+          if (firstPopdv) popdvField = firstPopdv;
         }
-        totalTax = Math.round(f.amount * effectiveTaxRate * 100) / 100;
-        totalNet = Math.round((f.amount - totalTax) * 100) / 100;
+      }
+      const totalTax = Math.round(f.amount * effectiveTaxRate * 100) / 100;
+      const totalNet = Math.round((f.amount - totalTax) * 100) / 100;
+      const taxRateValue = Math.round(effectiveTaxRate * 100);
+
+      // Map status: "issued" → "posted" for invoices table
+      const invoiceStatus = f.status === "issued" ? "posted" : f.status;
+
+      const invoicePayload: any = {
+        tenant_id: tenantId!,
+        invoice_number: f.number,
+        invoice_date: new Date().toISOString().split("T")[0],
+        vat_date: new Date().toISOString().split("T")[0],
+        partner_id: f.partner_id || null,
+        partner_name: partners.find(p => p.id === f.partner_id)?.name || "",
+        legal_entity_id: f.legal_entity_id || null,
+        subtotal: totalNet,
+        tax_amount: totalTax,
+        total: f.amount,
+        currency: f.currency,
+        status: invoiceStatus,
+        notes: f.notes || null,
+        created_by: user?.id || null,
+        invoice_type: "credit_note",
+        advance_invoice_id: f.invoice_id || null,
+      };
+
+      let invoiceId: string;
+      if (editId) {
+        const { error } = await supabase.from("invoices").update(invoicePayload).eq("id", editId);
+        if (error) throw error;
+        invoiceId = editId;
+        // Remove old lines and re-insert
+        await supabase.from("invoice_lines").delete().eq("invoice_id", editId);
+      } else {
+        const { data, error } = await supabase.from("invoices").insert(invoicePayload).select("id").single();
+        if (error) throw error;
+        invoiceId = data.id;
+      }
+
+      // Insert a single credit note line with proper popdv_field
+      await supabase.from("invoice_lines").insert({
+        invoice_id: invoiceId,
+        tenant_id: tenantId!,
+        description: f.reason || `Knjižno odobrenje ${f.number}`,
+        quantity: 1,
+        unit_price: totalNet,
+        tax_rate_value: taxRateValue,
+        line_total: totalNet,
+        tax_amount: totalTax,
+        total_with_tax: f.amount,
+        sort_order: 0,
+        item_type: "service",
+        popdv_field: popdvField,
+      });
+
+      // Post GL entry when status is "issued"
+      if (f.status === "issued" && f.amount > 0 && tenantId) {
         const fallbackLines = [
           { accountCode: "6000", debit: totalNet, credit: 0, description: `Storno prihoda - ${f.number}`, sortOrder: 0 },
           { accountCode: "4700", debit: totalTax, credit: 0, description: `Storno PDV - ${f.number}`, sortOrder: 1 },
@@ -170,7 +218,7 @@ export default function CreditDebitNotes() {
         });
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["standalone-credit-notes"] }); setDialogOpen(false); toast({ title: t("success") }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["credit-notes-unified"] }); setDialogOpen(false); toast({ title: t("success") }); },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
