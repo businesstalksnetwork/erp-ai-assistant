@@ -56,6 +56,9 @@ const PosTerminal = React.lazy(() => import("@/pages/tenant/PosTerminal"));
 const PosSessions = React.lazy(() => import("@/pages/tenant/PosSessions"));
 const FiscalDevices = React.lazy(() => import("@/pages/tenant/FiscalDevices"));
 const PosDailyReport = React.lazy(() => import("@/pages/tenant/PosDailyReport"));
+const RestaurantTables = React.lazy(() => import("@/pages/tenant/RestaurantTables"));
+const KitchenDisplay = React.lazy(() => import("@/pages/tenant/KitchenDisplay"));
+const RestaurantReservations = React.lazy(() => import("@/pages/tenant/RestaurantReservations"));
 
 // Returns — moved to inventoryRoutes.tsx
 
@@ -169,6 +172,9 @@ export const posRoutes = (
     <Route path="pos/sessions" element={<ProtectedRoute requiredModule="pos"><B><PosSessions /></B></ProtectedRoute>} />
     <Route path="pos/fiscal-devices" element={<ProtectedRoute requiredModule="pos"><B><FiscalDevices /></B></ProtectedRoute>} />
     <Route path="pos/daily-report" element={<ProtectedRoute requiredModule="pos"><B><PosDailyReport /></B></ProtectedRoute>} />
+    <Route path="pos/tables" element={<ProtectedRoute requiredModule="pos"><B><RestaurantTables /></B></ProtectedRoute>} />
+    <Route path="pos/kitchen" element={<ProtectedRoute requiredModule="pos"><B><KitchenDisplay /></B></ProtectedRoute>} />
+    <Route path="pos/reservations" element={<ProtectedRoute requiredModule="pos"><B><RestaurantReservations /></B></ProtectedRoute>} />
   </>
 );
 

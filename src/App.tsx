@@ -16,6 +16,7 @@ import Register from "@/pages/Register";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
 const ReversSignaturePage = React.lazy(() => import("@/pages/tenant/ReversSignature"));
+const DocumentSignPage = React.lazy(() => import("@/pages/tenant/DocumentSign"));
 
 import SuperAdminLayout from "@/layouts/SuperAdminLayout";
 import TenantLayout from "@/layouts/TenantLayout";
@@ -86,6 +87,7 @@ const App = () => (
               <Route path="/register" element={<Register />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/sign/:token" element={<React.Suspense fallback={<LoadingFallback />}><ReversSignaturePage /></React.Suspense>} />
+              <Route path="/sign-document/:token" element={<React.Suspense fallback={<LoadingFallback />}><DocumentSignPage /></React.Suspense>} />
 
               {/* Super Admin routes */}
               <Route path="/super-admin" element={<ProtectedRoute requireSuperAdmin><SuperAdminLayout /></ProtectedRoute>}>
