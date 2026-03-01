@@ -153,6 +153,28 @@ export default function JournalEntries() {
         }
       }
 
+      // P8-08: Account class validation — warn on wrong-side posting
+      const classWarnings: string[] = [];
+      for (const line of lines) {
+        if (!line.account_id) continue;
+        const acc = accounts.find((a: any) => a.id === line.account_id);
+        if (!acc) continue;
+        const code = String((acc as any).code || "");
+        const cls = code[0];
+        // Revenue (class 6) normally on credit side
+        if (cls === "6" && Number(line.debit) > 0 && Number(line.credit) === 0) {
+          classWarnings.push(`Konto ${code} (prihod) knjižen na duguje — proverite ispravnost`);
+        }
+        // Expense (class 5) normally on debit side
+        if (cls === "5" && Number(line.credit) > 0 && Number(line.debit) === 0) {
+          classWarnings.push(`Konto ${code} (rashod) knjižen na potražuje — proverite ispravnost`);
+        }
+      }
+      if (classWarnings.length > 0) {
+        // Show as toast warning but don't block — these are valid for storno/corrections
+        toast({ title: "Upozorenje", description: classWarnings.join("; "), variant: "destructive" });
+      }
+
       // Check fiscal period is open before posting
       if (tenantId && form.entry_date) {
         const { checkFiscalPeriodOpen } = await import("@/lib/journalUtils");

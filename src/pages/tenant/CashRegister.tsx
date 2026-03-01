@@ -76,9 +76,23 @@ export default function CashRegister() {
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
+  // P5-04: Compute running balance and sequential daily numbers
+  const entriesWithBalance = useMemo(() => {
+    let balance = 0;
+    let seq = 0;
+    return entries.map(e => {
+      seq++;
+      const amount = Number(e.amount);
+      if (e.direction === "in") balance += amount;
+      else balance -= amount;
+      return { ...e, seq, runningBalance: balance };
+    });
+  }, [entries]);
+
   const columns: ResponsiveColumn<any>[] = [
-    { key: "entry_number", label: t("entryNumber"), primary: true, sortable: true, sortValue: (e) => e.entry_number, render: (e) => <span className="font-mono text-xs">{e.entry_number} {(e as any).source === "pos" && <Badge variant="secondary" className="ml-1 text-[10px]">POS</Badge>}</span> },
-    { key: "date", label: t("date"), sortable: true, sortValue: (e) => e.entry_date, render: (e) => e.entry_date },
+    { key: "seq", label: "R.br.", primary: true, render: (e) => <span className="font-mono text-xs">{e.seq}</span> },
+    { key: "entry_number", label: t("entryNumber"), sortable: true, sortValue: (e) => e.entry_number, render: (e) => <span className="font-mono text-xs">{e.entry_number} {(e as any).source === "pos" && <Badge variant="secondary" className="ml-1 text-[10px]">POS</Badge>}</span> },
+    { key: "date", label: t("date"), sortable: true, sortValue: (e) => e.entry_date, render: (e) => new Date(e.entry_date).toLocaleDateString("sr-Latn-RS") },
     { key: "direction", label: t("direction"), sortable: true, sortValue: (e) => e.direction, render: (e) =>
       e.direction === "in"
         ? <Badge variant="default" className="gap-1"><ArrowDownLeft className="h-3 w-3" /> {t("receipt")}</Badge>
@@ -86,8 +100,9 @@ export default function CashRegister() {
     },
     { key: "description", label: t("description"), hideOnMobile: true, render: (e) => e.description },
     { key: "document_ref", label: t("documentRef"), hideOnMobile: true, defaultVisible: false, render: (e) => <span className="text-xs text-muted-foreground">{e.document_ref || "—"}</span> },
-    { key: "receipt_amount", label: t("receipt"), align: "right" as const, sortable: true, sortValue: (e) => e.direction === "in" ? Number(e.amount) : 0, render: (e) => e.direction === "in" ? <span className="text-green-600">{Number(e.amount).toLocaleString("sr-RS")}</span> : "" },
-    { key: "disbursement_amount", label: t("disbursement"), align: "right" as const, sortable: true, sortValue: (e) => e.direction === "out" ? Number(e.amount) : 0, render: (e) => e.direction === "out" ? <span className="text-red-600">{Number(e.amount).toLocaleString("sr-RS")}</span> : "" },
+    { key: "receipt_amount", label: t("receipt"), align: "right" as const, sortable: true, sortValue: (e) => e.direction === "in" ? Number(e.amount) : 0, render: (e) => e.direction === "in" ? <span className="text-green-600 tabular-nums">{Number(e.amount).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</span> : "" },
+    { key: "disbursement_amount", label: t("disbursement"), align: "right" as const, sortable: true, sortValue: (e) => e.direction === "out" ? Number(e.amount) : 0, render: (e) => e.direction === "out" ? <span className="text-red-600 tabular-nums">{Number(e.amount).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</span> : "" },
+    { key: "balance", label: t("balance"), align: "right" as const, render: (e) => <span className={`font-medium tabular-nums ${e.runningBalance >= 0 ? "" : "text-red-600"}`}>{e.runningBalance.toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</span> },
   ];
 
   return (
@@ -121,17 +136,18 @@ export default function CashRegister() {
         <CardContent>
           {isLoading ? <Skeleton className="h-60" /> : (
             <ResponsiveTable
-              data={entries}
+              data={entriesWithBalance}
               columns={columns}
               keyExtractor={(e) => e.id}
               emptyMessage={t("noResults")}
               enableExport
-              exportFilename="cash_register"
+              exportFilename="blagajnicki_dnevnik"
               renderFooter={() => (
                 <TableRow>
-                  <TableCell colSpan={5} className="font-semibold">{t("total")}</TableCell>
-                  <TableCell className="text-right font-semibold text-green-600">{totalIn.toLocaleString("sr-RS")}</TableCell>
-                  <TableCell className="text-right font-semibold text-red-600">{totalOut.toLocaleString("sr-RS")}</TableCell>
+                  <TableCell colSpan={6} className="font-semibold">{t("total")}</TableCell>
+                  <TableCell className="text-right font-semibold text-green-600 tabular-nums">{totalIn.toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="text-right font-semibold text-red-600 tabular-nums">{totalOut.toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums">{(totalIn - totalOut).toLocaleString("sr-RS", { minimumFractionDigits: 2 })}</TableCell>
                 </TableRow>
               )}
             />

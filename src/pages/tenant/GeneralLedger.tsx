@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { BookOpen, Download } from "lucide-react";
-import { format } from "date-fns";
 import { fmtNum } from "@/lib/utils";
 import { exportToCsv } from "@/lib/exportCsv";
 
@@ -239,12 +238,34 @@ export default function GeneralLedger() {
             return (
               <Card key={g.account.id}>
                 <CardContent className="p-0">
-                  <div className="p-4 border-b bg-muted/50 flex justify-between items-center">
+                  <div className="p-4 border-b bg-muted/50 flex justify-between items-center flex-wrap gap-2">
                     <span className="font-semibold">{g.account.code} — {locale === "sr" ? (g.account.name_sr || g.account.name) : g.account.name}</span>
                     <span className="text-sm text-muted-foreground">
                       {t("totalDebit")}: {fmtNum(g.totalDebit)} | {t("totalCredit")}: {fmtNum(g.totalCredit)} | {locale === "sr" ? "Saldo" : "Balance"}: {fmtNum(g.openingBalance + g.totalDebit - g.totalCredit)}
                     </span>
                   </div>
+
+                  {/* P8-05: T-account visualization */}
+                  <div className="p-4 border-b">
+                    <div className="border rounded-md overflow-hidden max-w-md mx-auto">
+                      <div className="grid grid-cols-2 divide-x">
+                        <div className="px-3 py-1.5 bg-muted/50 text-xs font-semibold text-center border-b">{t("debit")}</div>
+                        <div className="px-3 py-1.5 bg-muted/50 text-xs font-semibold text-center border-b">{t("credit")}</div>
+                      </div>
+                      <div className="grid grid-cols-2 divide-x">
+                        <div className="px-3 py-2 text-right tabular-nums text-sm font-medium">{fmtNum(g.openingBalance > 0 ? g.openingBalance : 0)}{g.openingBalance > 0 && <span className="text-[10px] text-muted-foreground ml-1">(PS)</span>}<br/>{fmtNum(g.totalDebit)}</div>
+                        <div className="px-3 py-2 text-right tabular-nums text-sm font-medium">{fmtNum(g.openingBalance < 0 ? Math.abs(g.openingBalance) : 0)}{g.openingBalance < 0 && <span className="text-[10px] text-muted-foreground ml-1">(PS)</span>}<br/>{fmtNum(g.totalCredit)}</div>
+                      </div>
+                      <div className="grid grid-cols-2 divide-x border-t bg-muted/30">
+                        <div className="px-3 py-1 text-right tabular-nums text-xs font-bold">{fmtNum((g.openingBalance > 0 ? g.openingBalance : 0) + g.totalDebit)}</div>
+                        <div className="px-3 py-1 text-right tabular-nums text-xs font-bold">{fmtNum((g.openingBalance < 0 ? Math.abs(g.openingBalance) : 0) + g.totalCredit)}</div>
+                      </div>
+                      <div className="px-3 py-1.5 text-center text-xs font-semibold border-t bg-muted/50">
+                        {locale === "sr" ? "Saldo" : "Balance"}: {fmtNum(g.openingBalance + g.totalDebit - g.totalCredit)}
+                      </div>
+                    </div>
+                  </div>
+
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -270,7 +291,7 @@ export default function GeneralLedger() {
                         runningBalance += Number(line.debit) - Number(line.credit);
                         return (
                           <TableRow key={line.id}>
-                            <TableCell>{line.journal_entry?.entry_date ? format(new Date(line.journal_entry.entry_date), "dd.MM.yyyy") : ""}</TableCell>
+                            <TableCell>{line.journal_entry?.entry_date ? new Date(line.journal_entry.entry_date).toLocaleDateString("sr-Latn-RS") : ""}</TableCell>
                             <TableCell className="font-mono text-xs">{line.journal_entry?.entry_number}</TableCell>
                             <TableCell className="max-w-xs truncate">{line.description || line.journal_entry?.description || ""}</TableCell>
                             <TableCell className="text-right tabular-nums">{Number(line.debit) > 0 ? fmtNum(Number(line.debit)) : ""}</TableCell>

@@ -107,6 +107,8 @@ function buildUblXml(
   isReverseCharge = false,
 ): string {
   const invoiceDate = invoice.invoice_date;
+  const isCreditNote = (invoice.document_type || 380) === 381;
+
   // Group lines by tax rate for TaxSubtotal
   const taxGroups = new Map<number, { taxable: number; tax: number }>();
   for (const line of lines) {
@@ -120,7 +122,6 @@ function buildUblXml(
   const taxSubtotals = Array.from(taxGroups.entries())
     .map(
       ([rate, amounts]) => {
-        // Find a line with this rate to check efaktura_category override
         const sampleLine = lines.find(l => l.tax_rate_value === rate);
         const categoryId = sampleLine?.efaktura_category || getTaxCategoryId(rate, isReverseCharge, invoiceDate);
         return `
@@ -139,13 +140,17 @@ function buildUblXml(
     )
     .join("");
 
+  // P4-09: Use CreditNoteLine / CreditedQuantity for credit notes
+  const lineTag = isCreditNote ? "CreditNoteLine" : "InvoiceLine";
+  const qtyTag = isCreditNote ? "CreditedQuantity" : "InvoicedQuantity";
+
   const invoiceLines = lines
     .sort((a, b) => a.sort_order - b.sort_order)
     .map(
       (line, idx) => `
-    <cac:InvoiceLine>
+    <cac:${lineTag}>
       <cbc:ID>${idx + 1}</cbc:ID>
-      <cbc:InvoicedQuantity unitCode="C62">${line.quantity}</cbc:InvoicedQuantity>
+      <cbc:${qtyTag} unitCode="C62">${line.quantity}</cbc:${qtyTag}>
       <cbc:LineExtensionAmount currencyID="${escapeXml(invoice.currency)}">${formatAmount(line.line_total)}</cbc:LineExtensionAmount>
       <cac:Item>
         <cbc:Name>${escapeXml(line.description)}</cbc:Name>${
@@ -167,7 +172,7 @@ function buildUblXml(
       <cac:Price>
         <cbc:PriceAmount currencyID="${escapeXml(invoice.currency)}">${formatPrice(line.unit_price)}</cbc:PriceAmount>
       </cac:Price>
-    </cac:InvoiceLine>`
+    </cac:${lineTag}>`
     )
     .join("");
 
@@ -177,8 +182,15 @@ function buildUblXml(
   const supplierCountry = supplier.country || "RS";
   const buyerCountry = buyer.country || "RS";
 
+  // P4-09: CreditNote root element with correct namespace for type 381
+  const rootTag = isCreditNote ? "CreditNote" : "Invoice";
+  const rootNs = isCreditNote
+    ? "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
+    : "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2";
+  const typeCodeTag = isCreditNote ? "CreditNoteTypeCode" : "InvoiceTypeCode";
+
   return `<?xml version="1.0" encoding="UTF-8"?>
-<Invoice xmlns:cec="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:sbt="http://mfin.gov.rs/srbdt/srbdtext" xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2">
+<${rootTag} xmlns:cec="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:sbt="http://mfin.gov.rs/srbdt/srbdtext" xmlns="${rootNs}">
   <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:mfin.gov.rs:srbdt:2024</cbc:CustomizationID>
   <cbc:ID>${escapeXml(invoice.invoice_number)}</cbc:ID>
   <cbc:IssueDate>${escapeXml(invoice.invoice_date)}</cbc:IssueDate>${
@@ -187,7 +199,7 @@ function buildUblXml(
   <cbc:DueDate>${escapeXml(invoice.due_date)}</cbc:DueDate>`
       : ""
   }
-   <cbc:InvoiceTypeCode>${invoice.document_type || 380}</cbc:InvoiceTypeCode>${
+   <cbc:${typeCodeTag}>${invoice.document_type || 380}</cbc:${typeCodeTag}>${
     invoice.billing_reference_number
       ? `
   <cac:BillingReference>
@@ -316,7 +328,7 @@ function buildUblXml(
     <cbc:PayableRoundingAmount currencyID="${escapeXml(invoice.currency)}">0.00</cbc:PayableRoundingAmount>
     <cbc:PayableAmount currencyID="${escapeXml(invoice.currency)}">${formatAmount(payableAmount)}</cbc:PayableAmount>
   </cac:LegalMonetaryTotal>${invoiceLines}
-</Invoice>`;
+</${rootTag}>`;
 }
 
 // --- Main handler ---
