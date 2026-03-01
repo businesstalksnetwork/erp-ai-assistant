@@ -1,11 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // @ts-ignore — JSZip via esm.sh works at runtime in Deno
 import JSZip from "https://esm.sh/jszip@3.10.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 const BATCH_SIZE = 100; // Reduced from 500 so a bad batch affects fewer rows
 
@@ -1804,7 +1800,9 @@ const IMPORT_ORDER = [
 // MAIN HANDLER — same external API, now with City lookup and docHeaderMap
 // ──────────────────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const preflight = handleCorsPreflightRequest(req);
+  if (preflight) return preflight;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     const supabase = createClient(

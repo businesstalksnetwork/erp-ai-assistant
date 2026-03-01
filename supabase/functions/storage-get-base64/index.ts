@@ -1,11 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { S3Client } from 'https://deno.land/x/s3_lite_client@0.7.0/mod.ts';
 import { encode as base64Encode } from 'https://deno.land/std@0.208.0/encoding/base64.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 // Initialize S3 client for DigitalOcean Spaces
 function getS3Client() {
