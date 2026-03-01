@@ -1,50 +1,85 @@
 
-# V4 PRD Implementation — Phased Roadmap
 
-## Phase 1: Critical Bug Fixes ✅ DONE
+# Phase 3: Module Upgrades
 
-| # | Bug | Status |
-|---|-----|--------|
-| CR5-01 | `document_signatures` RLS tightened | ✅ |
-| CR5-02 | `document-ocr` table name fixed | ✅ |
-| CR5-03 | False positive — already present | ✅ N/A |
-| CR5-04 | Approval race condition fixed | ✅ |
-| CR5-05 | VatSpecialSchemes persisted | ✅ |
-| CR5-06 | NBS rate configurable | ✅ |
+Based on PRD items and existing codebase analysis, Phase 3 covers 6 deliverables across HR, POS, Banking, and CRM.
 
 ---
 
-## Phase 2: Contract Templates & AI ✅ DONE
+## 3A: HR — Org Chart Visualization (HR-04)
 
-| # | Item | Status |
-|---|------|--------|
-| 2A | HR Contract Templates (14 types, `HrContractTemplates.tsx`) | ✅ |
-| 2A | HR Contract Generator (AI-powered, `HrContractGenerator.tsx`) | ✅ |
-| 2B | Business Contract Templates (20 types, `BusinessContractTemplates.tsx`) | ✅ |
-| 2C-AI04 | Tax Calendar (`TaxCalendar.tsx`) with Serbian deadlines | ✅ |
-| 2C-AI07 | Document Classifier in OCR pipeline | ✅ |
-
-### Routes Added
-- `hr/contract-templates` — HR contract template library
-- `hr/contract-generator` — AI-powered contract generation
-- `documents/business-contracts` — Business contract templates
-- `ai/tax-calendar` — Serbian tax deadline calendar
+**New file:** `src/pages/tenant/OrgChart.tsx`
+- Recursive tree visualization built from `employees` table using `manager_id` / department hierarchy
+- Card-based layout showing employee name, position, department, avatar
+- Expand/collapse nodes, click to navigate to employee detail
+- Route: `hr/org-chart`
 
 ---
 
-## Phase 3: Module Upgrades (Next)
-- HR: Travel orders, org chart, overtime
-- POS: Manager override, loyalty
-- Banking: Fuzzy matching, SEPA pain.001
-- CRM: Credit limits, quote templates
+## 3B: POS — Manager Override & Discount Approval (POS-01)
 
-## Phase 4: Advanced AI (Future)
-- AI-02: Invoice Anomaly Detection
-- AI-06: Cash Flow Predictor
-- AI-05: Supplier Scoring
-- AI-03: Payroll Predictor
+**Migration:** `pos_discount_overrides` table (tenant_id, transaction_id, original_price, override_price, discount_pct, reason, approved_by, requested_by, status, created_at)
 
-## Phase 5: Enterprise Features (Future)
-- MRP auto-run, lot/batch traceability
-- SEPA + IPS QR
-- Performance reviews, multi-register POS sync
+**New file:** `src/pages/tenant/PosManagerOverride.tsx` — dashboard showing pending/approved overrides
+
+**Edit:** `PosTerminal.tsx` — add "Request Discount" button that creates override request; managers see approval notification; approved discounts apply to cart item
+
+Route: `pos/manager-overrides`
+
+---
+
+## 3C: POS — Loyalty POS Integration (POS-04)
+
+**Edit:** `PosTerminal.tsx` — add loyalty member lookup (phone/card number), display tier/points, auto-accrue points on sale completion, allow point redemption as payment method
+
+Uses existing `loyalty_members`, `loyalty_transactions`, `loyalty_programs` tables. No migration needed.
+
+---
+
+## 3D: Banking — Fuzzy Matching (BNK-01)
+
+**Edit:** `BankStatements.tsx` — enhance reconciliation engine with:
+- ±5% amount tolerance matching against open invoices
+- Levenshtein-like name similarity on partner/payer names
+- Confidence score display (exact match 100%, fuzzy 70-99%)
+- Manual confirm/reject for fuzzy matches
+
+No migration needed — works with existing `bank_statement_lines` and `invoices` tables.
+
+---
+
+## 3E: Banking — SEPA pain.001 XML Export (BNK-02)
+
+**New file:** `src/pages/tenant/SepaExport.tsx` — select payment orders → generate SEPA pain.001 XML
+- ISO 20022 XML structure: `<CstmrCdtTrfInitn>` with `<PmtInf>` blocks
+- Pulls from `payment_orders` where status = confirmed
+- Includes IBAN validation, BIC lookup
+- Download as `.xml` file
+- Route: `accounting/sepa-export`
+
+---
+
+## 3F: CRM — Quote Templates (CRM-02)
+
+**Migration:** `quote_templates` table (tenant_id, name, description, items JSONB, terms_text, validity_days, currency, is_active)
+
+**New file:** `src/pages/tenant/QuoteTemplates.tsx` — CRUD for reusable quote templates with line items, terms, and auto-fill from partner data
+
+Route: `crm/quote-templates`
+
+---
+
+## Technical Summary
+
+| Item | New Files | Migration Tables | Edits |
+|------|-----------|-----------------|-------|
+| 3A: Org Chart | 1 page | 0 | routes |
+| 3B: Manager Override | 1 page | 1 table | PosTerminal, routes |
+| 3C: Loyalty POS | 0 | 0 | PosTerminal |
+| 3D: Fuzzy Matching | 0 | 0 | BankStatements |
+| 3E: SEPA Export | 1 page | 0 | routes |
+| 3F: Quote Templates | 1 page | 1 table | routes |
+| **Total** | **4 pages** | **2 tables** | **4 edits** |
+
+CRM-01 (credit limit checks) already exists in `useAccountingValidation.ts` and `CompanyDetail.tsx` — no action needed.
+
