@@ -74,6 +74,9 @@ const OpeningBalances = React.lazy(() => import("@/pages/tenant/OpeningBalances"
 const VatSpecialSchemes = React.lazy(() => import("@/pages/tenant/VatSpecialSchemes"));
 const PaymentOrdersPage = React.lazy(() => import("@/pages/tenant/PaymentOrders"));
 const PaymentOrderFormPage = React.lazy(() => import("@/pages/tenant/PaymentOrderForm"));
+const PaymentTemplates = React.lazy(() => import("@/pages/tenant/PaymentTemplates"));
+const InterestAccrual = React.lazy(() => import("@/pages/tenant/InterestAccrual"));
+const CesijaAsignacija = React.lazy(() => import("@/pages/tenant/CesijaAsignacija"));
 
 const m = "accounting";
 const B = PageErrorBoundary;
@@ -153,5 +156,8 @@ export const accountingRoutes = (
     <Route path="accounting/payment-orders" element={<ProtectedRoute requiredModule={m}><B><PaymentOrdersPage /></B></ProtectedRoute>} />
     <Route path="accounting/payment-orders/new" element={<ProtectedRoute requiredModule={m}><B><PaymentOrderFormPage /></B></ProtectedRoute>} />
     <Route path="accounting/payment-orders/:id" element={<ProtectedRoute requiredModule={m}><B><PaymentOrderFormPage /></B></ProtectedRoute>} />
+    <Route path="accounting/payment-templates" element={<ProtectedRoute requiredModule={m}><B><PaymentTemplates /></B></ProtectedRoute>} />
+    <Route path="accounting/interest-accrual" element={<ProtectedRoute requiredModule={m}><B><InterestAccrual /></B></ProtectedRoute>} />
+    <Route path="accounting/cesija-asignacija" element={<ProtectedRoute requiredModule={m}><B><CesijaAsignacija /></B></ProtectedRoute>} />
   </>
 );
