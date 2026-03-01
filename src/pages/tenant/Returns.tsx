@@ -547,7 +547,7 @@ export default function Returns() {
                     <TableCell>{new Date(cn.created_at).toLocaleDateString()}</TableCell>
                     <TableCell><Button size="sm" variant="ghost" onClick={() => {
                       setCnEditId(cn.id);
-                      setCnForm({ credit_number: cn.credit_number, return_case_id: cn.return_case_id, invoice_id: cn.invoice_id, amount: cn.amount, tax_amount: 0, currency: cn.currency, status: cn.status, notes: cn.notes || "" });
+                      setCnForm({ credit_number: cn.credit_number, return_case_id: cn.return_case_id, invoice_id: cn.invoice_id, amount: cn.amount, tax_amount: cn.tax_amount || 0, currency: cn.currency, status: cn.status, notes: cn.notes || "" });
                       setCnOpen(true);
                     }}>{t("edit")}</Button></TableCell>
                   </TableRow>
