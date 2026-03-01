@@ -61,6 +61,7 @@ const PosDailyReport = React.lazy(() => import("@/pages/tenant/PosDailyReport"))
 const RestaurantTables = React.lazy(() => import("@/pages/tenant/RestaurantTables"));
 const KitchenDisplay = React.lazy(() => import("@/pages/tenant/KitchenDisplay"));
 const RestaurantReservations = React.lazy(() => import("@/pages/tenant/RestaurantReservations"));
+const PosManagerOverride = React.lazy(() => import("@/pages/tenant/PosManagerOverride"));
 
 // Returns — moved to inventoryRoutes.tsx
 
@@ -178,6 +179,7 @@ export const posRoutes = (
     <Route path="pos/tables" element={<ProtectedRoute requiredModule="pos"><B><RestaurantTables /></B></ProtectedRoute>} />
     <Route path="pos/kitchen" element={<ProtectedRoute requiredModule="pos"><B><KitchenDisplay /></B></ProtectedRoute>} />
     <Route path="pos/reservations" element={<ProtectedRoute requiredModule="pos"><B><RestaurantReservations /></B></ProtectedRoute>} />
+    <Route path="pos/manager-overrides" element={<ProtectedRoute requiredModule="pos"><B><PosManagerOverride /></B></ProtectedRoute>} />
   </>
 );
 

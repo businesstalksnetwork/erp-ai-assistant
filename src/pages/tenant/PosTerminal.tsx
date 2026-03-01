@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Minus, Trash2, ShoppingCart, Receipt, RefreshCw, Undo2, Printer, ClipboardList, Split } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ShoppingCart, Receipt, RefreshCw, Undo2, Printer, ClipboardList, Split, Tag, Star } from "lucide-react";
 import { PosPinDialog } from "@/components/pos/PosPinDialog";
 import { ReceiptReprintDialog } from "@/components/pos/ReceiptReprintDialog";
 import { CashChangeCalculator } from "@/components/pos/CashChangeCalculator";
@@ -19,6 +19,8 @@ import { PosXReportDialog } from "@/components/pos/PosXReportDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EntitySelector } from "@/components/shared/EntitySelector";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 interface CartItem {
   product_id: string;
@@ -68,6 +70,16 @@ export default function PosTerminal() {
   const [xReportOpen, setXReportOpen] = useState(false);
   const [splitPaymentOpen, setSplitPaymentOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // POS-01: Discount override state
+  const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
+  const [discountItemId, setDiscountItemId] = useState<string | null>(null);
+  const [discountPct, setDiscountPct] = useState("");
+  const [discountReason, setDiscountReason] = useState("");
+
+  // POS-04: Loyalty integration state
+  const [loyaltySearch, setLoyaltySearch] = useState("");
+  const [loyaltyMember, setLoyaltyMember] = useState<any>(null);
 
   const { data: activeSession } = useQuery({
     queryKey: ["pos_sessions_active", tenantId],
@@ -189,6 +201,52 @@ export default function PosTerminal() {
     enabled: !!tenantId,
   });
   const partnerOptions = partners.map((p: any) => ({ value: p.id, label: p.name, sublabel: p.pib || "" }));
+
+  // POS-04: Loyalty member lookup
+  const lookupLoyaltyMember = async (searchVal: string) => {
+    if (!tenantId || !searchVal.trim()) return;
+    const q = searchVal.trim();
+    const { data } = await (supabase
+      .from("loyalty_members") as any)
+      .select("*, loyalty_programs(name, points_per_currency)")
+      .eq("tenant_id", tenantId)
+      .or(`phone.ilike.%${q}%,card_number.ilike.%${q}%`)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    if (data) {
+      setLoyaltyMember(data);
+      toast({ title: `Lojalti: ${data.first_name || data.partner_id || ""}`, description: `${data.points_balance || 0} bodova • ${data.current_tier || "Bronze"}` });
+    } else {
+      toast({ title: t("error"), description: "Član lojalti programa nije pronađen", variant: "destructive" });
+    }
+  };
+
+  // POS-01: Submit discount override request
+  const submitDiscountOverride = async () => {
+    if (!tenantId || !discountItemId) return;
+    const item = cart.find(c => c.product_id === discountItemId);
+    if (!item) return;
+    const pct = parseFloat(discountPct) || 0;
+    if (pct <= 0 || pct > 100) { toast({ title: t("error"), description: "Nevažeći procenat popusta", variant: "destructive" }); return; }
+    const overridePrice = item.unit_price * (1 - pct / 100);
+    const { error } = await supabase.from("pos_discount_overrides").insert({
+      tenant_id: tenantId,
+      product_name: item.name,
+      original_price: item.unit_price,
+      override_price: overridePrice,
+      discount_pct: pct,
+      reason: discountReason || null,
+      requested_by: user?.id,
+      status: "pending",
+    });
+    if (error) { toast({ title: t("error"), description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Zahtev za popust poslat", description: `${item.name}: ${pct}% popust čeka odobrenje` });
+    setDiscountDialogOpen(false);
+    setDiscountItemId(null);
+    setDiscountPct("");
+    setDiscountReason("");
+  };
 
   const filteredProducts = products.filter((p: any) => {
     const matchesSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search) || p.sku?.includes(search);
@@ -712,6 +770,7 @@ export default function PosTerminal() {
                     <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQty(item.product_id, -1)}><Minus className="h-3 w-3" /></Button>
                     <span className="w-6 text-center text-sm">{item.quantity}</span>
                     <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQty(item.product_id, 1)}><Plus className="h-3 w-3" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" title="Zahtev za popust" onClick={() => { setDiscountItemId(item.product_id); setDiscountDialogOpen(true); }}><Tag className="h-3 w-3" /></Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeFromCart(item.product_id)}><Trash2 className="h-3 w-3" /></Button>
                   </div>
                 </div>
@@ -733,6 +792,31 @@ export default function PosTerminal() {
                 placeholder={t("selectBuyerPartner" as any)}
               />
               <Input placeholder={t("buyerId")} value={buyerId} onChange={e => setBuyerId(e.target.value)} />
+              {/* POS-04: Loyalty member lookup */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Lojalti telefon / kartica"
+                  value={loyaltySearch}
+                  onChange={e => setLoyaltySearch(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") lookupLoyaltyMember(loyaltySearch); }}
+                  className="flex-1"
+                />
+                <Button size="sm" variant="outline" onClick={() => lookupLoyaltyMember(loyaltySearch)}>
+                  <Star className="h-3 w-3" />
+                </Button>
+              </div>
+              {loyaltyMember && (
+                <div className="p-2 rounded-md bg-accent/50 border text-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium flex items-center gap-1"><Star className="h-3 w-3 text-warning" /> Lojalti član</span>
+                    <Badge variant="outline" className="text-xs">{loyaltyMember.current_tier || "Bronze"}</Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Bodovi: <strong>{loyaltyMember.points_balance || 0}</strong></span>
+                    <Button size="sm" variant="ghost" className="h-5 text-xs px-1" onClick={() => { setLoyaltyMember(null); setLoyaltySearch(""); }}>×</Button>
+                  </div>
+                </div>
+              )}
               <div className="flex gap-2 flex-wrap">
                 {["cash", "card", "wire_transfer", "voucher", "mobile"].map(m => (
                   <Button key={m} size="sm" variant={paymentMethod === m ? "default" : "outline"} onClick={() => {
@@ -840,6 +924,34 @@ export default function PosTerminal() {
       <ReceiptReprintDialog open={reprintDialogOpen} onOpenChange={setReprintDialogOpen} />
       <PosXReportDialog open={xReportOpen} onOpenChange={setXReportOpen} sessionId={activeSession?.id || null} />
       <SplitPaymentDialog open={splitPaymentOpen} onOpenChange={setSplitPaymentOpen} total={total} onConfirm={(payments) => { setPaymentMethod(payments[0]?.method || "cash"); completeSale.mutate(); }} />
+
+      {/* POS-01: Discount Override Request Dialog */}
+      <Dialog open={discountDialogOpen} onOpenChange={setDiscountDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Zahtev za popust</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {cart.find(c => c.product_id === discountItemId)?.name || ""}
+              {" — "}
+              {cart.find(c => c.product_id === discountItemId)?.unit_price.toFixed(2) || "0.00"} RSD
+            </p>
+            <div>
+              <Label>Popust (%)</Label>
+              <Input type="number" min={1} max={100} value={discountPct} onChange={e => setDiscountPct(e.target.value)} placeholder="npr. 15" />
+            </div>
+            <div>
+              <Label>Razlog</Label>
+              <Textarea value={discountReason} onChange={e => setDiscountReason(e.target.value)} placeholder="Razlog za popust..." rows={2} />
+            </div>
+            <Button className="w-full" onClick={submitDiscountOverride} disabled={!discountPct}>
+              <Tag className="h-4 w-4 mr-2" />
+              Pošalji zahtev
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

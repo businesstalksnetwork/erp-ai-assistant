@@ -13,6 +13,7 @@ const Opportunities = React.lazy(() => import("@/pages/tenant/Opportunities"));
 const OpportunityDetail = React.lazy(() => import("@/pages/tenant/OpportunityDetail"));
 const Meetings = React.lazy(() => import("@/pages/tenant/Meetings"));
 const MeetingsCalendar = React.lazy(() => import("@/pages/tenant/MeetingsCalendar"));
+const QuoteTemplates = React.lazy(() => import("@/pages/tenant/QuoteTemplates"));
 
 const B = PageErrorBoundary;
 
@@ -28,5 +29,6 @@ export const crmRoutes = (
     <Route path="crm/opportunities/:id" element={<ProtectedRoute requiredModule="crm"><B><OpportunityDetail /></B></ProtectedRoute>} />
     <Route path="crm/meetings" element={<ProtectedRoute requiredModule="crm"><B><Meetings /></B></ProtectedRoute>} />
     <Route path="crm/meetings/calendar" element={<ProtectedRoute requiredModule="crm"><B><MeetingsCalendar /></B></ProtectedRoute>} />
+    <Route path="crm/quote-templates" element={<ProtectedRoute requiredModule="crm"><B><QuoteTemplates /></B></ProtectedRoute>} />
   </>
 );

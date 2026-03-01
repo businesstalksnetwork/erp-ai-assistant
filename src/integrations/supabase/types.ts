@@ -16339,6 +16339,69 @@ export type Database = {
           },
         ]
       }
+      pos_discount_overrides: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          discount_pct: number
+          id: string
+          original_price: number
+          override_price: number
+          product_name: string | null
+          reason: string | null
+          requested_by: string | null
+          status: string
+          tenant_id: string
+          transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          discount_pct?: number
+          id?: string
+          original_price?: number
+          override_price?: number
+          product_name?: string | null
+          reason?: string | null
+          requested_by?: string | null
+          status?: string
+          tenant_id: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          discount_pct?: number
+          id?: string
+          original_price?: number
+          override_price?: number
+          product_name?: string | null
+          reason?: string | null
+          requested_by?: string | null
+          status?: string
+          tenant_id?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_discount_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_discount_overrides_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "pos_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pos_sessions: {
         Row: {
           closed_at: string | null
@@ -18079,6 +18142,56 @@ export type Database = {
           },
           {
             foreignKeyName: "quote_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_templates: {
+        Row: {
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          is_active: boolean
+          items: Json
+          name: string
+          tenant_id: string
+          terms_text: string | null
+          updated_at: string
+          validity_days: number
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          items?: Json
+          name: string
+          tenant_id: string
+          terms_text?: string | null
+          updated_at?: string
+          validity_days?: number
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          items?: Json
+          name?: string
+          tenant_id?: string
+          terms_text?: string | null
+          updated_at?: string
+          validity_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_templates_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
