@@ -73,7 +73,7 @@ serve(async (req) => {
     const extractedText = aiData.choices?.[0]?.message?.content || "";
 
     // Store OCR text in documents table
-    await supabase.from("dms_documents").update({ ocr_text: extractedText }).eq("id", document_id).eq("tenant_id", tenant_id);
+    await supabase.from("documents").update({ ocr_text: extractedText }).eq("id", document_id).eq("tenant_id", tenant_id);
 
     return new Response(JSON.stringify({ text: extractedText }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

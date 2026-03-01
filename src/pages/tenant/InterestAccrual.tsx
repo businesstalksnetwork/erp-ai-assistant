@@ -13,8 +13,8 @@ import { Calculator, BookOpen, Loader2 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 
-const NBS_DEFAULT_RATE = 6.5; // NBS referentna stopa
-const PENALTY_MARKUP = 8; // ZoOO Art. 278
+const DEFAULT_NBS_RATE = 6.5; // NBS referentna stopa fallback
+const DEFAULT_PENALTY_MARKUP = 8; // ZoOO Art. 278 fallback
 
 interface AccrualLine {
   source_type: "loan" | "receivable";
@@ -33,6 +33,24 @@ export default function InterestAccrual() {
   const today = format(new Date(), "yyyy-MM-dd");
   const [periodStart, setPeriodStart] = useState(format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), "yyyy-MM-dd"));
   const [periodEnd, setPeriodEnd] = useState(today);
+
+  // CR5-06: Load configurable NBS rate from tenant_settings
+  const { data: settingsRow } = useQuery({
+    queryKey: ["tenant-settings-interest", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("tenant_settings")
+        .select("settings")
+        .eq("tenant_id", tenantId!)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!tenantId,
+  });
+
+  const settings = settingsRow?.settings as Record<string, any> | undefined;
+  const NBS_DEFAULT_RATE = settings?.nbs_reference_rate ?? DEFAULT_NBS_RATE;
+  const PENALTY_MARKUP = settings?.penalty_markup ?? DEFAULT_PENALTY_MARKUP;
 
   const { data: loans = [] } = useQuery({
     queryKey: ["active-loans", tenantId],

@@ -75,15 +75,26 @@ export default function PendingApprovals() {
         // Immediate rejection
         await supabase.from("approval_requests").update({ status: "rejected" }).eq("id", requestId);
       } else {
-        // Check if we've reached min_approvers
-        const { count } = await supabase
+        // CR5-04: DB-level count to avoid race condition
+        const { count, error: countErr } = await supabase
           .from("approval_steps")
           .select("id", { count: "exact", head: true })
           .eq("request_id", requestId)
           .eq("action", "approved");
 
+        if (countErr) throw countErr;
+
         if ((count || 0) >= workflowMinApprovers) {
-          await supabase.from("approval_requests").update({ status: "approved" }).eq("id", requestId);
+          // Double-check status hasn't already been set by concurrent approver
+          const { data: currentReq } = await supabase
+            .from("approval_requests")
+            .select("status")
+            .eq("id", requestId)
+            .single();
+
+          if (currentReq?.status === "pending") {
+            await supabase.from("approval_requests").update({ status: "approved" }).eq("id", requestId);
+          }
         }
       }
 

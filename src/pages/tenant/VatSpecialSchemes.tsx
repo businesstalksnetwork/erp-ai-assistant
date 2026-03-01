@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -60,19 +62,59 @@ export default function VatSpecialSchemes() {
   const { t } = useLanguage();
   const { tenantId } = useTenant();
   const { toast } = useToast();
-
-  // In a production system these would be persisted to a tenant_settings or vat_schemes table.
-  // For now, local state with toast feedback simulates the experience.
+  const qc = useQueryClient();
   const [enabledSchemes, setEnabledSchemes] = useState<Record<string, boolean>>({});
 
+  // CR5-05: Load persisted scheme config from tenant_settings
+  const { data: settingsRow } = useQuery({
+    queryKey: ["tenant-settings", tenantId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("tenant_settings")
+        .select("settings")
+        .eq("tenant_id", tenantId!)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!tenantId,
+  });
+
+  useEffect(() => {
+    if (settingsRow?.settings) {
+      const s = settingsRow.settings as Record<string, any>;
+      if (s.vat_special_schemes) {
+        setEnabledSchemes(s.vat_special_schemes);
+      }
+    }
+  }, [settingsRow]);
+
+  const saveMut = useMutation({
+    mutationFn: async (schemes: Record<string, boolean>) => {
+      const existing = settingsRow?.settings as Record<string, any> || {};
+      const updated = { ...existing, vat_special_schemes: schemes };
+      if (settingsRow) {
+        const { error } = await supabase
+          .from("tenant_settings")
+          .update({ settings: updated as any })
+          .eq("tenant_id", tenantId!);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("tenant_settings")
+          .insert([{ tenant_id: tenantId!, settings: updated as any }]);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tenant-settings", tenantId] }),
+  });
+
   const toggleScheme = (key: string) => {
-    setEnabledSchemes(prev => {
-      const next = { ...prev, [key]: !prev[key] };
-      toast({
-        title: next[key] ? "Šema aktivirana" : "Šema deaktivirana",
-        description: `${SCHEMES.find(s => s.key === key)?.name} je ${next[key] ? "uključena" : "isključena"}.`,
-      });
-      return next;
+    const next = { ...enabledSchemes, [key]: !enabledSchemes[key] };
+    setEnabledSchemes(next);
+    saveMut.mutate(next);
+    toast({
+      title: next[key] ? "Šema aktivirana" : "Šema deaktivirana",
+      description: `${SCHEMES.find(s => s.key === key)?.name} je ${next[key] ? "uključena" : "isključena"}.`,
     });
   };
 
