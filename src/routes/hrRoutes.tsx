@@ -42,6 +42,8 @@ const EmployeeDashboard = React.lazy(() => import("@/pages/tenant/EmployeeDashbo
 const MyPayslips = React.lazy(() => import("@/pages/tenant/MyPayslips"));
 const MyLeaves = React.lazy(() => import("@/pages/tenant/MyLeaves"));
 const MyAttendance = React.lazy(() => import("@/pages/tenant/MyAttendance"));
+const HrContractTemplates = React.lazy(() => import("@/pages/tenant/HrContractTemplates"));
+const HrContractGenerator = React.lazy(() => import("@/pages/tenant/HrContractGenerator"));
 
 const m = "hr";
 const B = PageErrorBoundary;
@@ -88,5 +90,7 @@ export const hrRoutes = (
     <Route path="hr/my-payslips" element={<ProtectedRoute requiredModule={m}><B><MyPayslips /></B></ProtectedRoute>} />
     <Route path="hr/my-leaves" element={<ProtectedRoute requiredModule={m}><B><MyLeaves /></B></ProtectedRoute>} />
     <Route path="hr/my-attendance" element={<ProtectedRoute requiredModule={m}><B><MyAttendance /></B></ProtectedRoute>} />
+    <Route path="hr/contract-templates" element={<ProtectedRoute requiredModule={m}><B><HrContractTemplates /></B></ProtectedRoute>} />
+    <Route path="hr/contract-generator" element={<ProtectedRoute requiredModule={m}><B><HrContractGenerator /></B></ProtectedRoute>} />
   </>
 );

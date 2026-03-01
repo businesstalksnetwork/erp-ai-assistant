@@ -49,6 +49,8 @@ const DmsSettings = React.lazy(() => import("@/pages/tenant/DmsSettings"));
 const DocumentTemplates = React.lazy(() => import("@/pages/tenant/DocumentTemplates"));
 const DocumentApprovals = React.lazy(() => import("@/pages/tenant/DocumentApprovals"));
 const DocumentSearch = React.lazy(() => import("@/pages/tenant/DocumentSearch"));
+const BusinessContractTemplates = React.lazy(() => import("@/pages/tenant/BusinessContractTemplates"));
+const TaxCalendar = React.lazy(() => import("@/pages/tenant/TaxCalendar"));
 
 // POS
 const PosHub = React.lazy(() => import("@/pages/tenant/PosHub"));
@@ -162,6 +164,7 @@ export const documentsRoutes = (
     <Route path="documents/templates" element={<ProtectedRoute requiredModule="documents"><B><DocumentTemplates /></B></ProtectedRoute>} />
     <Route path="documents/approvals" element={<ProtectedRoute requiredModule="documents"><B><DocumentApprovals /></B></ProtectedRoute>} />
     <Route path="documents/search" element={<ProtectedRoute requiredModule="documents"><B><DocumentSearch /></B></ProtectedRoute>} />
+    <Route path="documents/business-contracts" element={<ProtectedRoute requiredModule="documents"><B><BusinessContractTemplates /></B></ProtectedRoute>} />
   </>
 );
 
@@ -227,6 +230,7 @@ export const loyaltyRoutes = (
 export const miscRoutes = (
   <>
     <Route path="ai/briefing" element={<ProtectedRoute><B><AiBriefing /></B></ProtectedRoute>} />
+    <Route path="ai/tax-calendar" element={<ProtectedRoute><B><TaxCalendar /></B></ProtectedRoute>} />
     <Route path="profile" element={<ProtectedRoute><B><Profile /></B></ProtectedRoute>} />
   </>
 );

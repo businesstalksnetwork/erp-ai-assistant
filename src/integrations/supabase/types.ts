@@ -3027,6 +3027,56 @@ export type Database = {
           },
         ]
       }
+      business_contract_templates: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_system: boolean
+          legal_clauses: string[] | null
+          name: string
+          template_type: string
+          tenant_id: string | null
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          legal_clauses?: string[] | null
+          name: string
+          template_type: string
+          tenant_id?: string | null
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          legal_clauses?: string[] | null
+          name?: string
+          template_type?: string
+          tenant_id?: string | null
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_contract_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       capital_goods_vat_register: {
         Row: {
           acquisition_date: string
@@ -9306,6 +9356,56 @@ export type Database = {
           },
           {
             foreignKeyName: "holidays_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_contract_templates: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_system: boolean
+          legal_references: string[] | null
+          name: string
+          template_type: string
+          tenant_id: string | null
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          legal_references?: string[] | null
+          name: string
+          template_type: string
+          tenant_id?: string | null
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          legal_references?: string[] | null
+          name?: string
+          template_type?: string
+          tenant_id?: string | null
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_contract_templates_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

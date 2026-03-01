@@ -41,16 +41,20 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Call AI to extract text from image
+    // Call AI to extract text and classify document
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are an OCR assistant. Extract ALL text visible in the provided image. Return only the extracted text, preserving layout where possible. If no text is found, return 'NO_TEXT_FOUND'." },
+          { role: "system", content: `You are an OCR and document classification assistant. 
+1. Extract ALL text visible in the provided image, preserving layout where possible.
+2. Classify the document into one of these categories: faktura (invoice), ugovor (contract), racun (receipt), izvod (bank statement), resenje (decision/resolution), dopis (letter/correspondence), ponuda (offer/quote), nalog (order), potvrda (confirmation), izvestaj (report), ostalo (other).
+3. Return JSON with two fields: {"text": "extracted text here", "category": "category_key"}
+If no text is found, return {"text": "NO_TEXT_FOUND", "category": "ostalo"}.` },
           { role: "user", content: [
-            { type: "text", text: "Extract all text from this document image:" },
+            { type: "text", text: "Extract text and classify this document:" },
             { type: "image_url", image_url: { url: `data:image/png;base64,${image_base64}` } },
           ]},
         ],
@@ -70,12 +74,25 @@ serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
-    const extractedText = aiData.choices?.[0]?.message?.content || "";
+    const rawContent = aiData.choices?.[0]?.message?.content || "";
+    
+    // Parse classification response
+    let extractedText = rawContent;
+    let category = "ostalo";
+    try {
+      const cleaned = rawContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      extractedText = parsed.text || rawContent;
+      category = parsed.category || "ostalo";
+    } catch {
+      // Fallback: treat entire response as text
+      extractedText = rawContent;
+    }
 
-    // Store OCR text in documents table
-    await supabase.from("documents").update({ ocr_text: extractedText }).eq("id", document_id).eq("tenant_id", tenant_id);
+    // Store OCR text and category in documents table
+    await supabase.from("documents").update({ ocr_text: extractedText, ai_category: category }).eq("id", document_id).eq("tenant_id", tenant_id);
 
-    return new Response(JSON.stringify({ text: extractedText }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ text: extractedText, category }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("document-ocr error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
