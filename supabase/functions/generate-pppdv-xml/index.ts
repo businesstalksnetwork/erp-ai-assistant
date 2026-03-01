@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
 
     // Generate PP-PDV XML per Serbian ePorezi XSD
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<ObrazacPPPDV xmlns="urn:poreskauprava.gov.rs:pppdv"
+<ObrazacPPPDV xmlns="urn:poreskauprava.gov.rs:ObrazacPPPDV"
                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ZaglavljeDeklaracije>
     <VrstaPrijave>1</VrstaPrijave>
