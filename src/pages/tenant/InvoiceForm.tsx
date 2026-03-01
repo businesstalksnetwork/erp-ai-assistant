@@ -314,6 +314,7 @@ export default function InvoiceForm() {
           description: l.description,
           quantity: Number(l.quantity),
           unit_price: Number(l.unit_price),
+          discount_percent: Number((l as any).discount_percent || 0),
           tax_rate_id: l.tax_rate_id || "",
           tax_rate_value: Number(l.tax_rate_value),
           line_total: Number(l.line_total),
@@ -418,6 +419,7 @@ export default function InvoiceForm() {
         description: l.description,
         quantity: l.quantity,
         unit_price: l.unit_price,
+        discount_percent: (l as any).discount_percent || 0,
         tax_rate_id: l.tax_rate_id || null,
         tax_rate_value: l.tax_rate_value,
         line_total: l.line_total,
@@ -851,6 +853,7 @@ export default function InvoiceForm() {
                 <TableHead className="min-w-[90px]">eFaktura</TableHead>
                 <TableHead className="min-w-[60px]">{t("quantity")}</TableHead>
                 <TableHead className="min-w-[80px]">{t("unitPrice")}</TableHead>
+                <TableHead className="min-w-[60px]">Rabat %</TableHead>
                 <TableHead className="min-w-[90px]">{t("taxRate")}</TableHead>
                 <TableHead className="text-right min-w-[80px]">{t("lineTotal")}</TableHead>
                 <TableHead className="text-right min-w-[80px]">{t("taxAmount")}</TableHead>
@@ -964,6 +967,18 @@ export default function InvoiceForm() {
                       onChange={(e) => updateLine(i, "unit_price", Number(e.target.value))}
                       disabled={isReadOnly}
                       className="h-8"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={(line as any).discount_percent || 0}
+                      onChange={(e) => updateLine(i, "discount_percent", Number(e.target.value))}
+                      disabled={isReadOnly}
+                      className="h-8 w-16"
                     />
                   </TableCell>
                   <TableCell>

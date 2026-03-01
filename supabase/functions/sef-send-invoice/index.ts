@@ -112,7 +112,7 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
     const taxRate = invoiceLines?.[index]?.tax_rate_value ?? (isVatRegistered ? 20 : 0);
     const lineNet = item.total_amount;
     const lineTax = isVatRegistered ? Math.round(lineNet * taxRate / 100 * 100) / 100 : 0;
-    const cat = determineVatCategory(taxRate, isVatRegistered);
+    const cat = determineVatCategory(taxRate, isVatRegistered, invoice.issue_date);
     const key = `${cat.id}-${taxRate}`;
 
     if (!vatMap.has(key)) {

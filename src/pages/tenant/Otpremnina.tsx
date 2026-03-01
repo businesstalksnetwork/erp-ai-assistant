@@ -65,8 +65,16 @@ export default function Otpremnina() {
 
   const totalAmount = form.calculation_base * form.multiplier * form.years_of_service;
 
+  // P4-17: Enforce minimum severance per ZoR Art. 158 (1/3 of monthly salary per year of service)
+  const minimumSeverance = form.calculation_base * (1/3) * form.years_of_service;
+  const isBelowMinimum = totalAmount > 0 && totalAmount < minimumSeverance;
+
   const createMutation = useMutation({
     mutationFn: async () => {
+      // P4-17: Block creation if below legal minimum
+      if (isBelowMinimum) {
+        throw new Error(`Iznos otpremnine (${totalAmount.toFixed(2)}) je ispod zakonskog minimuma (${minimumSeverance.toFixed(2)}). ZoR čl. 158 zahteva minimum 1/3 plate po godini staža.`);
+      }
       const { error } = await supabase.from("severance_payments" as any).insert([{
         tenant_id: tenantId!,
         employee_id: form.employee_id,
