@@ -19833,6 +19833,100 @@ export type Database = {
           },
         ]
       }
+      secret_rotation_log: {
+        Row: {
+          details: Json | null
+          id: string
+          new_version_hash: string | null
+          previous_version_hash: string | null
+          rotated_at: string
+          rotated_by: string | null
+          rotation_reason: string | null
+          secret_name: string
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          details?: Json | null
+          id?: string
+          new_version_hash?: string | null
+          previous_version_hash?: string | null
+          rotated_at?: string
+          rotated_by?: string | null
+          rotation_reason?: string | null
+          secret_name: string
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          details?: Json | null
+          id?: string
+          new_version_hash?: string | null
+          previous_version_hash?: string | null
+          rotated_at?: string
+          rotated_by?: string | null
+          rotation_reason?: string | null
+          secret_name?: string
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "secret_rotation_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_events: {
+        Row: {
+          created_at: string
+          details: Json | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          severity: string
+          source: string
+          tenant_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          severity?: string
+          source: string
+          tenant_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          severity?: string
+          source?: string
+          tenant_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       security_incidents: {
         Row: {
           affected_data_types: string[] | null

@@ -10,23 +10,23 @@ After reviewing all 1258 lines of the PRD, here's the breakdown into 5 implement
 
 **Shared infrastructure + critical security fixes.** Highest impact, touches all 97+ edge functions.
 
-| Item | What | Scope |
-|------|------|-------|
-| SEC-01 | Create `_shared/cors.ts`, replace wildcard CORS in all 97+ functions | All edge functions |
-| SEC-02 | Fix `USING(true)` RLS on voucher_types, supplier_invoice_lines, popdv_records | Migration |
-| SEC-03 | Create `_shared/schemas/` with Zod, add validation to all edge functions | All edge functions |
-| SEC-04 | `security_events` table + `_shared/security-logger.ts` | Migration + shared |
-| SEC-05 | Create `_shared/error-handler.ts`, sanitize all error responses | All edge functions |
-| SEC-06 | `_shared/security-headers.ts` + CSP meta tag in index.html | Shared + HTML |
-| SEC-07 | `secret_rotation_log` table | Migration |
-| SEC-08 | React ErrorBoundary component wrapping App | 1 component |
-| CR7-01 | Role check for POS discount approvals | PosManagerOverride.tsx |
-| CR7-02 | O(n²) → O(n) duplicate detection | ai-invoice-anomaly |
-| CR7-04 | Tool_choice fallback | ai-supplier-scoring |
-| CR7-06 | Configurable collection probabilities | ai-cash-flow-predict |
-| CR7-07 | Line item validation (no negative qty/price) | QuoteTemplates.tsx |
+| Item | What | Status |
+|------|------|--------|
+| SEC-01 | Create `_shared/cors.ts`, replace wildcard CORS in all 97+ functions | ✅ Shared module done, ~40/90 functions migrated |
+| SEC-02 | Fix `USING(true)` RLS on voucher_types, supplier_invoice_lines, popdv_records | ✅ Already fixed (tenant-scoped RLS in place) |
+| SEC-03 | Create `_shared/schemas/` with Zod, add validation to all edge functions | ✅ `_shared/validation.ts` created |
+| SEC-04 | `security_events` table + `_shared/security-logger.ts` | ✅ Table + shared module done |
+| SEC-05 | Create `_shared/error-handler.ts`, sanitize all error responses | ✅ Shared module done |
+| SEC-06 | `_shared/security-headers.ts` + CSP meta tag in index.html | ✅ Shared module done, CSP pending |
+| SEC-07 | `secret_rotation_log` table | ✅ Table created |
+| SEC-08 | React ErrorBoundary component wrapping App | ⬜ Already exists, needs review |
+| CR7-01 | Role check for POS discount approvals | ⬜ Pending |
+| CR7-02 | O(n²) → O(n) duplicate detection | ⬜ Pending |
+| CR7-04 | Tool_choice fallback | ⬜ Pending |
+| CR7-06 | Configurable collection probabilities | ⬜ Pending |
+| CR7-07 | Line item validation (no negative qty/price) | ⬜ Pending |
 
-**This is the largest phase — the shared modules (cors, error-handler, schemas, security-logger, security-headers) must be created first, then all 97+ edge functions updated to import them.**
+**Remaining work: ~50 edge functions need CORS migration, CR7 fixes, CSP meta tag, ErrorBoundary review.**
 
 ---
 
@@ -93,4 +93,3 @@ These items from the PRD require non-code deliverables:
 | ISO-3: Privacy & E-Invoicing | 4 items (CLOUD-02, PRIV-01, EI-01–02) | ISO 27017/18/27701, EN 16931 |
 | ISO-4: Continuity & Archival | 5 items (BC-01–03, ARCH-01–02) | ISO 22301, 19005 |
 | ISO-5: ITSM & Quality | 3 items (ITSM-01–02, SQ-02) | ISO 20000, 25010 |
-

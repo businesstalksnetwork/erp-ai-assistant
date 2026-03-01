@@ -1,10 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 function formatDate(d: Date): string {
   const y = d.getFullYear();
@@ -74,7 +69,6 @@ async function fetchAndImportRates(supabase: any, tenant_id: string, targetDate:
     const nbsRes = await fetch(nbsUrl);
     if (nbsRes.ok) {
       const text = await nbsRes.text();
-      // P3-18: Extract unit field and divide rate by unit for currencies like JPY (unit=100)
       const currencyMatches = text.matchAll(
         /<currency_code>([A-Z]{3})<\/currency_code>[\s\S]*?<unit>(\d+)<\/unit>[\s\S]*?<middle_rate>([\d.,]+)<\/middle_rate>/gi
       );
@@ -117,9 +111,9 @@ async function fetchAndImportRates(supabase: any, tenant_id: string, targetDate:
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsHeaders = getCorsHeaders(req);
+  const preflight = handleCorsPreflightRequest(req);
+  if (preflight) return preflight;
 
   try {
     const supabase = createClient(
