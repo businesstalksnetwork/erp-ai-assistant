@@ -10,10 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Minus, Trash2, ShoppingCart, Receipt, RefreshCw, Undo2, Printer } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ShoppingCart, Receipt, RefreshCw, Undo2, Printer, ClipboardList, Split } from "lucide-react";
 import { PosPinDialog } from "@/components/pos/PosPinDialog";
 import { ReceiptReprintDialog } from "@/components/pos/ReceiptReprintDialog";
 import { CashChangeCalculator } from "@/components/pos/CashChangeCalculator";
+import { SplitPaymentDialog } from "@/components/pos/SplitPaymentDialog";
+import { PosXReportDialog } from "@/components/pos/PosXReportDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EntitySelector } from "@/components/shared/EntitySelector";
@@ -63,6 +65,9 @@ export default function PosTerminal() {
   const [selectedOriginalTx, setSelectedOriginalTx] = useState<any>(null);
   const [refundItems, setRefundItems] = useState<RefundItem[]>([]);
   const [reprintDialogOpen, setReprintDialogOpen] = useState(false);
+  const [xReportOpen, setXReportOpen] = useState(false);
+  const [splitPaymentOpen, setSplitPaymentOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const { data: activeSession } = useQuery({
     queryKey: ["pos_sessions_active", tenantId],
@@ -122,11 +127,21 @@ export default function PosTerminal() {
     enabled: !!tenantId,
   });
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ["product_categories_pos", tenantId],
+    queryFn: async () => {
+      if (!tenantId) return [];
+      const { data } = await supabase.from("product_categories").select("id, name").eq("tenant_id", tenantId).order("name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
   const { data: products = [] } = useQuery({
     queryKey: ["products", tenantId],
     queryFn: async () => {
       if (!tenantId) return [];
-      const { data } = await supabase.from("products").select("id, name, default_sale_price, default_retail_price, barcode, sku, tax_rates(rate)").eq("tenant_id", tenantId).eq("is_active", true);
+      const { data } = await supabase.from("products").select("id, name, default_sale_price, default_retail_price, barcode, sku, category_id, tax_rates(rate)").eq("tenant_id", tenantId).eq("is_active", true);
       return data || [];
     },
     enabled: !!tenantId,
@@ -175,9 +190,11 @@ export default function PosTerminal() {
   });
   const partnerOptions = partners.map((p: any) => ({ value: p.id, label: p.name, sublabel: p.pib || "" }));
 
-  const filteredProducts = products.filter((p: any) =>
-    !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search) || p.sku?.includes(search)
-  );
+  const filteredProducts = products.filter((p: any) => {
+    const matchesSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode?.includes(search) || p.sku?.includes(search);
+    const matchesCategory = !selectedCategory || (p as any).category_id === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   const addToCart = (p: any) => {
     // Price resolution: location list → default retail list → product default_retail_price → default_sale_price
@@ -597,6 +614,15 @@ export default function PosTerminal() {
             <Printer className="h-3 w-3" />
             {t("receiptReprint" as any) || "Reprint"}
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={() => setXReportOpen(true)}
+          >
+            <ClipboardList className="h-3 w-3" />
+            X-{t("report" as any) || "Izveštaj"}
+          </Button>
           <ActionGuard module="pos" action="delete">
             <Button
               size="sm"
@@ -639,6 +665,19 @@ export default function PosTerminal() {
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input className="pl-9" placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} />
             </div>
+            {/* POS-3: Category navigation bar */}
+            {categories.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                <Button size="sm" variant={!selectedCategory ? "default" : "outline"} onClick={() => setSelectedCategory(null)} className="shrink-0">
+                  {t("all")}
+                </Button>
+                {categories.map((cat: any) => (
+                  <Button key={cat.id} size="sm" variant={selectedCategory === cat.id ? "default" : "outline"} onClick={() => setSelectedCategory(cat.id)} className="shrink-0">
+                    {cat.name}
+                  </Button>
+                ))}
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {filteredProducts.map((p: any) => (
                 <Card key={p.id} className="cursor-pointer hover:bg-accent transition-colors" onClick={() => addToCart(p)}>
@@ -701,6 +740,9 @@ export default function PosTerminal() {
                     if (m !== "voucher") setVoucherType(null);
                   }}>{t(m as any)}</Button>
                 ))}
+                <Button size="sm" variant="outline" className="gap-1" onClick={() => setSplitPaymentOpen(true)}>
+                  <Split className="h-3 w-3" />{t("split" as any) || "Podeli"}
+                </Button>
               </div>
               {paymentMethod === "voucher" && (
                 <div className="flex gap-2">
@@ -796,6 +838,8 @@ export default function PosTerminal() {
 
       {/* Receipt Reprint Dialog */}
       <ReceiptReprintDialog open={reprintDialogOpen} onOpenChange={setReprintDialogOpen} />
+      <PosXReportDialog open={xReportOpen} onOpenChange={setXReportOpen} sessionId={activeSession?.id || null} />
+      <SplitPaymentDialog open={splitPaymentOpen} onOpenChange={setSplitPaymentOpen} total={total} onConfirm={(payments) => { setPaymentMethod(payments[0]?.method || "cash"); completeSale.mutate(); }} />
     </div>
   );
 }
