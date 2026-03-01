@@ -1,82 +1,63 @@
 
 
-# CR3-05 + CR4 Issues — Fix Plan
+# Next Priority Items — Post-CR4 Fix Status
 
-All 12 new bugs from the V3.4 audit plus the lingering CR3-05 are confirmed present. Here's the implementation plan organized by priority.
-
----
-
-## Phase A: HIGH Priority (7 items)
-
-### 1. CR3-05: sef-cancel returns 500 for all errors
-**File:** `supabase/functions/sef-cancel-sales-invoice/index.ts` (line 192-198)
-The catch block always returns HTTP 500. Fix: parse known error types and return 400 for validation errors, 404 for not-found, 502 for upstream SEF failures.
-
-### 2. CR4-02: AI narrative cache hash collision
-**File:** `supabase/functions/ai-analytics-narrative/index.ts` (line 222)
-`JSON.stringify(data).length + "_" + context_type` is collision-prone. Fix: use `crypto.subtle.digest("SHA-256", ...)` on the stringified data to produce a proper hash.
-
-### 3. CR4-03: GeneralLedger partner/cost-center filters are UI-only
-**File:** `src/pages/tenant/GeneralLedger.tsx` (lines 79-102)
-`partnerFilter` and `costCenterFilter` are never applied to the Supabase query. Fix: add `journal_lines` join to `partners` via `journal_entry.partner_id` and filter by `cost_center_id` when not "all". Add these to the query key.
-
-### 4. CR4-04: CIT advances Q4 due date off-by-one
-**File:** `src/components/cit/CitAdvancePayments.tsx` (lines 48, 107)
-`fiscalYear + 2` for Q4 is wrong — should be `fiscalYear + 1`. Per ZPDPL Art. 68, advances for year N are due during year N+1, so Q4 (Jan 15) = Jan 15 of N+1, not N+2. Fix: change `nextYear` logic to just use `fiscalYear + 1` for all quarters.
-
-### 5. CR4-05: CIT advances quarterly instead of monthly
-**File:** `src/components/cit/CitAdvancePayments.tsx`
-ZPDPL Art. 68 requires monthly advances (1/12 of annual tax), not quarterly. Refactor the schedule from 4 quarters to 12 months with proper due dates (15th of each month in year N+1).
-
-### 6. CR4-07: PoreskiBilans tax base uses wrong line
-**File:** `src/pages/tenant/PoreskiBilans.tsx` (line 208)
-`getFinal(33)` (net accounting loss) must be `getFinal(62)` (AOP 1056 — oporeziva dobit after all adjustments). The 15% tax on line 68 should come from the adjusted taxable base.
-
-### 7. CR4-01: Auth pattern inconsistency (partial — standardize new/modified functions)
-**Scope:** Edge functions modified in this batch. Standardize `sef-cancel-sales-invoice` to use `getClaims()` instead of `getUser()`. Full migration of all 41 `getUser()` functions deferred to a dedicated auth sweep.
+After completing all CR3-05 and CR4-01 through CR4-12 fixes, here are the remaining open items from the PRD, organized by priority.
 
 ---
 
-## Phase B: MEDIUM Priority (4 items)
+## Still Open — CRITICAL (3 items)
 
-### 8. CR4-06: PoreskiBilans ZPDP → ZPDPL
-**File:** `src/pages/tenant/PoreskiBilans.tsx` (lines 83, 87, 89, 97)
-Also `src/pages/tenant/AssetDepreciation.tsx` (multiple references to "ZPDP"). Replace all occurrences with "ZPDPL" (Zakon o porezu na dobit pravnih lica).
+### 1. P1-03: POS Triple Stock Deduction
+**File:** `src/pages/tenant/PosTerminal.tsx` (lines 479-506)
+Three independent stock deduction paths fire for a single POS sale (client-side `adjust_inventory_stock`, `process_pos_sale` RPC, `complete_pos_transaction` RPC). Each item sold reduces inventory by 3x. **Fix:** Remove client-side stock deduction call from PosTerminal.tsx.
 
-### 9. CR4-08: NonDeductibleCalc client-side query optimization
-**File:** `src/components/cit/NonDeductibleCalc.tsx`
-Currently fetches all journal_lines for the fiscal year client-side. Fix: add account code filter to the query (`account.code` starting with "552" or "553") so only relevant lines are fetched. Full RPC optimization deferred.
+### 2. P1-11: Credit Notes Dual Flow (POPDV/SEF gap)
+**Files:** `CreditDebitNotes.tsx`, `InvoiceForm.tsx`, `popdvAggregation.ts`
+Two disconnected credit note flows exist. Notes created via `CreditDebitNotes.tsx` go to `credit_notes` table and are never included in POPDV or submitted to SEF. **Fix:** Merge both flows so all credit notes use the `invoices` table with `invoiceType="credit_note"`.
 
-### 10. CR4-09: PartnerStatement missing opening balance
-**File:** `src/pages/tenant/PartnerStatement.tsx`
-Add a query for all open_items before `dateFrom` to compute opening balance. Display as first row and use as starting point for running balance.
-
-### 11. CR4-10: PartnerStatement credit/debit note direction
-**File:** `src/pages/tenant/PartnerStatement.tsx` (lines 65-67)
-Handle `document_type` for credit notes: if document_type is "credit_note" and direction is "receivable", it should be a credit (not debit), and vice versa for debit notes against payables.
+### 3. P3-04: Advance Invoice Clearing Entry
+**File:** `src/pages/tenant/InvoiceForm.tsx`
+When `invoiceType === "advance_final"`, the advance clearing GL lines (DR 2270 / CR 2040) are missing. Advance amounts are never cleared from the balance sheet.
 
 ---
 
-## Phase C: LOW Priority (2 items)
+## Still Open — HIGH (6 items)
 
-### 12. CR4-11: CashRegister sequential numbering
-**File:** `src/pages/tenant/CashRegister.tsx` (line 63)
-Replace `Date.now().toString(36)` with a sequential pattern: query `MAX(entry_number)` for the current month and increment. Format: `BL-YYYY-MM-NNNN`.
+4. **P3-10: POPDV missing sections 1, 2, 4** — `popdvAggregation.ts` only handles basic output/input. Missing supplies without consideration, zero-rated exports, special procedures.
 
-### 13. CR4-12: Cash-in default account 6990
-**File:** `src/pages/tenant/CashRegister.tsx` (line 69)
-Change fallback from `6990` to `2040` (customer receivables) for cash-in, which is the standard contra-account for cash receipts in Serbian accounting.
+5. **P3-19: APR XML AOP mapping** — Uses simple account prefix grouping instead of proper 100+ AOP positions per official APR Obrazac 1.
+
+6. **P3-22: Bank statement matching doesn't update invoice status** — Matched invoices remain "sent"/"overdue" in AR aging.
+
+7. **P5-01: Year-end closing** — No implementation for closing classes 5→7, 6→7, and transferring net result to class 3.
+
+8. **P5-02: Prior year opening balances** — No import/entry screen for beginning balances.
+
+9. **P3-15: Debit note missing VAT line** — GL posting credits 6000 with no VAT separation.
 
 ---
 
-## Technical Summary
+## Still Open — MEDIUM/LOW (15+ items)
 
-| Phase | Items | Files Changed |
+Phases 4-8 contain ~25 additional items including: invoice fiscal year number reset (P4-06), PP-PDV XML namespace (P4-08), loyalty module access (P4-11/P4-12), year-end features (P5-01 to P5-15), VAT special schemes (P6-06), and various polish items (P8-01 to P8-10).
+
+---
+
+## Recommended Next Batch
+
+**Batch 5A — Fix 3 CRITICAL items:**
+1. P1-03: Remove client-side stock deduction from PosTerminal.tsx (1 file)
+2. P1-11: Unify credit note flow to use invoices table (3 files)
+3. P3-04: Add advance clearing GL lines to InvoiceForm.tsx (1 file)
+
+**Batch 5B — Fix 3 HIGH items:**
+4. P3-22: Bank statement → invoice status update (1 file)
+5. P3-15: Debit note VAT line (1 file)
+6. P3-10: POPDV section completion (1 file)
+
+| Batch | Items | Files Changed |
 |-------|-------|---------------|
-| **A** | 7 (HIGH) | 4 frontend files, 2 edge functions |
-| **B** | 4 (MED) | 3 frontend files |
-| **C** | 2 (LOW) | 1 frontend file |
-| **Total** | 13 fixes | ~8 files |
-
-All phases can be implemented in a single pass. No new migrations needed (CIT advances table already exists with `month` column that can store 1-12).
+| **5A** | 3 CRITICAL | ~4 files |
+| **5B** | 3 HIGH | ~3 files |
 
