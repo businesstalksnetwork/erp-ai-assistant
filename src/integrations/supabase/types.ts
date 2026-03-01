@@ -1239,6 +1239,80 @@ export type Database = {
           },
         ]
       }
+      asignacije: {
+        Row: {
+          amount: number
+          asignacija_date: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          journal_entry_id: string | null
+          new_creditor_id: string
+          notes: string | null
+          original_creditor_id: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          asignacija_date?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          journal_entry_id?: string | null
+          new_creditor_id: string
+          notes?: string | null
+          original_creditor_id: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          asignacija_date?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          journal_entry_id?: string | null
+          new_creditor_id?: string
+          notes?: string | null
+          original_creditor_id?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asignacije_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asignacije_new_creditor_id_fkey"
+            columns: ["new_creditor_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asignacije_original_creditor_id_fkey"
+            columns: ["original_creditor_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asignacije_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_assignments: {
         Row: {
           asset_id: string
@@ -3105,6 +3179,80 @@ export type Database = {
           },
           {
             foreignKeyName: "cash_register_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cesije: {
+        Row: {
+          amount: number
+          cesija_date: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          journal_entry_id: string | null
+          new_debtor_id: string
+          notes: string | null
+          original_debtor_id: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          cesija_date?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          journal_entry_id?: string | null
+          new_debtor_id: string
+          notes?: string | null
+          original_debtor_id: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          cesija_date?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          journal_entry_id?: string | null
+          new_debtor_id?: string
+          notes?: string | null
+          original_debtor_id?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cesije_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cesije_new_debtor_id_fkey"
+            columns: ["new_debtor_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cesije_original_debtor_id_fkey"
+            columns: ["original_debtor_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cesije_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -9347,6 +9495,69 @@ export type Database = {
           },
         ]
       }
+      interest_accruals: {
+        Row: {
+          accrued_amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          journal_entry_id: string | null
+          period_end: string
+          period_start: string
+          posted: boolean
+          principal: number
+          rate: number
+          source_id: string
+          source_type: string
+          tenant_id: string
+        }
+        Insert: {
+          accrued_amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          period_end: string
+          period_start: string
+          posted?: boolean
+          principal: number
+          rate: number
+          source_id: string
+          source_type: string
+          tenant_id: string
+        }
+        Update: {
+          accrued_amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          journal_entry_id?: string | null
+          period_end?: string
+          period_start?: string
+          posted?: boolean
+          principal?: number
+          rate?: number
+          source_id?: string
+          source_type?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interest_accruals_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interest_accruals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       internal_goods_receipt_items: {
         Row: {
           discrepancy_notes: string | null
@@ -14510,6 +14721,75 @@ export type Database = {
           },
           {
             foreignKeyName: "payment_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_templates: {
+        Row: {
+          amount: number | null
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          is_active: boolean
+          model: string | null
+          name: string
+          partner_id: string | null
+          payment_code: string | null
+          recipient_account: string
+          recipient_name: string | null
+          reference_pattern: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          model?: string | null
+          name: string
+          partner_id?: string | null
+          payment_code?: string | null
+          recipient_account: string
+          recipient_name?: string | null
+          reference_pattern?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          model?: string | null
+          name?: string
+          partner_id?: string | null
+          payment_code?: string | null
+          recipient_account?: string
+          recipient_name?: string | null
+          reference_pattern?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_templates_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_templates_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

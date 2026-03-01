@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Loader2, AlertTriangle, Save, FileDown } from "lucide-react";
 import { format } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface OrderForm {
   partner_id: string;
@@ -42,6 +43,77 @@ export default function PaymentOrderForm() {
   const { id } = useParams();
   const qc = useQueryClient();
   const [form, setForm] = useState<OrderForm>(emptyForm);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const searchParams = new URLSearchParams(window.location.search);
+  const templateId = searchParams.get("template");
+
+  // Load template if navigated from templates page
+  const { data: templateData } = useQuery({
+    queryKey: ["payment-template", templateId],
+    queryFn: async () => {
+      const { data } = await (supabase.from("payment_templates" as any) as any).select("*").eq("id", templateId!).single();
+      return data;
+    },
+    enabled: !!templateId && !id,
+  });
+
+  useEffect(() => {
+    if (templateData && !id) {
+      setForm(f => ({
+        ...f, partner_id: templateData.partner_id || "", recipient_name: templateData.recipient_name || "",
+        recipient_account: templateData.recipient_account, amount: templateData.amount ? String(templateData.amount) : "",
+        currency: templateData.currency, payment_code: templateData.payment_code || "",
+        model: templateData.model || "", reference_number: templateData.reference_pattern || "",
+        description: templateData.description || "",
+      }));
+    }
+  }, [templateData, id]);
+
+  // Templates list for dropdown
+  const { data: templates = [] } = useQuery({
+    queryKey: ["payment-templates", tenantId],
+    queryFn: async () => {
+      const { data } = await (supabase.from("payment_templates" as any) as any)
+        .select("id, name").eq("tenant_id", tenantId!).eq("is_active", true).order("name");
+      return data || [];
+    },
+    enabled: !!tenantId,
+  });
+
+  const saveAsTemplateMut = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase.from("payment_templates" as any) as any).insert({
+        tenant_id: tenantId, name: templateName, partner_id: form.partner_id || null,
+        recipient_name: form.recipient_name, recipient_account: form.recipient_account,
+        amount: form.amount ? +form.amount : null, currency: form.currency,
+        payment_code: form.payment_code, model: form.model,
+        reference_pattern: form.reference_number, description: form.description,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["payment-templates"] });
+      toast.success("Šablon sačuvan");
+      setSaveTemplateOpen(false);
+      setTemplateName("");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const fillFromTemplate = async (tplId: string) => {
+    const { data } = await (supabase.from("payment_templates" as any) as any).select("*").eq("id", tplId).single();
+    if (data) {
+      setForm(f => ({
+        ...f, partner_id: data.partner_id || "", recipient_name: data.recipient_name || "",
+        recipient_account: data.recipient_account, amount: data.amount ? String(data.amount) : "",
+        currency: data.currency, payment_code: data.payment_code || "",
+        model: data.model || "", reference_number: data.reference_pattern || "",
+        description: data.description || "",
+      }));
+      toast.success("Popunjeno iz šablona");
+    }
+  };
 
   const { data: existing } = useQuery({
     queryKey: ["payment-order", id],
@@ -134,9 +206,22 @@ export default function PaymentOrderForm() {
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/accounting/payment-orders")}><ArrowLeft className="h-5 w-5" /></Button>
-        <h1 className="text-2xl font-bold">{id ? "Izmeni nalog" : "Novi nalog za plaćanje"}</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/accounting/payment-orders")}><ArrowLeft className="h-5 w-5" /></Button>
+          <h1 className="text-2xl font-bold">{id ? "Izmeni nalog" : "Novi nalog za plaćanje"}</h1>
+        </div>
+        <div className="flex gap-2">
+          {templates.length > 0 && (
+            <Select onValueChange={fillFromTemplate}>
+              <SelectTrigger className="w-[200px]"><SelectValue placeholder="Iz šablona..." /></SelectTrigger>
+              <SelectContent>{templates.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
+          <Button variant="outline" size="sm" onClick={() => { setTemplateName(form.description || ""); setSaveTemplateOpen(true); }}>
+            <Save className="h-4 w-4 mr-2" />Sačuvaj šablon
+          </Button>
+        </div>
       </div>
 
       {duplicates.length > 0 && (
@@ -204,6 +289,20 @@ export default function PaymentOrderForm() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={saveTemplateOpen} onOpenChange={setSaveTemplateOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Sačuvaj kao šablon</DialogTitle></DialogHeader>
+          <div className="grid gap-2">
+            <Label>Naziv šablona *</Label>
+            <Input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="npr. Kirija, Struja..." />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveTemplateOpen(false)}>Otkaži</Button>
+            <Button onClick={() => saveAsTemplateMut.mutate()} disabled={!templateName || saveAsTemplateMut.isPending}>Sačuvaj</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

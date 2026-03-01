@@ -167,3 +167,6 @@ verify_jwt = false
 
 [functions.generate-halcom-xml]
 verify_jwt = false
+
+[functions.document-ocr]
+verify_jwt = false
