@@ -155,3 +155,15 @@ verify_jwt = false
 
 [functions.nbs-daily-cron]
 verify_jwt = false
+
+[functions.generate-m-un-xml]
+verify_jwt = false
+
+[functions.generate-od-1-xml]
+verify_jwt = false
+
+[functions.generate-m-pd-xml]
+verify_jwt = false
+
+[functions.generate-halcom-xml]
+verify_jwt = false

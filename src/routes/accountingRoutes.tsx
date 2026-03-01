@@ -72,6 +72,8 @@ const IntercompanyEliminations2 = React.lazy(() => import("@/pages/tenant/Interc
 const PartnerStatement = React.lazy(() => import("@/pages/tenant/PartnerStatement"));
 const OpeningBalances = React.lazy(() => import("@/pages/tenant/OpeningBalances"));
 const VatSpecialSchemes = React.lazy(() => import("@/pages/tenant/VatSpecialSchemes"));
+const PaymentOrdersPage = React.lazy(() => import("@/pages/tenant/PaymentOrders"));
+const PaymentOrderFormPage = React.lazy(() => import("@/pages/tenant/PaymentOrderForm"));
 
 const m = "accounting";
 const B = PageErrorBoundary;
@@ -148,5 +150,8 @@ export const accountingRoutes = (
     <Route path="accounting/partner-statement" element={<ProtectedRoute requiredModule={m}><B><PartnerStatement /></B></ProtectedRoute>} />
     <Route path="accounting/opening-balances" element={<ProtectedRoute requiredModule={m}><B><OpeningBalances /></B></ProtectedRoute>} />
     <Route path="accounting/vat-special-schemes" element={<ProtectedRoute requiredModule={m}><B><VatSpecialSchemes /></B></ProtectedRoute>} />
+    <Route path="accounting/payment-orders" element={<ProtectedRoute requiredModule={m}><B><PaymentOrdersPage /></B></ProtectedRoute>} />
+    <Route path="accounting/payment-orders/new" element={<ProtectedRoute requiredModule={m}><B><PaymentOrderFormPage /></B></ProtectedRoute>} />
+    <Route path="accounting/payment-orders/:id" element={<ProtectedRoute requiredModule={m}><B><PaymentOrderFormPage /></B></ProtectedRoute>} />
   </>
 );
