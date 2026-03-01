@@ -119,6 +119,7 @@ const accountingNav: NavItem[] = [
   { key: "fxCashRegister", url: "/accounting/fx-cash-register", icon: Globe },
   { key: "openItems", url: "/accounting/open-items", icon: ListChecks },
   { key: "iosBalanceConfirmation", url: "/accounting/ios", icon: CheckSquare },
+  { key: "partnerStatement", url: "/accounting/partner-statement", icon: BookText },
   { key: "expensesOverview", url: "/accounting/expenses", icon: TrendingDown },
   { key: "kompenzacija", url: "/accounting/kompenzacija", icon: ArrowLeftRight },
   { key: "fixedAssets", url: "/accounting/fixed-assets", icon: Landmark, section: "assetsAccruals" },

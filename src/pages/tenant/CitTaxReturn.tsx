@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
@@ -17,6 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { Calculator, FileText, Plus, ChevronDown } from "lucide-react";
+import { CitAdvancePayments } from "@/components/cit/CitAdvancePayments";
+import { NonDeductibleCalc } from "@/components/cit/NonDeductibleCalc";
 
 export default function CitTaxReturn() {
   const { t } = useLanguage();
@@ -33,6 +35,8 @@ export default function CitTaxReturn() {
   const [taxCredits, setTaxCredits] = useState(0);
   const [adjustmentDetails, setAdjustmentDetails] = useState("");
   const [adjustmentsOpen, setAdjustmentsOpen] = useState(false);
+  const [autoNonDeductible, setAutoNonDeductible] = useState(0);
+  const handleNonDeductibleChange = useCallback((amount: number) => setAutoNonDeductible(amount), []);
 
   const { data: returns = [], isLoading } = useQuery({
     queryKey: ["cit-returns", tenantId],
@@ -82,7 +86,8 @@ export default function CitTaxReturn() {
       }
     }
     const accountingProfit = totalRevenue - totalExpenses;
-    const taxableBase = Math.max(0, accountingProfit + adjustIncrease - adjustDecrease);
+    const totalAdjustIncrease = adjustIncrease + autoNonDeductible;
+    const taxableBase = Math.max(0, accountingProfit + totalAdjustIncrease - adjustDecrease);
     const taxRate = 15;
     const taxAmount = Math.round(taxableBase * taxRate / 100);
     const finalTax = Math.max(0, taxAmount - taxCredits);
@@ -95,7 +100,7 @@ export default function CitTaxReturn() {
       taxAmount,
       finalTax,
     };
-  }, [plData, adjustIncrease, adjustDecrease, taxCredits]);
+  }, [plData, adjustIncrease, adjustDecrease, taxCredits, autoNonDeductible]);
 
   const createReturnMut = useMutation({
     mutationFn: async () => {
@@ -205,6 +210,13 @@ export default function CitTaxReturn() {
         </Card>
       </Collapsible>
 
+      <NonDeductibleCalc
+        fiscalYear={selectedYear}
+        selectedEntity={selectedEntity}
+        totalRevenue={calculated.totalRevenue}
+        onNonDeductibleChange={handleNonDeductibleChange}
+      />
+
       <Card>
         <CardHeader><CardTitle className="text-base flex items-center gap-2"><Calculator className="h-4 w-4" /> {t("citCalculation")}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
@@ -246,6 +258,14 @@ export default function CitTaxReturn() {
           )}
         </CardContent>
       </Card>
+
+      {existingReturn && (
+        <CitAdvancePayments
+          fiscalYear={Number(selectedYear)}
+          finalTax={calculated.finalTax}
+          returnId={existingReturn.id}
+        />
+      )}
 
       {returns.length > 0 && (
         <Card>
