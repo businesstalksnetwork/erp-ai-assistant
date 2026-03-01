@@ -77,15 +77,15 @@ export default function GeneralLedger() {
   }, [openingData]);
 
   const { data: entries = [], isLoading } = useQuery({
-    queryKey: ["general_ledger", tenantId, accountFilter, dateFrom, dateTo],
+    queryKey: ["general_ledger", tenantId, accountFilter, dateFrom, dateTo, partnerFilter, costCenterFilter],
     queryFn: async () => {
       if (!tenantId) return [];
       let query = supabase
         .from("journal_lines")
         .select(`
-          id, debit, credit, description, sort_order,
+          id, debit, credit, description, sort_order, cost_center_id,
           account:chart_of_accounts(id, code, name, name_sr),
-          journal_entry:journal_entries!inner(id, entry_number, entry_date, status, description)
+          journal_entry:journal_entries!inner(id, entry_number, entry_date, status, description, partner_id)
         `)
         .eq("journal_entry.status", "posted")
         .eq("journal_entry.tenant_id", tenantId)
@@ -94,6 +94,9 @@ export default function GeneralLedger() {
       if (accountFilter !== "all") query = query.eq("account_id", accountFilter);
       if (dateFrom) query = query.gte("journal_entry.entry_date", dateFrom);
       if (dateTo) query = query.lte("journal_entry.entry_date", dateTo);
+      // CR4-03: Apply partner and cost center filters to query
+      if (partnerFilter !== "all") query = query.eq("journal_entry.partner_id", partnerFilter);
+      if (costCenterFilter !== "all") query = query.eq("cost_center_id", costCenterFilter);
 
       const { data, error } = await query;
       if (error) throw error;

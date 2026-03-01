@@ -60,13 +60,26 @@ export default function CashRegister() {
 
   const createMut = useMutation({
     mutationFn: async () => {
-      const entryNumber = `BL-${Date.now().toString(36).toUpperCase()}`;
+      // CR4-11: Sequential numbering per Serbian law
+      const now = new Date();
+      const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const { data: lastEntry } = await supabase
+        .from("cash_register")
+        .select("entry_number")
+        .eq("tenant_id", tenantId!)
+        .like("entry_number", `BL-${yearMonth}-%`)
+        .order("entry_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const lastSeq = lastEntry?.entry_number ? parseInt(lastEntry.entry_number.split("-").pop() || "0", 10) : 0;
+      const entryNumber = `BL-${yearMonth}-${String(lastSeq + 1).padStart(4, "0")}`;
       const amount = Number(form.amount);
-      const entryDate = format(new Date(), "yyyy-MM-dd");
+      const entryDate = format(now, "yyyy-MM-dd");
       const isIn = form.direction === "in";
       const modelCode = isIn ? "CASH_IN" : "CASH_OUT";
+      // CR4-12: Use account 2040 (customer receivables) for cash-in instead of non-standard 6990
       const fallbackLines = isIn
-        ? [{ accountCode: "1000", debit: amount, credit: 0, description: form.description, sortOrder: 1 }, { accountCode: "6990", debit: 0, credit: amount, description: form.description, sortOrder: 2 }]
+        ? [{ accountCode: "1000", debit: amount, credit: 0, description: form.description, sortOrder: 1 }, { accountCode: "2040", debit: 0, credit: amount, description: form.description, sortOrder: 2 }]
         : [{ accountCode: "5790", debit: amount, credit: 0, description: form.description, sortOrder: 1 }, { accountCode: "1000", debit: 0, credit: amount, description: form.description, sortOrder: 2 }];
       const journalEntryId = await postWithRuleOrFallback({ tenantId: tenantId!, userId: user?.id || null, modelCode, amount, entryDate, description: `${t("cashRegister")}: ${form.description}`, reference: entryNumber, context: {}, fallbackLines });
       const { error } = await supabase.from("cash_register").insert({ tenant_id: tenantId!, entry_number: entryNumber, entry_date: entryDate, direction: form.direction, amount, description: form.description, document_ref: form.document_ref || null, created_by: user?.id || null, journal_entry_id: journalEntryId });

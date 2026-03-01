@@ -19,13 +19,15 @@ export function NonDeductibleCalc({ fiscalYear, selectedEntity, totalRevenue, on
     queryKey: ["non-deductible-expenses", tenantId, fiscalYear, selectedEntity],
     queryFn: async () => {
       if (!tenantId || !fiscalYear) return [];
+      // CR4-08: Filter for only 552/553 accounts server-side
       let query = supabase
         .from("journal_lines")
-        .select("debit, credit, account:account_id(code), journal_entry:journal_entry_id(entry_date, status, tenant_id, legal_entity_id)")
+        .select("debit, credit, account:account_id!inner(code), journal_entry:journal_entry_id!inner(entry_date, status, tenant_id, legal_entity_id)")
         .eq("journal_entry.tenant_id", tenantId)
         .eq("journal_entry.status", "posted")
         .gte("journal_entry.entry_date", `${fiscalYear}-01-01`)
-        .lte("journal_entry.entry_date", `${fiscalYear}-12-31`);
+        .lte("journal_entry.entry_date", `${fiscalYear}-12-31`)
+        .or("code.like.552%,code.like.553%", { referencedTable: "account" });
       if (selectedEntity) query = query.eq("journal_entry.legal_entity_id", selectedEntity);
       const { data } = await query;
       return data || [];

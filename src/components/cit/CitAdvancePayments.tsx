@@ -14,18 +14,14 @@ interface Props {
   returnId?: string;
 }
 
-const QUARTER_SCHEDULE = [
-  { quarter: 1, month: 4, day: 15, label: "Q1 (Apr 15)" },
-  { quarter: 2, month: 7, day: 15, label: "Q2 (Jul 15)" },
-  { quarter: 3, month: 10, day: 15, label: "Q3 (Okt 15)" },
-  { quarter: 4, month: 1, day: 15, label: "Q4 (Jan 15)", nextYear: true },
-];
+// CR4-05: Monthly schedule per ZPDPL Art. 68 (1/12 of annual tax, due 15th of each month in N+1)
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Maj", "Jun", "Jul", "Avg", "Sep", "Okt", "Nov", "Dec"];
 
 export function CitAdvancePayments({ fiscalYear, finalTax, returnId }: Props) {
   const { tenantId } = useTenant();
   const qc = useQueryClient();
   const { toast } = useToast();
-  const quarterlyAmount = Math.round(finalTax / 4);
+  const monthlyAmount = Math.round(finalTax / 12);
 
   const { data: advances = [] } = useQuery({
     queryKey: ["cit-advances", tenantId, fiscalYear],
@@ -43,12 +39,11 @@ export function CitAdvancePayments({ fiscalYear, finalTax, returnId }: Props) {
   });
 
   const togglePaid = useMutation({
-    mutationFn: async ({ quarter, paid }: { quarter: number; paid: boolean }) => {
-      const q = QUARTER_SCHEDULE[quarter - 1];
-      const dueYear = q.nextYear ? fiscalYear + 2 : fiscalYear + 1;
-      const dueDate = `${dueYear}-${String(q.month).padStart(2, "0")}-${String(q.day).padStart(2, "0")}`;
+    mutationFn: async ({ month, paid }: { month: number; paid: boolean }) => {
+      // CR4-04: All advances for fiscal year N are due in year N+1
+      const dueDate = `${fiscalYear + 1}-${String(month).padStart(2, "0")}-15`;
       
-      const existing = advances.find((a: any) => a.month === quarter);
+      const existing = advances.find((a: any) => a.month === month);
       if (existing) {
         const { error } = await supabase
           .from("cit_advance_payments")
@@ -61,8 +56,8 @@ export function CitAdvancePayments({ fiscalYear, finalTax, returnId }: Props) {
           .insert({
             tenant_id: tenantId!,
             fiscal_year: fiscalYear,
-            month: quarter,
-            amount: quarterlyAmount,
+            month,
+            amount: monthlyAmount,
             due_date: dueDate,
             status: paid ? "paid" : "pending",
             paid_date: paid ? new Date().toISOString().slice(0, 10) : null,
@@ -83,17 +78,17 @@ export function CitAdvancePayments({ fiscalYear, finalTax, returnId }: Props) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <CalendarDays className="h-4 w-4" /> Kvartalne akontacije poreza na dobit — {fiscalYear}
+          <CalendarDays className="h-4 w-4" /> Mesečne akontacije poreza na dobit — {fiscalYear} (ZPDPL čl. 68)
         </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground mb-3">
-          Mesečna akontacija: <span className="font-semibold">{quarterlyAmount.toLocaleString("sr-RS")} RSD</span> (godišnji porez / 4)
+          Mesečna akontacija: <span className="font-semibold">{monthlyAmount.toLocaleString("sr-RS")} RSD</span> (godišnji porez / 12)
         </p>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Kvartal</TableHead>
+              <TableHead>Mesec</TableHead>
               <TableHead>Rok</TableHead>
               <TableHead className="text-right">Iznos</TableHead>
               <TableHead>Status</TableHead>
@@ -101,18 +96,17 @@ export function CitAdvancePayments({ fiscalYear, finalTax, returnId }: Props) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {QUARTER_SCHEDULE.map((q) => {
-              const adv = advances.find((a: any) => a.month === q.quarter);
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => {
+              const adv = advances.find((a: any) => a.month === month);
               const isPaid = adv?.status === "paid";
-              const dueYear = q.nextYear ? fiscalYear + 2 : fiscalYear + 1;
-              const dueDate = new Date(dueYear, q.month - 1, q.day);
+              const dueDate = new Date(fiscalYear + 1, month - 1, 15);
               const isOverdue = !isPaid && dueDate < new Date();
 
               return (
-                <TableRow key={q.quarter}>
-                  <TableCell className="font-semibold">{q.label}</TableCell>
+                <TableRow key={month}>
+                  <TableCell className="font-semibold">{MONTH_LABELS[month - 1]} {fiscalYear + 1}</TableCell>
                   <TableCell>{dueDate.toLocaleDateString("sr-Latn-RS")}</TableCell>
-                  <TableCell className="text-right tabular-nums">{quarterlyAmount.toLocaleString("sr-RS")} RSD</TableCell>
+                  <TableCell className="text-right tabular-nums">{monthlyAmount.toLocaleString("sr-RS")} RSD</TableCell>
                   <TableCell>
                     {isPaid ? (
                       <Badge variant="default">Plaćeno</Badge>
@@ -125,7 +119,7 @@ export function CitAdvancePayments({ fiscalYear, finalTax, returnId }: Props) {
                   <TableCell>
                     <Checkbox
                       checked={isPaid}
-                      onCheckedChange={(checked) => togglePaid.mutate({ quarter: q.quarter, paid: !!checked })}
+                      onCheckedChange={(checked) => togglePaid.mutate({ month, paid: !!checked })}
                       disabled={togglePaid.isPending}
                     />
                   </TableCell>
