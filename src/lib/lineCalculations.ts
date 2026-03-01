@@ -10,6 +10,7 @@ export interface BaseLineFields {
   line_total: number;
   tax_amount: number;
   total_with_tax: number;
+  discount_percent?: number;
 }
 
 export interface InvoiceLineCalc extends BaseLineFields {
@@ -101,15 +102,17 @@ export function emptySupplierInvoiceLine(
 
 // ── Calculation helpers ──
 
-/** Standard invoice line calc: qty × price + tax */
+/** Standard invoice line calc: qty × price × (1 - discount%) + tax */
 export function calcInvoiceLine<T extends BaseLineFields>(line: T): T {
-  const lineTotal = line.quantity * line.unit_price;
+  const grossTotal = line.quantity * line.unit_price;
+  const discountPct = (line.discount_percent ?? 0) / 100;
+  const lineTotal = grossTotal * (1 - discountPct);
   const taxAmount = lineTotal * (line.tax_rate_value / 100);
   return {
     ...line,
-    line_total: lineTotal,
-    tax_amount: taxAmount,
-    total_with_tax: lineTotal + taxAmount,
+    line_total: Math.round(lineTotal * 100) / 100,
+    tax_amount: Math.round(taxAmount * 100) / 100,
+    total_with_tax: Math.round((lineTotal + taxAmount) * 100) / 100,
   };
 }
 

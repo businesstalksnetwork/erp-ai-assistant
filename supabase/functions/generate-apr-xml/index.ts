@@ -23,19 +23,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
+    // Auth: verify JWT via getClaims
+    const token = authHeader.replace("Bearer ", "");
+    const anonClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
     );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const userId = claimsData.claims.sub as string;
+
+    // Use service_role client for data queries (CR2-11)
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
 
     const { tenant_id, report_type, fiscal_year, legal_entity_id } = await req.json();
     
@@ -46,14 +54,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify tenant membership
+    // Verify tenant membership (use .maybeSingle() instead of .single())
     const { data: membership } = await supabase
       .from("tenant_members")
       .select("id")
       .eq("tenant_id", tenant_id)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("status", "active")
-      .single();
+      .maybeSingle();
 
     if (!membership) {
       return new Response(JSON.stringify({ error: "Access denied" }), {

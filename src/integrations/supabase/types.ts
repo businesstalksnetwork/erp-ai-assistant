@@ -9717,6 +9717,7 @@ export type Database = {
         Row: {
           created_at: string
           description: string
+          discount_percent: number | null
           efaktura_category: string | null
           id: string
           invoice_id: string
@@ -9738,6 +9739,7 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string
+          discount_percent?: number | null
           efaktura_category?: string | null
           id?: string
           invoice_id: string
@@ -9759,6 +9761,7 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string
+          discount_percent?: number | null
           efaktura_category?: string | null
           id?: string
           invoice_id?: string
@@ -22776,12 +22779,10 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: undefined
       }
-      calculate_payroll_for_run:
-        | { Args: { p_payroll_run_id: string }; Returns: undefined }
-        | {
-            Args: { p_run_id: string; p_tenant_id: string }
-            Returns: undefined
-          }
+      calculate_payroll_for_run: {
+        Args: { p_payroll_run_id: string }
+        Returns: undefined
+      }
       calculate_tax_depreciation: {
         Args: { p_period: string; p_tenant_id: string }
         Returns: {
@@ -22812,25 +22813,15 @@ export type Database = {
         Args: { p_entry_date: string; p_tenant_id: string }
         Returns: string
       }
-      complete_pos_transaction:
-        | {
-            Args: {
-              p_fiscal_receipt_date?: string
-              p_fiscal_receipt_number?: string
-              p_tenant_id: string
-              p_transaction_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_items: Json
-              p_tenant_id: string
-              p_transaction_id: string
-              p_warehouse_id: string
-            }
-            Returns: Json
-          }
+      complete_pos_transaction: {
+        Args: {
+          p_fiscal_receipt_date?: string
+          p_fiscal_receipt_number?: string
+          p_tenant_id: string
+          p_transaction_id: string
+        }
+        Returns: Json
+      }
       complete_production_order: {
         Args: {
           p_order_id: string

@@ -40,11 +40,15 @@ serve(async (req) => {
     console.log(`SEF cancel/storno request: company=${companyId}, invoice=${sefInvoiceId}, action=${action}`);
 
     if (!companyId || !sefInvoiceId) {
-      throw new Error('Nedostaju obavezni parametri: companyId i sefInvoiceId');
+      return new Response(JSON.stringify({ success: false, error: 'Nedostaju obavezni parametri: companyId i sefInvoiceId' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     if (!action || !['cancel', 'storno'].includes(action)) {
-      throw new Error('Nevažeća akcija. Dozvoljene vrednosti: cancel, storno');
+      return new Response(JSON.stringify({ success: false, error: 'Nevažeća akcija. Dozvoljene vrednosti: cancel, storno' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Get company with SEF API key

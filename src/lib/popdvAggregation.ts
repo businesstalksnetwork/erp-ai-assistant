@@ -368,7 +368,7 @@ export function generatePpPdvXml(ppPdv: PpPdvForm, meta: {
   const fmt = (n: number) => n.toFixed(2);
   const escXml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
   return `<?xml version="1.0" encoding="UTF-8"?>
-<PoreskaObrazac xmlns="urn:poreskauprava.gov.rs:pppdv">
+<ObrazacPPPDV xmlns="urn:poreskauprava.gov.rs:ObrazacPPPDV">
   <Zaglavlje>
     <PIB>${escXml(meta.pib)}</PIB>
     <NazivObveznika>${escXml(meta.companyName)}</NazivObveznika>
@@ -397,5 +397,5 @@ export function generatePpPdvXml(ppPdv: PpPdvForm, meta: {
     <Polje111>${fmt(ppPdv.field_111)}</Polje111>
     <Polje112>${fmt(ppPdv.field_112)}</Polje112>
   </Podaci>
-</PoreskaObrazac>`;
+</ObrazacPPPDV>`;
 }
