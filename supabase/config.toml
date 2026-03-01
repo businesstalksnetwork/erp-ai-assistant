@@ -173,3 +173,15 @@ verify_jwt = false
 
 [functions.send-document-signature]
 verify_jwt = false
+
+[functions.ai-invoice-anomaly]
+verify_jwt = false
+
+[functions.ai-cash-flow-predict]
+verify_jwt = false
+
+[functions.ai-supplier-scoring]
+verify_jwt = false
+
+[functions.ai-payroll-predict]
+verify_jwt = false

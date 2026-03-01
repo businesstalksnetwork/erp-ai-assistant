@@ -45,6 +45,7 @@ const MyAttendance = React.lazy(() => import("@/pages/tenant/MyAttendance"));
 const HrContractTemplates = React.lazy(() => import("@/pages/tenant/HrContractTemplates"));
 const HrContractGenerator = React.lazy(() => import("@/pages/tenant/HrContractGenerator"));
 const OrgChart = React.lazy(() => import("@/pages/tenant/OrgChart"));
+const AiPayrollPredictor = React.lazy(() => import("@/pages/tenant/AiPayrollPredictor"));
 
 const m = "hr";
 const B = PageErrorBoundary;
@@ -94,5 +95,6 @@ export const hrRoutes = (
     <Route path="hr/contract-templates" element={<ProtectedRoute requiredModule={m}><B><HrContractTemplates /></B></ProtectedRoute>} />
     <Route path="hr/contract-generator" element={<ProtectedRoute requiredModule={m}><B><HrContractGenerator /></B></ProtectedRoute>} />
     <Route path="hr/org-chart" element={<ProtectedRoute requiredModule={m}><B><OrgChart /></B></ProtectedRoute>} />
+    <Route path="hr/ai-payroll-predict" element={<ProtectedRoute requiredModule={m}><B><AiPayrollPredictor /></B></ProtectedRoute>} />
   </>
 );

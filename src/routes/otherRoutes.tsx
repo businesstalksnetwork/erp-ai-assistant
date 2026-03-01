@@ -10,6 +10,7 @@ const GoodsReceipts = React.lazy(() => import("@/pages/tenant/GoodsReceipts"));
 const SupplierInvoices = React.lazy(() => import("@/pages/tenant/SupplierInvoices"));
 const SupplierInvoiceForm = React.lazy(() => import("@/pages/tenant/SupplierInvoiceForm"));
 const IncomingEfakture = React.lazy(() => import("@/pages/tenant/IncomingEfakture"));
+const AiSupplierScoring = React.lazy(() => import("@/pages/tenant/AiSupplierScoring"));
 
 // Production
 const ProductionHub = React.lazy(() => import("@/pages/tenant/ProductionHub"));
@@ -119,6 +120,7 @@ export const purchasingRoutes = (
     <Route path="purchasing/supplier-invoices/new" element={<ProtectedRoute requiredModule="purchasing"><B><SupplierInvoiceForm /></B></ProtectedRoute>} />
     <Route path="purchasing/supplier-invoices/:id" element={<ProtectedRoute requiredModule="purchasing"><B><SupplierInvoiceForm /></B></ProtectedRoute>} />
     <Route path="purchasing/incoming-efakture" element={<ProtectedRoute requiredModule="purchasing"><B><IncomingEfakture /></B></ProtectedRoute>} />
+    <Route path="purchasing/ai-supplier-scoring" element={<ProtectedRoute requiredModule="purchasing"><B><AiSupplierScoring /></B></ProtectedRoute>} />
   </>
 );
 

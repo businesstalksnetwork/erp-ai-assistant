@@ -78,6 +78,8 @@ const PaymentTemplates = React.lazy(() => import("@/pages/tenant/PaymentTemplate
 const InterestAccrual = React.lazy(() => import("@/pages/tenant/InterestAccrual"));
 const CesijaAsignacija = React.lazy(() => import("@/pages/tenant/CesijaAsignacija"));
 const SepaExport = React.lazy(() => import("@/pages/tenant/SepaExport"));
+const AiInvoiceAnomalyDetection = React.lazy(() => import("@/pages/tenant/AiInvoiceAnomalyDetection"));
+const AiCashFlowPredictor = React.lazy(() => import("@/pages/tenant/AiCashFlowPredictor"));
 
 const m = "accounting";
 const B = PageErrorBoundary;
@@ -161,5 +163,7 @@ export const accountingRoutes = (
     <Route path="accounting/interest-accrual" element={<ProtectedRoute requiredModule={m}><B><InterestAccrual /></B></ProtectedRoute>} />
     <Route path="accounting/cesija-asignacija" element={<ProtectedRoute requiredModule={m}><B><CesijaAsignacija /></B></ProtectedRoute>} />
     <Route path="accounting/sepa-export" element={<ProtectedRoute requiredModule={m}><B><SepaExport /></B></ProtectedRoute>} />
+    <Route path="accounting/ai-invoice-anomalies" element={<ProtectedRoute requiredModule={m}><B><AiInvoiceAnomalyDetection /></B></ProtectedRoute>} />
+    <Route path="accounting/ai-cash-flow-predict" element={<ProtectedRoute requiredModule={m}><B><AiCashFlowPredictor /></B></ProtectedRoute>} />
   </>
 );
