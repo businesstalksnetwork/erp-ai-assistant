@@ -104,6 +104,16 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
   else if (invoice.invoice_type === 'credit_note') typeCode = '381';
   else if (invoice.invoice_type === 'debit_note') typeCode = '383';
 
+  // P4-09: CreditNote root for type 381
+  const isCreditNote = typeCode === '381';
+  const rootTag = isCreditNote ? 'CreditNote' : 'Invoice';
+  const rootNs = isCreditNote
+    ? 'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2'
+    : 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2';
+  const typeCodeTag = isCreditNote ? 'CreditNoteTypeCode' : 'InvoiceTypeCode';
+  const lineTag = isCreditNote ? 'CreditNoteLine' : 'InvoiceLine';
+  const qtyTag = isCreditNote ? 'CreditedQuantity' : 'InvoicedQuantity';
+
   // Build VAT breakdown from invoice lines
   const vatMap = new Map<string, VatBreakdown>();
   const lineXmls: string[] = [];
@@ -130,9 +140,9 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
     entry.taxAmount += lineTax;
 
     lineXmls.push(`
-    <cac:InvoiceLine>
+    <cac:${lineTag}>
       <cbc:ID>${index + 1}</cbc:ID>
-      <cbc:InvoicedQuantity unitCode="H87">${item.quantity}</cbc:InvoicedQuantity>
+      <cbc:${qtyTag} unitCode="H87">${item.quantity}</cbc:${qtyTag}>
       <cbc:LineExtensionAmount currencyID="RSD">${lineNet.toFixed(2)}</cbc:LineExtensionAmount>
       <cac:Item>
         <cbc:Name>${escapeXml(item.description)}</cbc:Name>
@@ -147,7 +157,7 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
       <cac:Price>
         <cbc:PriceAmount currencyID="RSD">${item.unit_price.toFixed(2)}</cbc:PriceAmount>
       </cac:Price>
-    </cac:InvoiceLine>`);
+    </cac:${lineTag}>`);
   });
 
   const totalTaxable = Array.from(vatMap.values()).reduce((s, v) => s + v.taxableAmount, 0);
@@ -173,14 +183,14 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
   const defaultNote = isVatRegistered ? '' : 'Obveznik nije u sistemu PDV-a u skladu sa članom 33. Zakona o PDV-u.';
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+<${rootTag} xmlns="${rootNs}"
          xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
          xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
   <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:efaktura.mfin.gov.rs:sr-ubl-1.0</cbc:CustomizationID>
   <cbc:ID>${escapeXml(invoice.invoice_number)}</cbc:ID>
   <cbc:IssueDate>${issueDate}</cbc:IssueDate>
   <cbc:DueDate>${dueDate}</cbc:DueDate>
-  <cbc:InvoiceTypeCode>${typeCode}</cbc:InvoiceTypeCode>
+  <cbc:${typeCodeTag}>${typeCode}</cbc:${typeCodeTag}>
   <cbc:Note>${escapeXml(invoice.note || defaultNote)}</cbc:Note>
   <cbc:DocumentCurrencyCode>RSD</cbc:DocumentCurrencyCode>
   
@@ -259,7 +269,7 @@ function generateUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[]
     <cbc:PayableAmount currencyID="RSD">${totalPayable.toFixed(2)}</cbc:PayableAmount>
   </cac:LegalMonetaryTotal>
   ${lineXmls.join('')}
-</Invoice>`;
+</${rootTag}>`;
 
   return xml;
 }
@@ -379,6 +389,13 @@ serve(async (req) => {
           .select('*')
           .eq('invoice_id', invoiceId);
 
+        // P3-05: Fetch actual tax rates from invoice_lines for storno VAT categories
+        const { data: stornoInvLines } = await supabase
+          .from('invoice_lines')
+          .select('tax_rate_value')
+          .eq('invoice_id', invoiceId)
+          .order('sort_order');
+
         const invoiceItems: InvoiceItem[] = items && items.length > 0
           ? items.map(item => ({
               description: item.description,
@@ -395,8 +412,11 @@ serve(async (req) => {
               item_type: invoice.item_type,
             }];
 
-        // Generate credit note UBL XML (InvoiceTypeCode 381)
-        const ublXml = generateStornoUBLXml(invoice as Invoice, company as Company, invoiceItems, originalSefId);
+        // P3-05: Detect VAT registration from actual invoice lines
+        const stornoHasVat = (stornoInvLines || []).some((l: any) => Number(l.tax_rate_value) > 0);
+
+        // Generate credit note UBL XML (CreditNoteTypeCode 381)
+        const ublXml = generateStornoUBLXml(invoice as Invoice, company as Company, invoiceItems, originalSefId, stornoHasVat, stornoInvLines as any[]);
 
         const sefResponse = await fetch(`${SEF_API_BASE}/sales-invoice/ubl`, {
           method: 'POST',
@@ -664,28 +684,35 @@ serve(async (req) => {
     console.error('SEF submission error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Greška pri slanju na SEF';
     
-    // P3-07: Return proper HTTP error status codes
+    // P3-07: Return proper HTTP error status codes based on error message
+    let statusCode = 400;
+    if (errorMessage.includes('nije pronađen') || errorMessage.includes('not found')) statusCode = 404;
+    else if (errorMessage.includes('Forbidden') || errorMessage.includes('nije podešen')) statusCode = 403;
+    else if (errorMessage.includes('SEF') && errorMessage.includes('ID')) statusCode = 409; // Conflict
+    else if (errorMessage.includes('Greška pri slanju')) statusCode = 502; // Bad gateway (upstream SEF failure)
+    
     return new Response(JSON.stringify({
       success: false,
       error: errorMessage,
     }), {
-      status: 400,
+      status: statusCode,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
 
-// P3-05: Fix storno — use actual invoice VAT categories instead of hardcoded SS/0%
-function generateStornoUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[], originalSefId: string, isVatRegistered = false): string {
+// P3-05: Fix storno — use actual invoice VAT categories from invoice_lines instead of hardcoded SS/0%
+function generateStornoUBLXml(invoice: Invoice, company: Company, items: InvoiceItem[], originalSefId: string, isVatRegistered = false, invLines?: any[]): string {
   const issueDate = formatDate(invoice.issue_date);
   const deliveryDate = formatDate(invoice.service_date ?? invoice.issue_date);
   
-  // Build VAT breakdown from actual invoice items
+  // Build VAT breakdown from actual invoice lines tax rates
   const vatMap = new Map<string, { taxableAmount: number; taxAmount: number; percent: number; categoryId: string }>();
   
   const invoiceLines = items.map((item, index) => {
     const lineAmount = Math.abs(item.total_amount);
-    const taxRate = item.tax_rate || 0;
+    // P3-05: Use actual tax rate from invoice_lines, not from item (which lacks tax_rate)
+    const taxRate = invLines?.[index]?.tax_rate_value ?? (isVatRegistered ? 20 : 0);
     const taxAmount = Math.round(lineAmount * taxRate / 100 * 100) / 100;
     const vatCat = determineVatCategory(taxRate, isVatRegistered, invoice.issue_date);
     const key = `${vatCat.id}-${taxRate}`;
