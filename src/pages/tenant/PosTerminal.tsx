@@ -10,8 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Minus, Trash2, ShoppingCart, Receipt, RefreshCw, Undo2 } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ShoppingCart, Receipt, RefreshCw, Undo2, Printer } from "lucide-react";
 import { PosPinDialog } from "@/components/pos/PosPinDialog";
+import { ReceiptReprintDialog } from "@/components/pos/ReceiptReprintDialog";
+import { CashChangeCalculator } from "@/components/pos/CashChangeCalculator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EntitySelector } from "@/components/shared/EntitySelector";
@@ -60,6 +62,7 @@ export default function PosTerminal() {
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [selectedOriginalTx, setSelectedOriginalTx] = useState<any>(null);
   const [refundItems, setRefundItems] = useState<RefundItem[]>([]);
+  const [reprintDialogOpen, setReprintDialogOpen] = useState(false);
 
   const { data: activeSession } = useQuery({
     queryKey: ["pos_sessions_active", tenantId],
@@ -585,6 +588,15 @@ export default function PosTerminal() {
               {t("switchSeller")}
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={() => setReprintDialogOpen(true)}
+          >
+            <Printer className="h-3 w-3" />
+            {t("receiptReprint" as any) || "Reprint"}
+          </Button>
           <ActionGuard module="pos" action="delete">
             <Button
               size="sm"
@@ -696,6 +708,9 @@ export default function PosTerminal() {
                   <Button size="sm" variant={voucherType === "multi_purpose" ? "default" : "outline"} onClick={() => setVoucherType("multi_purpose")}>{t("multiPurpose")}</Button>
                 </div>
               )}
+              {paymentMethod === "cash" && cart.length > 0 && (
+                <CashChangeCalculator total={total} />
+              )}
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between"><span>{t("subtotal")}</span><span>{subtotal.toFixed(2)}</span></div>
                 <div className="flex justify-between"><span>{t("taxAmount")}</span><span>{taxAmount.toFixed(2)}</span></div>
@@ -778,6 +793,9 @@ export default function PosTerminal() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Receipt Reprint Dialog */}
+      <ReceiptReprintDialog open={reprintDialogOpen} onOpenChange={setReprintDialogOpen} />
     </div>
   );
 }
