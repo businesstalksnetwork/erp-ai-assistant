@@ -1,83 +1,96 @@
 
 
-# Phase 4: Advanced AI — Implementation Plan
+# ISO Compliance Implementation — Phased Plan
 
-Phase 4 adds 4 AI-powered analytics features. No new database tables needed — all features use existing data and the Lovable AI Gateway.
-
----
-
-## 4A: AI Invoice Anomaly Detection (AI-02)
-
-**New edge function:** `supabase/functions/ai-invoice-anomaly/index.ts`
-- Fetches recent invoices + supplier invoices for tenant
-- Rule-based pre-screening: duplicate amounts (same vendor ±7 days), weekend invoices, round-number patterns (multiples of 10000), unusual vendors (first-time with large amounts), amount outliers (>3σ from vendor average)
-- Sends flagged items to Gemini for correlation analysis and false-positive filtering
-- Returns scored anomalies with explanations
-
-**New page:** `src/pages/tenant/AiInvoiceAnomalyDetection.tsx`
-- Dashboard with anomaly cards (severity-colored), summary stats
-- Filters by type (duplicate, unusual vendor, round number, weekend, outlier)
-- "Dismiss" / "Investigate" actions per anomaly, logged to `ai_action_log`
-- AiAnalyticsNarrative integration for executive summary
-- Route: `accounting/ai-invoice-anomalies`
+After reviewing all 1258 lines of the PRD, here's the breakdown into 5 implementable phases. Documentation-only items (policies, manuals) and CI/CD pipeline (QMS-01) are out of scope for Lovable but noted for your reference.
 
 ---
 
-## 4B: AI Cash Flow Predictor (AI-06)
+## Phase ISO-1: Security Foundation (SEC-01 through SEC-08 + CR7 fixes)
 
-**New edge function:** `supabase/functions/ai-cash-flow-predict/index.ts`
-- Fetches: open AR invoices (with historical collection patterns), open AP invoices, recurring expenses, bank balances, last 12 months of actual cash flows
-- Heuristic model: projects 30/60/90 day cash position using weighted collection probability per aging bucket + known AP commitments + recurring patterns
-- Sends projection data to Gemini for narrative interpretation and risk flagging
+**Shared infrastructure + critical security fixes.** Highest impact, touches all 97+ edge functions.
 
-**New page:** `src/pages/tenant/AiCashFlowPredictor.tsx`
-- Area chart showing projected cash balance over 90 days (optimistic/expected/pessimistic bands)
-- Key metrics: days of runway, projected shortfall date (if any), largest upcoming obligations
-- AI narrative explaining key drivers and risks
-- Route: `accounting/ai-cash-flow-predict`
+| Item | What | Scope |
+|------|------|-------|
+| SEC-01 | Create `_shared/cors.ts`, replace wildcard CORS in all 97+ functions | All edge functions |
+| SEC-02 | Fix `USING(true)` RLS on voucher_types, supplier_invoice_lines, popdv_records | Migration |
+| SEC-03 | Create `_shared/schemas/` with Zod, add validation to all edge functions | All edge functions |
+| SEC-04 | `security_events` table + `_shared/security-logger.ts` | Migration + shared |
+| SEC-05 | Create `_shared/error-handler.ts`, sanitize all error responses | All edge functions |
+| SEC-06 | `_shared/security-headers.ts` + CSP meta tag in index.html | Shared + HTML |
+| SEC-07 | `secret_rotation_log` table | Migration |
+| SEC-08 | React ErrorBoundary component wrapping App | 1 component |
+| CR7-01 | Role check for POS discount approvals | PosManagerOverride.tsx |
+| CR7-02 | O(n²) → O(n) duplicate detection | ai-invoice-anomaly |
+| CR7-04 | Tool_choice fallback | ai-supplier-scoring |
+| CR7-06 | Configurable collection probabilities | ai-cash-flow-predict |
+| CR7-07 | Line item validation (no negative qty/price) | QuoteTemplates.tsx |
 
----
-
-## 4C: AI Supplier Scoring (AI-05)
-
-**New edge function:** `supabase/functions/ai-supplier-scoring/index.ts`
-- Fetches per-supplier: purchase orders (delivery dates vs promised), supplier invoices (price variance over time), payment terms, quality data from `goods_receipts`, total spend
-- Calculates composite score (0-100) across 4 dimensions: delivery reliability, price stability, payment flexibility, quality/returns
-- Gemini enrichment: strategic recommendations per supplier
-
-**New page:** `src/pages/tenant/AiSupplierScoring.tsx`
-- Ranked supplier table with radar chart per supplier (4 dimensions)
-- Color-coded scores (green >75, yellow 50-75, red <50)
-- AI recommendations column
-- Route: `purchasing/ai-supplier-scoring`
+**This is the largest phase — the shared modules (cors, error-handler, schemas, security-logger, security-headers) must be created first, then all 97+ edge functions updated to import them.**
 
 ---
 
-## 4D: AI Payroll Predictor (AI-03)
+## Phase ISO-2: AI Governance + Prompt Registry (AI-02 through AI-04)
 
-**New edge function:** `supabase/functions/ai-payroll-predict/index.ts`
-- Fetches: current employee list with salaries, scheduled changes (new hires with start dates, contract end dates, pending raises from employee records), last 6 months of payroll run totals
-- Projects next month's gross/net payroll with delta breakdown (new hires, departures, raises)
-- Gemini enrichment: budget impact narrative
-
-**New page:** `src/pages/tenant/AiPayrollPredictor.tsx`
-- Summary cards: projected gross, projected net, delta vs last month
-- Breakdown table: continuing employees, new hires, departures, raises
-- Trend chart (6-month history + 1-month forecast)
-- AI narrative with budget recommendations
-- Route: `hr/ai-payroll-predict`
+| Item | What | Scope |
+|------|------|-------|
+| AI-02 | `ai_prompt_registry` table + shared loader, migrate 17+ hardcoded prompts | Migration + 23 AI functions |
+| AI-03 | Confidence threshold enforcement (auto_approve/suggest/flag/reject) | 4 AI functions |
+| AI-04 | Super Admin AI Governance Dashboard (token usage, action log, prompts, injections) | New page |
 
 ---
 
-## Technical Summary
+## Phase ISO-3: Privacy, Cloud & E-Invoicing (CLOUD-02, PRIV-01, EI-01, EI-02)
 
-| Item | New Edge Function | New Page | Migration | Route |
-|------|------------------|----------|-----------|-------|
-| 4A: Invoice Anomaly | `ai-invoice-anomaly` | `AiInvoiceAnomalyDetection.tsx` | 0 | `accounting/ai-invoice-anomalies` |
-| 4B: Cash Flow Predict | `ai-cash-flow-predict` | `AiCashFlowPredictor.tsx` | 0 | `accounting/ai-cash-flow-predict` |
-| 4C: Supplier Scoring | `ai-supplier-scoring` | `AiSupplierScoring.tsx` | 0 | `purchasing/ai-supplier-scoring` |
-| 4D: Payroll Predictor | `ai-payroll-predict` | `AiPayrollPredictor.tsx` | 0 | `hr/ai-payroll-predict` |
-| **Total** | **4 functions** | **4 pages** | **0** | **4 routes** |
+| Item | What | Scope |
+|------|------|-------|
+| CLOUD-02 | Field-level PII encryption (JMBG, bank accounts) via pgcrypto | Migration + functions |
+| PRIV-01 | `data_breach_incidents` table + breach-notification edge function | Migration + edge function + page |
+| EI-01 | UBL XML schema validator (EN 16931 mandatory elements) | New shared module + sef-submit edit |
+| EI-02 | Replace string concatenation with XmlBuilder class | sef-submit refactor |
 
-All edge functions follow the existing pattern (JWT auth via `getClaims`, tenant membership verification, Lovable AI Gateway with `google/gemini-3-flash-preview`, `ai_action_log` audit trail). Route registrations go into `accountingRoutes.tsx`, `otherRoutes.tsx`, and `hrRoutes.tsx`. Config updates in `supabase/config.toml`.
+---
+
+## Phase ISO-4: Business Continuity & Archival (BC-01 to BC-03, ARCH-01, ARCH-02)
+
+| Item | What | Scope |
+|------|------|-------|
+| BC-01 | `health-check` edge function (DB, Storage, AI Gateway status) | New edge function |
+| BC-02 | `tenant-data-export` edge function + DataExport.tsx page | Edge function + page |
+| BC-03 | Super Admin SystemHealth.tsx dashboard (uptime, response times) | New page |
+| ARCH-01 | `generate-pdfa` edge function (PDF/A-3 with embedded UBL XML) | New edge function |
+| ARCH-02 | `enforce_document_retention()` DB function | Migration |
+
+---
+
+## Phase ISO-5: ITSM & Quality Model (ITSM-01, ITSM-02, SQ-02)
+
+| Item | What | Scope |
+|------|------|-------|
+| ITSM-01 | `sla_definitions` + `sla_measurements` tables + SLA management page | Migration + page |
+| ITSM-02 | `incidents` table + Incident Management page | Migration + page |
+| SQ-02 | WCAG 2.1 AA accessibility pass (aria-labels, contrast, keyboard nav) | Component edits |
+
+---
+
+## Out of Scope (documentation / external tooling)
+
+These items from the PRD require non-code deliverables:
+- AI-01, AI-05: AI governance policy & impact assessment docs
+- QMS-01: GitHub Actions CI/CD pipeline (not Lovable-buildable)
+- QMS-02: Test coverage expansion (limited in Lovable)
+- QMS-03, CLOUD-01, CLOUD-03, PRIV-02: Policy documents
+- Phase 5/6 from PRD: Documentation & external audit prep
+
+---
+
+## Summary
+
+| Phase | Items | Key Standards |
+|-------|-------|---------------|
+| ISO-1: Security Foundation | 13 items (SEC-01–08 + 5 CR fixes) | ISO 27001 |
+| ISO-2: AI Governance | 3 items (AI-02–04) | ISO 42001 |
+| ISO-3: Privacy & E-Invoicing | 4 items (CLOUD-02, PRIV-01, EI-01–02) | ISO 27017/18/27701, EN 16931 |
+| ISO-4: Continuity & Archival | 5 items (BC-01–03, ARCH-01–02) | ISO 22301, 19005 |
+| ISO-5: ITSM & Quality | 3 items (ITSM-01–02, SQ-02) | ISO 20000, 25010 |
 
