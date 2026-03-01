@@ -12,6 +12,31 @@ import { Input } from "@/components/ui/input";
 import { ExportButton } from "@/components/ExportButton";
 import type { CsvColumn } from "@/lib/exportCsv";
 
+// CR4-10: Correctly compute debit/credit based on document_type and direction
+function computeDebitCredit(item: any): { debit: number; credit: number } {
+  const amount = Number(item.original_amount);
+  const docType = (item.document_type || "").toLowerCase();
+  const isCreditNote = docType.includes("credit_note") || docType.includes("creditnote") || docType === "cn";
+  const isDebitNote = docType.includes("debit_note") || docType.includes("debitnote") || docType === "dn";
+
+  if (isCreditNote) {
+    // Credit notes reverse the normal direction
+    return item.direction === "receivable"
+      ? { debit: 0, credit: amount }
+      : { debit: amount, credit: 0 };
+  }
+  if (isDebitNote) {
+    // Debit notes follow normal direction
+    return item.direction === "receivable"
+      ? { debit: amount, credit: 0 }
+      : { debit: 0, credit: amount };
+  }
+  // Standard invoices / payments
+  return item.direction === "receivable"
+    ? { debit: amount, credit: 0 }
+    : { debit: 0, credit: amount };
+}
+
 interface StatementLine {
   date: string;
   document: string;
@@ -42,6 +67,31 @@ export default function PartnerStatement() {
     enabled: !!tenantId,
   });
 
+  // CR4-09: Fetch opening balance (all items before dateFrom)
+  const { data: openingItems = [] } = useQuery({
+    queryKey: ["partner-opening-balance", tenantId, selectedPartner, dateFrom],
+    queryFn: async () => {
+      if (!tenantId || !selectedPartner || !dateFrom) return [];
+      const { data } = await supabase
+        .from("open_items")
+        .select("original_amount, direction, document_type")
+        .eq("tenant_id", tenantId)
+        .eq("partner_id", selectedPartner)
+        .lt("document_date", dateFrom);
+      return data || [];
+    },
+    enabled: !!tenantId && !!selectedPartner && !!dateFrom,
+  });
+
+  const openingBalance = useMemo(() => {
+    let bal = 0;
+    for (const item of openingItems as any[]) {
+      const { debit, credit } = computeDebitCredit(item);
+      bal += debit - credit;
+    }
+    return bal;
+  }, [openingItems]);
+
   const { data: openItems = [], isLoading } = useQuery({
     queryKey: ["partner-statement", tenantId, selectedPartner, dateFrom, dateTo],
     queryFn: async () => {
@@ -61,10 +111,10 @@ export default function PartnerStatement() {
   });
 
   const statementLines = useMemo<StatementLine[]>(() => {
-    let balance = 0;
+    let balance = openingBalance;
     return openItems.map((item: any) => {
-      const debit = item.direction === "receivable" ? Number(item.original_amount) : 0;
-      const credit = item.direction === "payable" ? Number(item.original_amount) : 0;
+      // CR4-10: Handle credit/debit note direction correctly
+      const { debit, credit } = computeDebitCredit(item);
       balance += debit - credit;
       return {
         date: item.document_date,
@@ -74,7 +124,7 @@ export default function PartnerStatement() {
         balance,
       };
     });
-  }, [openItems]);
+  }, [openItems, openingBalance]);
 
   const csvColumns: CsvColumn<StatementLine>[] = [
     { key: "date", label: t("date") },
@@ -137,6 +187,18 @@ export default function PartnerStatement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {/* CR4-09: Opening balance row */}
+                {openingBalance !== 0 && (
+                  <TableRow className="bg-muted/30">
+                    <TableCell className="font-medium italic">{dateFrom}</TableCell>
+                    <TableCell className="font-medium italic">Početno stanje</TableCell>
+                    <TableCell className="text-right tabular-nums">{openingBalance > 0 ? openingBalance.toLocaleString("sr-RS", { minimumFractionDigits: 2 }) : ""}</TableCell>
+                    <TableCell className="text-right tabular-nums">{openingBalance < 0 ? Math.abs(openingBalance).toLocaleString("sr-RS", { minimumFractionDigits: 2 }) : ""}</TableCell>
+                    <TableCell className={`text-right tabular-nums font-semibold ${openingBalance < 0 ? "text-destructive" : ""}`}>
+                      {openingBalance.toLocaleString("sr-RS", { minimumFractionDigits: 2 })}
+                    </TableCell>
+                  </TableRow>
+                )}
                 {statementLines.map((line, i) => (
                   <TableRow key={i}>
                     <TableCell>{new Date(line.date).toLocaleDateString("sr-Latn-RS")}</TableCell>

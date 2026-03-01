@@ -218,8 +218,10 @@ serve(async (req) => {
       }
     }
 
-    // Check cache first
-    const dataHash = JSON.stringify(data || {}).length.toString() + "_" + context_type;
+    // Check cache first — CR4-02: use SHA-256 instead of string length
+    const dataStr = JSON.stringify(data || {});
+    const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(dataStr));
+    const dataHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("") + "_" + context_type;
     const { data: cached } = await supabase
       .from("ai_narrative_cache")
       .select("*")

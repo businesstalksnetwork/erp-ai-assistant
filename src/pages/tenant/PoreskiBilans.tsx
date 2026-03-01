@@ -80,13 +80,13 @@ const PB1_LINES = [
   { num: 50, label: "XVII KOREKCIJA RASHODA ZA TRANSFERNE CENE (AOP 1049)" },
   { num: 51, label: "XVIII KOREKCIJA PRIHODA ZA TRANSFERNE CENE (AOP 1050)" },
   // AMORTIZACIJA
-  { num: 52, label: "XIX AMORTIZACIJA PO PORESKIM PROPISIMA (čl. 10 ZPDP) (AOP 1051)" },
+  { num: 52, label: "XIX AMORTIZACIJA PO PORESKIM PROPISIMA (čl. 10 ZPDPL) (AOP 1051)" },
   { num: 53, label: "XX AMORTIZACIJA PO RAČUNOVODSTVENIM PROPISIMA (AOP 1052)" },
   { num: 54, label: "XXI RAZLIKA U AMORTIZACIJI (XIX - XX) (AOP 1053)" },
   // TANKA KAPITALIZACIJA
-  { num: 55, label: "XXII KAMATA IZNAD NORME (čl. 61-62 ZPDP) (AOP 1054)" },
+  { num: 55, label: "XXII KAMATA IZNAD NORME (čl. 61-62 ZPDPL) (AOP 1054)" },
   // PRENOS GUBITKA
-  { num: 56, label: "XXIII PRENOS PORESKOG GUBITKA (čl. 32 ZPDP) (AOP 1055)" },
+  { num: 56, label: "XXIII PRENOS PORESKOG GUBITKA (čl. 32 ZPDPL) (AOP 1055)" },
   { num: 57, label: "1. Gubitak iz prethodne 1. godine (AOP 1055a)" },
   { num: 58, label: "2. Gubitak iz prethodne 2. godine (AOP 1055b)" },
   { num: 59, label: "3. Gubitak iz prethodne 3. godine (AOP 1055c)" },
@@ -94,7 +94,7 @@ const PB1_LINES = [
   { num: 61, label: "5. Gubitak iz prethodne 5. godine (AOP 1055e)" },
   // OPOREZIVA DOBIT / POREZ
   { num: 62, label: "XXIV OPOREZIVA DOBIT (AOP 1056)", isHeader: true },
-  { num: 63, label: "XXV PORESKI KREDITI (čl. 48-50 ZPDP) (AOP 1057)" },
+  { num: 63, label: "XXV PORESKI KREDITI (čl. 48-50 ZPDPL) (AOP 1057)" },
   { num: 64, label: "1. Poreski kredit za ulaganja (AOP 1057a)" },
   { num: 65, label: "2. Poreski kredit za zapošljavanje (AOP 1057b)" },
   { num: 66, label: "3. Ostali poreski krediti (AOP 1057c)" },
@@ -205,7 +205,8 @@ export default function PoreskiBilans() {
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
-  const taxBase = Math.max(0, getFinal(33));
+  // CR4-07: Use line 62 (AOP 1056 — oporeziva dobit) instead of line 33
+  const taxBase = Math.max(0, getFinal(62));
   const taxAmount = Math.round(taxBase * 0.15 * 100) / 100;
 
   return (

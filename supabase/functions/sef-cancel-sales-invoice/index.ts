@@ -19,21 +19,21 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // ── P1-01: Authentication ──
+    // ── CR4-01: Use getClaims() instead of getUser() ──
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { data: { user: authUser }, error: authErr } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
-    if (authErr || !authUser) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: authErr } = await supabase.auth.getClaims(token);
+    if (authErr || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const authUser = { id: claimsData.claims.sub as string };
 
     const { companyId, sefInvoiceId, action, comment } = await req.json();
 
@@ -188,12 +188,24 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('SEF cancel/storno error:', error);
-    
+    const msg = error instanceof Error ? error.message : 'Greška pri storniranju fakture';
+
+    // CR3-05: Return appropriate status codes instead of always 500
+    let status = 500;
+    const lower = msg.toLowerCase();
+    if (lower.includes('nedostaju') || lower.includes('nevažeća') || lower.includes('invalid') || lower.includes('missing')) {
+      status = 400;
+    } else if (lower.includes('nije pronađen') || lower.includes('not found')) {
+      status = 404;
+    } else if (lower.includes('sef api greška') || lower.includes('sef api')) {
+      status = 502;
+    }
+
     return new Response(JSON.stringify({
       success: false,
-      error: error instanceof Error ? error.message : 'Greška pri storniranju fakture',
+      error: msg,
     }), {
-      status: 500,
+      status,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
