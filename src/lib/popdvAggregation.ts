@@ -43,16 +43,29 @@ export interface PopdvPeriodResult {
   outputLines: PopdvLineAggregation[];
   inputLines: PopdvLineAggregation[];
   reverseChargeLines: PopdvLineAggregation[];
+  section1: SectionSummary;
+  section2: SectionSummary;
+  section4: SectionSummary;
   section5: Section5;
   section8e: Section8e;
   section10: number;
   ppPdv: PpPdvForm;
 }
 
+/** P3-10: Summary for sections 1, 2, 4 */
+interface SectionSummary {
+  total_base: number;
+  total_vat: number;
+  entry_count: number;
+}
+
 interface Section5 {
-  s5_1: number; // Total taxable base
+  s5_1: number; // Total taxable base (sections 3 + 3a)
   s5_2: number; // Special procedures base
   s5_3: number; // Special procedures VAT
+  s5_4: number; // P3-10: Exempt supplies base (section 1)
+  s5_5: number; // P3-10: Zero-rated exports base (section 2)
+  s5_6: number; // P3-10: Special procedures total (section 4)
   s5_7: number; // TOTAL OUTPUT VAT
 }
 
@@ -111,6 +124,12 @@ export async function aggregatePopdvPeriod(
 
   // 4. Compute section totals
   const allOutput = [...outputLines, ...reverseChargeLines];
+
+  // P3-10: Compute section 1, 2, 4 summaries
+  const section1 = computeSectionSummary(allOutput, "1");
+  const section2 = computeSectionSummary(allOutput, "2");
+  const section4 = computeSectionSummary(allOutput, "4");
+
   const section5 = computeSection5(allOutput);
   const section8e = computeSection8e(inputLines, allOutput);
   const section10 = section5.s5_7 - section8e.s8e_5;
@@ -118,7 +137,7 @@ export async function aggregatePopdvPeriod(
   // 5. Generate PP-PDV
   const ppPdv = generatePpPdv(allOutput, inputLines, section5, section8e, section10);
 
-  return { outputLines, inputLines, reverseChargeLines, section5, section8e, section10, ppPdv };
+  return { outputLines, inputLines, reverseChargeLines, section1, section2, section4, section5, section8e, section10, ppPdv };
 }
 
 async function fetchOutputLines(
@@ -147,34 +166,13 @@ async function fetchOutputLines(
     if (data) allLines.push(...data);
   }
 
-  // P3-10: Include credit notes as negative amounts in POPDV output
-  let cnQ = supabase.from("credit_notes")
-    .select("id, issued_at, status, subtotal, tax_amount, amount")
-    .eq("tenant_id", tenantId)
-    .in("status", ["posted", "sent", "approved"])
-    .gte("issued_at", start)
-    .lte("issued_at", end);
-  if (legalEntityId) cnQ = cnQ.eq("legal_entity_id", legalEntityId);
-  const { data: creditNotes } = await cnQ;
-  if (creditNotes && creditNotes.length > 0) {
-    for (const cn of creditNotes) {
-      // Credit notes reduce output VAT — add as negative synthetic line
-      // Use popdv_field 3.2 (domestic sales standard rate) as default
-      const taxRate = cn.tax_amount > 0 && cn.subtotal > 0
-        ? Math.round((cn.tax_amount / cn.subtotal) * 100)
-        : 20;
-      const popdvField = taxRate === 10 ? "3.3" : taxRate === 0 ? "3.6" : "3.2";
-      allLines.push({
-        invoice_id: cn.id,
-        line_total: -(cn.subtotal || 0),
-        tax_amount: -(cn.tax_amount || 0),
-        tax_rate_value: taxRate,
-        popdv_field: popdvField,
-        total_with_tax: -(cn.amount || 0),
-        vat_non_deductible: false,
-      });
-    }
-  }
+  // P1-11: Credit notes are now stored in invoices table with invoice_type='credit_note'
+  // and have proper popdv_field on their invoice_lines. They are automatically included
+  // in the query above since they have status 'posted' and vat_date in the period.
+  // The invoice_lines for credit notes have negative line_total/tax_amount values
+  // which correctly reduce output VAT in POPDV aggregation.
+  // Note: Credit notes created via CreditDebitNotes.tsx now write to invoices table,
+  // so the old synthetic credit_notes block is no longer needed.
 
   return groupLines(allLines, "output");
 }
@@ -259,6 +257,16 @@ function generateReverseChargeOutput(inputLines: PopdvLineAggregation[]): PopdvL
   return result;
 }
 
+/** P3-10: Compute section summary for sections 1, 2, or 4 */
+function computeSectionSummary(lines: PopdvLineAggregation[], prefix: string): SectionSummary {
+  const matching = lines.filter(l => l.popdv_field.startsWith(prefix));
+  return {
+    total_base: matching.reduce((s, l) => s + l.total_base, 0),
+    total_vat: matching.reduce((s, l) => s + l.total_vat, 0),
+    entry_count: matching.reduce((s, l) => s + l.entry_count, 0),
+  };
+}
+
 function sumField(lines: PopdvLineAggregation[], prefix: string, field: "total_vat" | "total_base" | "vat_non_deductible" | "fee_value"): number {
   return lines.filter(l => l.popdv_field.startsWith(prefix)).reduce((s, l) => s + l[field], 0);
 }
@@ -277,7 +285,12 @@ function computeSection5(outputLines: PopdvLineAggregation[]): Section5 {
   // 5.7 = TOTAL OUTPUT VAT
   const s5_7 = sumField(outputLines, "3", "total_vat") + s5_3;
 
-  return { s5_1, s5_2, s5_3, s5_7 };
+  // P3-10: Section 1 (exempt supplies), Section 2 (exports), Section 4 (special procedures)
+  const s5_4 = sumField(outputLines, "1", "total_base");
+  const s5_5 = sumField(outputLines, "2", "total_base");
+  const s5_6 = s5_2 + s5_3;
+
+  return { s5_1, s5_2, s5_3, s5_4, s5_5, s5_6, s5_7 };
 }
 
 function computeSection8e(inputLines: PopdvLineAggregation[], outputLines: PopdvLineAggregation[]): Section8e {
