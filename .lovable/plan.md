@@ -1,61 +1,54 @@
 
-# PRD V3.3 Implementation — Status After Round 8
 
-## Completed This Round (Phases 1-4 + most of 5-6)
+# V3.3 Remaining Items — Implementation Plan
 
-### Phase 1: DB Cleanup ✅
-- CR3-01: Dropped 2-arg `calculate_payroll_for_run` stub (was producing zero payslips)
-- CR3-02: Dropped old 4-arg `complete_pos_transaction` overload
-- CR3-03: Verified `leave_type = 'sick'` matches actual enum — no fix needed
-
-### Phase 2: SEF & Edge Functions ✅
-- CR3-05: `sef-cancel-sales-invoice` validation errors now return 400 (not 500)
-- CR-20: `generateUBLXml` now passes `invoice.issue_date` to `determineVatCategory` for S10/S20 codes
-- CR2-11: `generate-apr-xml` migrated to service_role + getClaims + maybeSingle
-- P3-07: Already returned proper HTTP status codes ✅
-- P3-05: Storno already used actual VAT categories ✅
-
-### Phase 3: Accounting & GL ✅ (All already fixed)
-- P3-12: GL reversal on FIFO failure ✅
-- P3-13: 3-way match price comparison ✅
-- P3-15: Debit note VAT line ✅
-- P3-18: NBS unit division ✅
-- P3-21: Button labels correct ✅
-- P3-23: BillingReference in storno XML ✅
-
-### Phase 4: Feature Completeness ✅
-- P4-01: Added `discount_percent` column to `invoice_lines` + UI rabat field + calc logic
-- P4-02: `vat_date` already implemented ✅
-- P4-03: Expanded PB-1 from 34 to 70 AOP positions
-- P4-08: Fixed PP-PDV XML root element to `<ObrazacPPPDV>`
-- P4-09: Credit note 381 + CreditNote root already correct ✅
-- P4-16: Travel per diem already has +1 ✅
-- P4-17: Added severance minimum enforcement (ZoR čl. 158)
-- CR-27: KpoBook columns already correct ✅
-
-### Phase 5: Statutory Features ✅ (Most already exist)
-- P5-01: Year-end closing with `perform_year_end_closing` RPC ✅
-- P5-02: Opening balances in GeneralLedger.tsx ✅
-- P5-03: Fiscal period lock/unlock UI ✅
-- P5-04: Cash journal (CashRegister.tsx) ✅
-- P5-13: Regres in employee_salaries ✅
-
-### Phase 6: Compliance ✅ (Most already exist)
-- P7-06: JMBG mod-11 checksum already in ebolovanje-submit ✅
-- P7-07: generate-apr-xml auth fixed in Phase 2 ✅
+Three features remain, plus polish items. Here's the plan split into two manageable phases.
 
 ---
 
-## Remaining Items (Future Rounds)
+## Phase A: Partner Statement + CIT Advances
 
-### P5-05: Kartica partnera (Partner Statement)
-New page: chronological transaction history per partner with running balance. Not yet implemented.
+### 1. Kartica partnera (Partner Statement) — New Page
+Create `src/pages/tenant/PartnerStatement.tsx`:
+- Partner selector dropdown (from `partners` table)
+- Date range filter
+- Query `open_items` + `invoices` + `supplier_invoices` for the selected partner, ordered chronologically
+- Display table: Date | Document | Debit | Credit | Running Balance
+- Export to CSV
+- Add route `accounting/partner-statement` in `accountingRoutes.tsx`
+- Add sidebar nav link
 
-### P6-03: Quarterly CIT advance payments
-Calculator and schedule tracking. Not yet implemented.
+### 2. CIT Quarterly Advance Payments
+Extend `CitTaxReturn.tsx` with a new section:
+- Once a CIT return exists for a year, calculate quarterly advances: `final_tax / 4`
+- Display schedule table: Q1 (Apr 15), Q2 (Jul 15), Q3 (Oct 15), Q4 (Jan 15 next year)
+- Add `paid` checkbox per quarter (stored in a new `cit_advance_payments` table)
+- Migration: create `cit_advance_payments` table (tenant_id, cit_return_id, quarter, due_date, amount, paid, paid_date)
 
-### P6-08: Non-deductible expense auto-calculation
-Auto-calculate limits: representation 0.5%, advertising 10% of revenue.
+---
 
-### P8-01 through P8-10: Polish items
-BOM cost, loyalty points, POS cash reconciliation, production number sequence, T-account view, prior year comparison, Serbian locale months, account class validation, CIT/PB-1 merge.
+## Phase B: Non-Deductible Auto-Calc + Polish
+
+### 3. Non-Deductible Expense Auto-Calculation
+Add to `CitTaxReturn.tsx` adjustments section:
+- Query journal_lines for accounts 5520 (representation) and 5530 (advertising) totals
+- Auto-calculate: representation limit = total_revenue * 0.5%, advertising limit = total_revenue * 10%
+- Show excess over limit as pre-filled `adjustIncrease` value
+- Display breakdown: "Reprezentacija: X spent, Y limit, Z non-deductible"
+
+### 4. Polish Items (P8 subset — code-only, no new tables)
+- **P8-07**: Serbian locale months — ensure `toLocaleDateString('sr-Latn-RS')` used in date formatters
+- **P8-08**: Account class validation — warn when posting to wrong class (e.g., revenue account in debit)
+- Other P8 items (BOM cost, loyalty points, T-account view, etc.) deferred as lower priority
+
+---
+
+## Technical Summary
+
+| Item | Scope | New Files | Migration |
+|------|-------|-----------|-----------|
+| Partner Statement | New page + route | 1 tsx | No |
+| CIT Advances | Extend existing + new table | 0 | 1 migration |
+| Non-deductible calc | Extend CitTaxReturn | 0 | No |
+| Polish | Minor edits | 0 | No |
+
