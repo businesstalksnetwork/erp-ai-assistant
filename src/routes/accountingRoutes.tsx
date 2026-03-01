@@ -69,6 +69,7 @@ const VatProRata = React.lazy(() => import("@/pages/tenant/VatProRata"));
 const CapitalGoodsVatRegister = React.lazy(() => import("@/pages/tenant/CapitalGoodsVatRegister"));
 const DeferredTax = React.lazy(() => import("@/pages/tenant/DeferredTax"));
 const IntercompanyEliminations2 = React.lazy(() => import("@/pages/tenant/IntercompanyEliminations"));
+const PartnerStatement = React.lazy(() => import("@/pages/tenant/PartnerStatement"));
 
 const m = "accounting";
 const B = PageErrorBoundary;
@@ -142,5 +143,6 @@ export const accountingRoutes = (
     <Route path="accounting/capital-goods-vat" element={<ProtectedRoute requiredModule={m}><B><CapitalGoodsVatRegister /></B></ProtectedRoute>} />
     <Route path="accounting/deferred-tax" element={<ProtectedRoute requiredModule={m}><B><DeferredTax /></B></ProtectedRoute>} />
     <Route path="accounting/intercompany-eliminations" element={<ProtectedRoute requiredModule={m}><B><IntercompanyEliminations2 /></B></ProtectedRoute>} />
+    <Route path="accounting/partner-statement" element={<ProtectedRoute requiredModule={m}><B><PartnerStatement /></B></ProtectedRoute>} />
   </>
 );
