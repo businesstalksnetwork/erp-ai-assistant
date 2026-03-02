@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 function uuid() { return crypto.randomUUID(); }
 function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -14,14 +16,10 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
-    // Environment guard: block in production
     if (Deno.env.get("ENVIRONMENT") === "production") {
-      return new Response(JSON.stringify({ error: "Seed functions are disabled in production" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "Seed functions are disabled in production" }), { status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
-    // Auth: require cron secret OR super_admin
     const cronSecret = req.headers.get("x-cron-secret");
     const authHeader = req.headers.get("Authorization");
     let authorized = false;
@@ -41,16 +39,10 @@ Deno.serve(async (req) => {
     }
 
     if (!authorized) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
-    const sb = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
+    const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const today = new Date();
     const todayStr = today.toISOString().slice(0, 10);
     const year = today.getFullYear();
@@ -60,9 +52,7 @@ Deno.serve(async (req) => {
     // Check if tenant exists
     const { data: tenant } = await sb.from("tenants").select("id").eq("id", TENANT_ID).single();
     if (!tenant) {
-      return new Response(JSON.stringify({ success: true, message: "Tenant not found, skipping" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ success: true, message: "Tenant not found, skipping" }), { headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
     // Idempotency check: see if we already have invoices for today
@@ -70,9 +60,7 @@ Deno.serve(async (req) => {
       .select("id").eq("tenant_id", TENANT_ID)
       .eq("invoice_date", todayStr).limit(1);
     if (existingInv?.length) {
-      return new Response(JSON.stringify({ success: true, message: "Today's data already exists", date: todayStr }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ success: true, message: "Today's data already exists", date: todayStr }), { headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
     // Load reference data
@@ -101,9 +89,7 @@ Deno.serve(async (req) => {
     ]);
 
     if (!partners?.length || !products?.length) {
-      return new Response(JSON.stringify({ success: true, message: "No base data, skipping" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ success: true, message: "No base data, skipping" }), { headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
     const le = "ff1ad125-78d6-4931-985d-9071edf4238c";
@@ -310,15 +296,8 @@ Deno.serve(async (req) => {
       L(`CRM activities: ${actRows.length}`);
     }
 
-    return new Response(JSON.stringify({ success: true, date: todayStr, log }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("daily-data-seed error:", message);
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ success: true, date: todayStr, log }), { headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
+  } catch (err) {
+    return createErrorResponse(err, req, { logPrefix: "daily-data-seed" });
   }
 });

@@ -1,48 +1,39 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 const NOW = new Date();
 const TOTAL_MONTHS = (NOW.getFullYear() - 2025) * 12 + NOW.getMonth() + 1;
 
 Deno.serve(async (req) => {
+  const preflight = handleCorsPreflightRequest(req);
+  if (preflight) return preflight;
   const corsHeaders = getCorsHeaders(req);
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
 
   try {
-    // Environment guard: block in production
     if (Deno.env.get("ENVIRONMENT") === "production") {
-      return new Response(JSON.stringify({ error: "Seed functions are disabled in production" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "Seed functions are disabled in production" }), { status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
     const sbUrl = Deno.env.get("SUPABASE_URL")!;
     const sb = createClient(sbUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Auth: require super_admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const callerClient = createClient(sbUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsErr } = await callerClient.auth.getClaims(token);
     if (claimsErr || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
     const caller = { id: claimsData.claims.sub as string };
     const { data: isSA } = await sb.rpc("is_super_admin", { _user_id: caller.id });
     if (!isSA) {
-      return new Response(JSON.stringify({ error: "Forbidden: Super Admin only" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "Forbidden: Super Admin only" }), { status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
     const tenantId = "92474a4b-ff91-48da-b111-89924e70b8b8";
@@ -564,14 +555,8 @@ Deno.serve(async (req) => {
       } else { L(`20. SKIP`); }
     } catch (e: any) { L(`20. CATCH: ${e.message}`); }
 
-    return new Response(JSON.stringify({ success: true, log }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ success: true, log }), { headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("Phase3 error:", message);
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createErrorResponse(err, req, { logPrefix: "seed-demo-data-phase3" });
   }
 });
