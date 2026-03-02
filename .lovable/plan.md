@@ -1,52 +1,126 @@
 
 
-# Sidebar Naming, Translation & Placement Fixes
+# V5.5 CR11 Implementation Plan
 
-## Issues Identified
+## Scope: 27 CR11 findings across 4 severity levels
 
-1. **POS sidebar items untranslated**: `promotions`, `giftCards`, `marketBasket`, `loyaltyAnalytics` use `as any` casts and have NO translation keys in `translations.ts` — they show raw camelCase keys.
+---
 
-2. **Loyalty sidebar items untranslated**: The Loyalty section nav items (`loyaltyDashboard`, `loyaltyPrograms`, etc.) ARE translated but the screenshot shows the sidebar still displaying raw keys — likely the `as any` cast items in POS are the issue.
+## CRITICAL (Sprint 1)
 
-3. **Compliance section in tenant sidebar — wrong placement**: CAPA, DSAR, and AI Model Cards are platform governance features (ISO compliance). They belong in the **Super Admin** layout, not in every tenant's sidebar. Regular tenants should not see CAPA/DSAR/AI Model Cards.
+### CR11-01: POS Split Payment Regression
+**Problem**: `SplitPaymentDialog` returns array of `{method, amount}` but line 946 joins them as `"cash+card"` string. This breaks: GL routing, fiscal receipts (PFR requires per-method entries), and cash register bridging.
 
-4. **`aiModelCards` route points to `/super-admin/ai-model-cards`** but is listed in the tenant sidebar — confusing and inaccessible to non-super-admins.
+**Fix in `PosTerminal.tsx`**:
+- Add new state: `splitPayments` array (`{method: string, amount: number}[]`)
+- In `SplitPaymentDialog.onConfirm`: store the payments array in `splitPayments`, set `paymentMethod` to first method (for backward compat)
+- In `completeSale.mutationFn`:
+  - Store `payment_details: splitPayments` as JSON in the transaction (via `as any` on the insert)
+  - Pass `payments: splitPayments` (or single `[{amount: total, method: paymentMethod}]`) to `fiscalize-receipt` — already structured correctly at line 508
+  - Create **per-method cash register entries** — loop over splitPayments where `method === "cash"` for cash register bridge
+  - Store the primary method as `paymentMethod` but the full split in `payment_details` column
 
-5. **Compliance label hardcoded** as `"Compliance"` instead of using `t()`.
+### CR11-02: refresh_loyalty_tier Parameter Swap
+**Problem**: `accrue_loyalty_points_v2` (baseline migration line 166) calls `refresh_loyalty_tier(p_tenant_id, p_member_id)` but CR10-06 migration changed signature to `(p_member_id, p_tenant_id)`. Arguments are swapped.
 
-## Plan
+**Fix**: New migration to recreate `refresh_loyalty_tier` with `(p_tenant_id, p_member_id)` order matching the caller, plus add `IS DISTINCT FROM` guard (CR11-08).
 
-### 1. Add missing translation keys
-Add to both `en` and `sr` in `translations.ts`:
-- `promotions` → "Promotions" / "Promocije"
-- `giftCards` → "Gift Cards" / "Poklon kartice"
-- `marketBasket` → "Market Basket" / "Analiza korpe"
-- `loyaltyAnalytics` → "Loyalty Analytics" / "Analitika lojalnosti"
-- `capaManagement` → "CAPA Management" / "CAPA upravljanje"
-- `dsarManagement` → "DSAR Requests" / "DSAR zahtevi"
-- `aiModelCards` → "AI Model Cards" / "AI kartice modela"
-- `complianceWorkflows` → "Workflows" / "Tokovi rada"
+---
 
-### 2. Remove `as any` casts
-Update all nav items using `as any` to use properly typed keys (after adding them to translations).
+## HIGH (Sprint 1)
 
-### 3. Move Compliance out of tenant sidebar
-- Remove `complianceNav` array and its `CollapsibleNavGroup` from `TenantLayout.tsx`
-- Add CAPA and DSAR routes to the **Super Admin** layout sidebar instead (they are platform-level ISO compliance tools)
-- AI Model Cards is already at `/super-admin/ai-model-cards` — just add it to the Super Admin nav if not already there
+### CR11-03: ai-weekly-email CRON_SECRET Fail-Open
+**Problem**: Line 16: `if (cronSecret && ...)` skips auth if env var unset.
 
-### 4. Update Super Admin sidebar
-Add nav items for:
-- CAPA Management → `/super-admin/capa` (move route from `/compliance/capa`)
-- DSAR Management → `/super-admin/dsar` (move route from `/compliance/dsar`)
-- AI Model Cards already exists at `/super-admin/ai-model-cards`
+**Fix**: Change to fail-closed: if `!cronSecret`, return 500 "CRON_SECRET not configured".
 
-### 5. Update routes
-Move `/compliance/capa` and `/compliance/dsar` routes to `/super-admin/capa` and `/super-admin/dsar` in the route config.
+### CR11-04: validate-pib 3 Fail-Open Paths
+**Problem**: Missing API token (line 36), HTTP error (line 62), and API exception (line 98) all return `valid: true`.
+
+**Fix**: All three paths return `valid: false` with appropriate warning messages. Also apply `withSecurityHeaders` to all response headers.
+
+---
+
+## MEDIUM (Sprint 2)
+
+### CR11-06 & CR11-07: i18n — MarketBasketAnalysis (Serbian-only) & DsarManagement (English-only)
+- Add missing translation keys for both pages
+- Replace hardcoded strings with `t()` calls
+
+### CR11-09: tenant-data-export Multi-Tenant Ambiguity
+- Accept optional `tenant_id` from request body; if provided and user has membership, use it
+- Current: picks first active membership arbitrarily
+
+### CR11-10: compliance-checker Unbounded Fetch
+- Add `.limit(5000)` to all initial queries in `runComplianceChecks`
+
+### CR11-12: Missing CSP Header
+- Add `Content-Security-Policy: default-src 'none'` to `security-headers.ts`
+
+### CR11-13: Security Audit Not Gating Builds
+- Add `needs: [security-audit]` to the `build` job in `ci.yml`
+
+### CR11-15: POS Loyalty Redemption UI
+- Add redemption button in checkout area when `loyaltyMember` is identified
+- Call existing `redeem_loyalty_points` RPC, subtract from total
+
+---
+
+## LOW (Sprint 3)
+
+### CR11-16: POS Discount Dialog Hardcoded Serbian
+- Already partially addressed — add remaining keys to translations
+
+### CR11-17: Over-Broad Radix CSS Selector
+- Scope `[data-radix-collapsible-content]` override to `.sidebar-nav` parent only
+
+### CR11-18: Toast dismiss-by-ID Broken
+- Pass toast ID to `sonnerToast.dismiss()` in the returned object
+
+### CR11-19: settingsModules Translation Key Missing
+- Add `settingsModules` key to translations.ts
+
+### CR11-20: Dead @radix-ui/react-toast Dependency
+- Remove from package.json
+
+### CR11-21: Dead toaster.tsx Component
+- Delete `src/components/ui/toaster.tsx` and `src/components/ui/toast.tsx`
+
+### CR11-22 & CR11-23: Dependency Hygiene
+- Move `@types/qrcode` and `rollup-plugin-visualizer` to devDependencies
+
+### CR11-24: `as any` Casts on Translation Keys
+- Add all missing keys to `TranslationKey` type union (or translations object)
+
+### CR11-25: Toast update() is No-Op
+- Implement `update()` via `sonnerToast()` with the same ID
+
+---
 
 ## Files Modified
-- `src/i18n/translations.ts` — add ~8 keys in en + sr
-- `src/layouts/TenantLayout.tsx` — remove complianceNav, remove `as any` casts
-- `src/layouts/SuperAdminLayout.tsx` — add CAPA, DSAR, AI Model Cards nav items
-- `src/routes/otherRoutes.tsx` or `src/App.tsx` — move compliance routes under super-admin
+
+| File | Changes |
+|------|---------|
+| `src/pages/tenant/PosTerminal.tsx` | Split payment array storage, per-method fiscal/cash-register, loyalty redemption UI |
+| `supabase/functions/ai-weekly-email/index.ts` | Fail-closed CRON_SECRET |
+| `supabase/functions/validate-pib/index.ts` | 3 fail-open → fail-closed |
+| `supabase/functions/_shared/security-headers.ts` | Add CSP header |
+| `supabase/functions/tenant-data-export/index.ts` | Accept explicit tenant_id |
+| `supabase/functions/compliance-checker/index.ts` | Add .limit(5000) |
+| `src/pages/tenant/MarketBasketAnalysis.tsx` | i18n conversion |
+| `src/pages/tenant/DsarManagement.tsx` | i18n conversion |
+| `src/i18n/translations.ts` | ~40 new keys |
+| `src/hooks/use-toast.ts` | Fix dismiss-by-ID, implement update() |
+| `src/index.css` | Scope collapsible CSS to sidebar |
+| `.github/workflows/ci.yml` | Gate build on security-audit |
+| `src/components/ui/toaster.tsx` | Delete |
+| `src/components/pos/SplitPaymentDialog.tsx` | i18n labels |
+| New migration | Fix refresh_loyalty_tier param order + IS DISTINCT FROM |
+| `package.json` | Move 2 deps to devDependencies, remove react-toast |
+
+## Implementation Order
+1. CR11-01 (CRITICAL split payment) + CR11-02 (parameter swap migration)
+2. CR11-03 + CR11-04 (fail-open fixes)
+3. Medium items (i18n, CSP, CI gating, compliance-checker limits)
+4. Low items (cleanup, toast fixes, CSS scoping)
 
