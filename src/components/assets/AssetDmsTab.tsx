@@ -46,7 +46,7 @@ export function AssetDmsTab({ assetId, assetCode, assetName }: Props) {
         .gte("created_at", `${year}-01-01`);
       const nextNum = (count || 0) + 1;
       const protocolNumber = `${String(nextNum).padStart(3, "0")}-${year.toString().slice(-2)}/${year}`;
-      const docName = `${t("assetsCrossDmsSubject" as any)} ${assetCode}`;
+      const docName = `${t("assetsCrossDmsSubject")} ${assetCode}`;
 
       const { error } = await supabase.from("documents").insert({
         tenant_id: tenantId!,
@@ -63,7 +63,7 @@ export function AssetDmsTab({ assetId, assetCode, assetName }: Props) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["asset-dms-docs"] });
-      toast.success(t("saved" as any));
+      toast.success(t("saved"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -72,10 +72,10 @@ export function AssetDmsTab({ assetId, assetCode, assetName }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold flex items-center gap-2">
-          <FileText className="h-5 w-5" /> {t("assetsCrossDmsTitle" as any)}
+          <FileText className="h-5 w-5" /> {t("assetsCrossDmsTitle")}
         </h3>
         <Button size="sm" onClick={() => createDmsEntry.mutate()} disabled={createDmsEntry.isPending}>
-          <Plus className="h-4 w-4 mr-1" /> {t("assetsCrossDmsCreate" as any)}
+          <Plus className="h-4 w-4 mr-1" /> {t("assetsCrossDmsCreate")}
         </Button>
       </div>
 
@@ -84,16 +84,16 @@ export function AssetDmsTab({ assetId, assetCode, assetName }: Props) {
           <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
         </div>
       ) : documents.length === 0 ? (
-        <p className="text-muted-foreground text-center py-8">{t("assetsCrossDmsEmpty" as any)}</p>
+        <p className="text-muted-foreground text-center py-8">{t("assetsCrossDmsEmpty")}</p>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("protocolNumber" as any)}</TableHead>
-              <TableHead>{t("name" as any)}</TableHead>
-              <TableHead>{t("subject" as any)}</TableHead>
+              <TableHead>{t("dmsProtocolNumber")}</TableHead>
+              <TableHead>{t("name")}</TableHead>
+              <TableHead>{t("dmsSubject")}</TableHead>
               <TableHead>{t("status")}</TableHead>
-              <TableHead>{t("date" as any)}</TableHead>
+              <TableHead>{t("date")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

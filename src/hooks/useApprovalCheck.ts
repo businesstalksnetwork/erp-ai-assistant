@@ -1,61 +1,65 @@
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useCallback } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useTenant } from "@/hooks/useTenant";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export function useApprovalCheck(tenantId: string | null, entityType: string) {
-  const { user } = useAuth();
-  const { t } = useLanguage();
-
-  const checkApproval = async (
+interface ApprovalCheckHook {
+  checkAndRequestApproval: (
+    entityType: string,
     entityId: string,
     amount: number,
     onApproved: () => void | Promise<void>
-  ) => {
-    if (!tenantId) {
-      await onApproved();
-      return;
-    }
+  ) => Promise<void>;
+}
 
-    // 1. Find active workflow for this entity type
-    const { data: workflow } = await supabase
+export function useApprovalCheck(): ApprovalCheckHook {
+  const { t } = useLanguage();
+  const { tenantId } = useTenant();
+  const { user } = useAuth();
+
+  const checkAndRequestApproval = useCallback(async (
+    entityType: string,
+    entityId: string,
+    amount: number,
+    onApproved: () => void | Promise<void>,
+  ) => {
+    if (!tenantId) return;
+
+    // 1. Find matching workflow
+    const { data: workflows } = await supabase
       .from("approval_workflows")
       .select("*")
       .eq("tenant_id", tenantId)
       .eq("entity_type", entityType)
       .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
+      .order("threshold_amount", { ascending: true });
 
-    // No workflow → proceed immediately
+    const workflow = (workflows || []).find(
+      (w: any) => !w.threshold_amount || amount >= w.threshold_amount
+    );
+
     if (!workflow) {
+      // No workflow → auto-approve
       await onApproved();
       return;
     }
 
-    // Amount below threshold → proceed
-    if (workflow.threshold_amount && amount < workflow.threshold_amount) {
-      await onApproved();
-      return;
-    }
-
-    // 2. Check if already approved
-    const { data: existingApproval } = await supabase
-      .from("approval_requests")
-      .select("id, status")
+    // 2. Check if user has required role (auto-approve if they do)
+    const { data: membership } = await supabase
+      .from("user_tenants")
+      .select("role")
+      .eq("user_id", user?.id || "")
       .eq("tenant_id", tenantId)
-      .eq("entity_type", entityType)
-      .eq("entity_id", entityId)
-      .eq("status", "approved")
-      .limit(1)
       .maybeSingle();
 
-    if (existingApproval) {
+    if (membership && workflow.required_roles.includes(membership.role)) {
       await onApproved();
       return;
     }
 
-    // 3. Check if pending request already exists
+    // 3. Check for existing pending request
     const { data: pendingRequest } = await supabase
       .from("approval_requests")
       .select("id")
@@ -67,7 +71,7 @@ export function useApprovalCheck(tenantId: string | null, entityType: string) {
       .maybeSingle();
 
     if (pendingRequest) {
-      toast.error(t("approvalPending" as any) || "Approval is already pending for this item.");
+      toast.error(t("approvalPending") || "Approval is already pending for this item.");
       return;
     }
 
@@ -110,8 +114,8 @@ export function useApprovalCheck(tenantId: string | null, entityType: string) {
       // Non-critical
     }
 
-    toast.info(t("approvalSubmitted" as any) || "Approval request submitted. Action requires approval before proceeding.");
-  };
+    toast.info(t("approvalSubmitted") || "Approval request submitted. Action requires approval before proceeding.");
+  }, [tenantId, user, t]);
 
-  return { checkApproval };
+  return { checkAndRequestApproval };
 }
