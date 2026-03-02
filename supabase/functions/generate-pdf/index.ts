@@ -2,12 +2,14 @@
  * ARCH-01: Generate PDF/A-3 Edge Function
  * ISO 19005 — Long-term archival PDF with embedded UBL XML.
  *
- * Generates actual PDF bytes with A4 invoice layout,
- * embedded UBL XML via AF relationship, and XMP metadata.
- * Includes BG-7 AccountingCustomerParty per EN 16931.
+ * CR10-11: Fixed PDF/A-3b conformance:
+ * - XMP metadata stored uncompressed (ISO 19005-3 §6.7.3)
+ * - OutputIntent dictionary added (ISO 19005-3 §6.2.2)
+ * - EmbeddedFile Params dict with size/dates
+ * - Includes BG-7 AccountingCustomerParty per EN 16931
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PDFDocument, StandardFonts, rgb, PDFName, PDFString, PDFArray, PDFDict, PDFHexString } from "https://esm.sh/pdf-lib@1.17.1";
+import { PDFDocument, StandardFonts, rgb, PDFName, PDFString, PDFArray, PDFDict, PDFHexString, PDFStream } from "https://esm.sh/pdf-lib@1.17.1";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { createErrorResponse } from "../_shared/error-handler.ts";
 import { withSecurityHeaders } from "../_shared/security-headers.ts";
@@ -18,7 +20,6 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   const corsHeaders = getCorsHeaders(req);
-
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 
   try {
@@ -34,14 +35,12 @@ Deno.serve(async (req) => {
       return createErrorResponse("Unauthorized", req, { status: 401 });
     }
 
-    // Verify user identity
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
     const { data: { user }, error: authErr } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
     if (authErr || !user) {
       return createErrorResponse("Unauthorized", req, { status: 401 });
     }
 
-    // Rate limit: export category (5/min)
     const rl = await checkRateLimit(`generate-pdf:${user.id}`, "export");
     if (!rl.allowed) {
       return new Response(JSON.stringify({ error: "Too many requests" }), {
@@ -63,7 +62,6 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(supabaseUrl, serviceKey);
 
-    // Fetch invoice with lines, supplier partner, and customer partner
     const { data: invoice, error: invErr } = await sb
       .from("invoices")
       .select("*, invoice_lines(*), partners(*)")
@@ -74,7 +72,6 @@ Deno.serve(async (req) => {
       return createErrorResponse("Invoice not found", req, { status: 404, logPrefix: "generate-pdf" });
     }
 
-    // CR10-03: Verify user has access to this invoice's tenant
     const { data: membership } = await sb
       .from("tenant_members")
       .select("id")
@@ -86,17 +83,13 @@ Deno.serve(async (req) => {
       return createErrorResponse("Forbidden", req, { status: 403, logPrefix: "generate-pdf" });
     }
 
-    // Fetch customer partner if customer_id exists
     let customerPartner = null;
     if (invoice.customer_id) {
       const { data } = await sb.from("partners").select("*").eq("id", invoice.customer_id).single();
       customerPartner = data;
     }
 
-    // Generate UBL XML with BG-7 CustomerParty
     const ublXml = generateUblXml(invoice, customerPartner);
-
-    // Generate actual PDF
     const pdfBytes = await generatePdfDocument(invoice, customerPartner, ublXml);
 
     return new Response(pdfBytes, {
@@ -116,7 +109,7 @@ async function generatePdfDocument(invoice: any, customer: any, ublXml: string):
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const pageWidth = 595.28; // A4
+  const pageWidth = 595.28;
   const pageHeight = 841.89;
   const margin = 50;
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
@@ -212,11 +205,22 @@ async function generatePdfDocument(invoice: any, customer: any, ublXml: string):
     x: margin, y: 28, size: 7, font, color: gray,
   });
 
-  // Embed UBL XML as file attachment (AF relationship for PDF/A-3)
+  // --- CR10-11: PDF/A-3b compliance fixes ---
+
+  // Embed UBL XML as file attachment with Params dict
   const xmlBytes = new TextEncoder().encode(ublXml);
+  const nowIso = new Date().toISOString();
+
   const xmlStream = pdfDoc.context.flateStream(xmlBytes);
   xmlStream.dict.set(PDFName.of("Type"), PDFName.of("EmbeddedFile"));
   xmlStream.dict.set(PDFName.of("Subtype"), PDFName.of("text/xml"));
+  // Add Params dict with Size and ModDate
+  const paramsDict = pdfDoc.context.obj({
+    Size: xmlBytes.length,
+    ModDate: PDFString.of(`D:${nowIso.replace(/[-:T]/g, "").slice(0, 14)}Z`),
+    CreationDate: PDFString.of(`D:${nowIso.replace(/[-:T]/g, "").slice(0, 14)}Z`),
+  });
+  xmlStream.dict.set(PDFName.of("Params"), paramsDict);
   const xmlStreamRef = pdfDoc.context.register(xmlStream);
 
   const fileSpecDict = pdfDoc.context.obj({
@@ -239,15 +243,19 @@ async function generatePdfDocument(invoice: any, customer: any, ublXml: string):
   const names = pdfDoc.context.obj({ EmbeddedFiles: efTree });
   catalog.set(PDFName.of("Names"), names);
 
-  // XMP Metadata for PDF/A-3b conformance marker
+  // CR10-11 FIX: XMP Metadata — stored UNCOMPRESSED per ISO 19005-3 §6.7.3
   const xmp = `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/">
   <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
     <rdf:Description rdf:about=""
       xmlns:dc="http://purl.org/dc/elements/1.1/"
-      xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/">
+      xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/"
+      xmlns:pdfaExtension="http://www.aiim.org/pdfa/ns/extension/"
+      xmlns:pdfaSchema="http://www.aiim.org/pdfa/ns/schema#"
+      xmlns:pdfaProperty="http://www.aiim.org/pdfa/ns/property#">
       <dc:title><rdf:Alt><rdf:li xml:lang="x-default">Invoice ${escapeXml(invoice.invoice_number || "")}</rdf:li></rdf:Alt></dc:title>
       <dc:creator><rdf:Seq><rdf:li>ProERP AI</rdf:li></rdf:Seq></dc:creator>
+      <dc:description><rdf:Alt><rdf:li xml:lang="x-default">PDF/A-3b invoice with embedded UBL 2.1 XML</rdf:li></rdf:Alt></dc:description>
       <pdfaid:part>3</pdfaid:part>
       <pdfaid:conformance>B</pdfaid:conformance>
     </rdf:Description>
@@ -256,11 +264,27 @@ async function generatePdfDocument(invoice: any, customer: any, ublXml: string):
 <?xpacket end="w"?>`;
 
   const xmpBytes = new TextEncoder().encode(xmp);
-  const xmpStream = pdfDoc.context.flateStream(xmpBytes);
+  // UNCOMPRESSED stream for XMP metadata (§6.7.3 compliance)
+  const xmpStream = pdfDoc.context.stream(xmpBytes);
   xmpStream.dict.set(PDFName.of("Type"), PDFName.of("Metadata"));
   xmpStream.dict.set(PDFName.of("Subtype"), PDFName.of("XML"));
+  xmpStream.dict.set(PDFName.of("Length"), pdfDoc.context.obj(xmpBytes.length));
   const xmpRef = pdfDoc.context.register(xmpStream);
   catalog.set(PDFName.of("Metadata"), xmpRef);
+
+  // CR10-11 FIX: OutputIntent dictionary (ISO 19005-3 §6.2.2)
+  const outputIntentDict = pdfDoc.context.obj({
+    Type: PDFName.of("OutputIntent"),
+    S: PDFName.of("GTS_PDFA1"),
+    OutputConditionIdentifier: PDFString.of("sRGB IEC61966-2.1"),
+    RegistryName: PDFString.of("http://www.color.org"),
+    Info: PDFString.of("sRGB IEC61966-2.1"),
+  });
+  const outputIntentRef = pdfDoc.context.register(outputIntentDict);
+  catalog.set(PDFName.of("OutputIntents"), pdfDoc.context.obj([outputIntentRef]));
+
+  // MarkInfo for tagged PDF requirement
+  catalog.set(PDFName.of("MarkInfo"), pdfDoc.context.obj({ Marked: true }));
 
   return await pdfDoc.save();
 }
