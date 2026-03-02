@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -36,7 +38,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -45,7 +47,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (authError || !callingUser) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -60,7 +62,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (!roleData) {
       return new Response(JSON.stringify({ error: "Forbidden: admin only" }), {
         status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -72,7 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (!recipients || recipients.length === 0) {
       return new Response(JSON.stringify({ error: "No recipients" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -176,18 +178,11 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ success: true, sent, errors, skipped, errorDetails }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       }
     );
-  } catch (error: any) {
-    console.error("Error in send-admin-bulk-email:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+  } catch (error) {
+    return createErrorResponse(error, req, { logPrefix: "send-admin-bulk-email" });
   }
 };
 

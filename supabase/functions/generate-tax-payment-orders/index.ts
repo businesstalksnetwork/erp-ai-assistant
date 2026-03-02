@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 /**
  * Serbian Treasury (Uprava za Trezor) recipient accounts for tax payments.
@@ -28,7 +30,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -41,7 +43,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -56,14 +58,14 @@ Deno.serve(async (req) => {
     const { tenant_id, tax_type, amount, period_month, period_year, pib } = body;
     if (!tenant_id || !tax_type || !amount || !pib) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
     const taxConfig = TAX_ACCOUNTS[tax_type];
     if (!taxConfig) {
       return new Response(JSON.stringify({ error: `Unknown tax type: ${tax_type}` }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -88,12 +90,10 @@ Deno.serve(async (req) => {
     };
 
     return new Response(JSON.stringify({ paymentOrder }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createErrorResponse(error, req, { logPrefix: "generate-tax-payment-orders" });
   }
 });
 
@@ -164,11 +164,11 @@ async function generatePayrollTaxOrders(
 
   const csv = header + "\n" + rows.join("\n");
   return new Response(csv, {
-    headers: {
+    headers: withSecurityHeaders({
       ...corsHeaders,
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="NaloziPorezi_${periodLabel}.csv"`,
-    },
+    }),
   });
 }
 

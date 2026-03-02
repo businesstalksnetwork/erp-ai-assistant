@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -10,17 +12,17 @@ Deno.serve(async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
     const { data: { user }, error: authErr } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
-    if (authErr || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (authErr || !user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
 
     const { payment_order_ids, tenant_id } = await req.json();
     if (!payment_order_ids?.length || !tenant_id) throw new Error("payment_order_ids and tenant_id required");
 
     const { data: memberChk } = await supabase.from("tenant_members").select("id").eq("user_id", user.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
     const { data: saChk } = await supabase.from("user_roles").select("id").eq("user_id", user.id).eq("role", "super_admin").maybeSingle();
-    if (!memberChk && !saChk) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!memberChk && !saChk) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
 
     const { data: orders } = await supabase.from("payment_orders").select("*").in("id", payment_order_ids).eq("tenant_id", tenant_id);
     if (!orders?.length) throw new Error("No payment orders found");
@@ -61,14 +63,14 @@ Deno.serve(async (req) => {
 </HalcomExport>`;
 
     return new Response(xml, {
-      headers: {
+      headers: withSecurityHeaders({
         ...corsHeaders,
         "Content-Type": "application/xml; charset=utf-8",
         "Content-Disposition": `attachment; filename="halcom-export-${today}.xml"`,
-      },
+      }),
     });
-  } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (e) {
+    return createErrorResponse(e, req, { logPrefix: "generate-halcom-xml" });
   }
 });
 

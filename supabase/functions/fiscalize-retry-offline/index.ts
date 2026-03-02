@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -9,17 +11,17 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
     const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
     const { data: { user }, error: authErr } = await userClient.auth.getUser();
     if (authErr || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
     const { tenant_id } = await req.json();
     if (!tenant_id) {
-      return new Response(JSON.stringify({ error: "tenant_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "tenant_id required" }), { status: 400, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -30,7 +32,7 @@ Deno.serve(async (req) => {
       .eq("user_id", user.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
     if (!membership) {
       return new Response(JSON.stringify({ error: "Forbidden: not a member of this tenant" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
     // Get offline receipts (max 5 retries), ordered by retry_count ASC for fairness
@@ -44,7 +46,7 @@ Deno.serve(async (req) => {
       .order("created_at");
 
     if (!offlineReceipts || offlineReceipts.length === 0) {
-      return new Response(JSON.stringify({ success: true, retried: 0, message: "No offline receipts to retry" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: true, retried: 0, message: "No offline receipts to retry" }), { headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
     const results: any[] = [];
@@ -147,8 +149,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, retried: results.length, results }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ success: true, retried: results.length, results }), { headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return createErrorResponse(err, req, { logPrefix: "fiscalize-retry-offline" });
   }
 });

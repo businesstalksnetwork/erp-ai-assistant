@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 function fmtAmt(n: number): string {
   return n.toFixed(2);
@@ -20,7 +22,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
     const { data: { user: authUser }, error: authErr } = await supabase.auth.getUser(
@@ -28,7 +30,7 @@ Deno.serve(async (req) => {
     );
     if (authErr || !authUser) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -46,7 +48,7 @@ Deno.serve(async (req) => {
         .eq("user_id", authUser.id).eq("role", "super_admin").maybeSingle();
       if (!memberChk && !saChk) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
         });
       }
     }
@@ -122,13 +124,10 @@ Deno.serve(async (req) => {
     }).eq("id", report_id);
 
     return new Response(JSON.stringify({ xml, success: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  } catch (error) {
+    return createErrorResponse(error, req, { logPrefix: "generate-od-o-xml" });
   }
 });
 

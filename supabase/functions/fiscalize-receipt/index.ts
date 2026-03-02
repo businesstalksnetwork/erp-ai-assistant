@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 // PFR payment type mapping
 const PAYMENT_TYPE_MAP: Record<string, number> = {
@@ -26,14 +28,14 @@ serve(async (req) => {
     // JWT validation
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const userClient = createClient(Deno.env.get("SUPABASE_URL")!, anonKey, { global: { headers: { Authorization: authHeader } } });
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: authErr } = await userClient.auth.getClaims(token);
     if (authErr || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
     const caller = { id: claimsData.claims.sub as string };
 
@@ -52,7 +54,7 @@ serve(async (req) => {
     // Verify tenant_id is provided
     if (!tenant_id) {
       return new Response(JSON.stringify({ error: "tenant_id required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 400, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
     // Verify tenant membership
@@ -61,7 +63,7 @@ serve(async (req) => {
       .eq("user_id", caller.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
     if (!membership) {
       return new Response(JSON.stringify({ error: "Forbidden: not a member of this tenant" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
     // Load fiscal device config (scoped to tenant)
@@ -74,13 +76,13 @@ serve(async (req) => {
 
     if (deviceErr || !device) {
       return new Response(JSON.stringify({ error: "Fiscal device not found" }), {
-        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 404, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
     if (!device.api_url) {
       return new Response(JSON.stringify({ error: "PFR API URL not configured for this device" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -255,7 +257,7 @@ serve(async (req) => {
           journal: journalData,
           receipt_id: receipt?.id,
         }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
         });
       } catch (journalErr) {
         console.error("Journal endpoint error:", journalErr);
@@ -270,12 +272,9 @@ serve(async (req) => {
       receipt_id: receipt?.id,
       offline: isOffline,
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
   } catch (err) {
-    console.error("Fiscalization error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createErrorResponse(err, req, { logPrefix: "fiscalize-receipt" });
   }
 });
