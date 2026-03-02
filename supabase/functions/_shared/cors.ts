@@ -9,6 +9,7 @@
 const DEFAULT_ORIGINS = [
   "https://proerpai.lovable.app",
   "https://id-preview--a347532a-0028-44d9-85ae-4e042514628f.lovable.app",
+  "https://web.erpai.rs",
 ];
 
 function getAllowedOrigins(): string[] {
@@ -24,7 +25,7 @@ export function getCorsHeaders(req: Request): Record<string, string> {
   const allowed = getAllowedOrigins();
 
   // In development / Lovable preview, allow any lovable.app subdomain
-  const isLovablePreview = origin.endsWith(".lovable.app");
+  const isLovablePreview = origin.endsWith(".lovable.app") || origin.endsWith(".lovableproject.com");
   const isAllowed = allowed.includes(origin) || isLovablePreview;
 
   return {
