@@ -213,7 +213,7 @@ export default function FixedAssets() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["fixed_asset_depreciation", tenantId] });
-      toast({ title: t("depreciationPosted" as any) || t("depreciationRun") });
+      toast({ title: t("depreciationPosted") || t("depreciationRun") });
     },
   });
 
@@ -368,7 +368,7 @@ export default function FixedAssets() {
                     <SelectContent>
                       <SelectItem value="sold">{t("sold")}</SelectItem>
                       <SelectItem value="scrapped">{t("scrapped")}</SelectItem>
-                      <SelectItem value="donated">{t("donated" as any)}</SelectItem>
+                      <SelectItem value="donated">{t("donated")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

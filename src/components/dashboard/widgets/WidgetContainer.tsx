@@ -88,7 +88,7 @@ export function WidgetContainer({ widgetConfig, editMode, onRemove, onUpdateConf
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted-foreground/10"
                   )}
-                  title={`${t("widgetSize" as any) || "Size"}: ${opt.label}`}
+                  title={`${t("widgetSize") || "Size"}: ${opt.label}`}
                 >
                   {opt.label}
                 </button>

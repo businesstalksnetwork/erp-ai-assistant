@@ -207,7 +207,7 @@ export default function Profile() {
                 </div>
               </div>
             ) : (
-              <Card><CardContent className="py-8 text-center text-muted-foreground">{t("profileNoEmployeeRecord" as any) || "No employee record linked to this tenant."}</CardContent></Card>
+              <Card><CardContent className="py-8 text-center text-muted-foreground">{t("profileNoEmployeeRecord") || "No employee record linked to this tenant."}</CardContent></Card>
             )}
           </TabsContent>
         )}
@@ -221,7 +221,7 @@ export default function Profile() {
                 <ProfileInsuranceCard employeeId={myEmployee.id} />
               </div>
             ) : (
-              <Card><CardContent className="py-8 text-center text-muted-foreground">{t("profileNoEmployeeRecord" as any) || "No employee record linked to this tenant."}</CardContent></Card>
+              <Card><CardContent className="py-8 text-center text-muted-foreground">{t("profileNoEmployeeRecord") || "No employee record linked to this tenant."}</CardContent></Card>
             )}
           </TabsContent>
         )}
@@ -236,7 +236,7 @@ export default function Profile() {
                 <ProfileDeductionsCard employeeId={myEmployee.id} />
               </div>
             ) : (
-              <Card><CardContent className="py-8 text-center text-muted-foreground">{t("profileNoEmployeeRecord" as any) || "No employee record linked to this tenant."}</CardContent></Card>
+              <Card><CardContent className="py-8 text-center text-muted-foreground">{t("profileNoEmployeeRecord") || "No employee record linked to this tenant."}</CardContent></Card>
             )}
           </TabsContent>
         )}
@@ -254,7 +254,7 @@ export default function Profile() {
                 <ProfileReversesCard employeeId={myEmployee.id} />
               </div>
             ) : (
-              <Card><CardContent className="py-8 text-center text-muted-foreground">{t("profileNoEmployeeRecord" as any) || "No employee record linked to this tenant."}</CardContent></Card>
+              <Card><CardContent className="py-8 text-center text-muted-foreground">{t("profileNoEmployeeRecord") || "No employee record linked to this tenant."}</CardContent></Card>
             )}
           </TabsContent>
         )}

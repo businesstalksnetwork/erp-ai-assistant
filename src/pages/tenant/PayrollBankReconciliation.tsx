@@ -155,9 +155,9 @@ export default function PayrollBankReconciliation() {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case "matched": return <Badge variant="default"><CheckCircle className="h-3 w-3 mr-1" />{t("matched" as any)}</Badge>;
-      case "suggested": return <Badge variant="secondary"><ArrowRightLeft className="h-3 w-3 mr-1" />{t("suggested" as any)}</Badge>;
-      default: return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />{t("unmatched" as any)}</Badge>;
+      case "matched": return <Badge variant="default"><CheckCircle className="h-3 w-3 mr-1" />{t("matched")}</Badge>;
+      case "suggested": return <Badge variant="secondary"><ArrowRightLeft className="h-3 w-3 mr-1" />{t("suggested")}</Badge>;
+      default: return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />{t("unmatched")}</Badge>;
     }
   };
 
@@ -165,7 +165,7 @@ export default function PayrollBankReconciliation() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t("payrollBankReconciliation" as any)} icon={Banknote} description={t("payrollBankReconciliationDesc" as any)} />
+      <PageHeader title={t("payrollBankReconciliation")} icon={Banknote} description={t("payrollBankReconciliationDesc")} />
 
       {tenantId && autoMatches.length > 0 && (
         <AiAnalyticsNarrative tenantId={tenantId} contextType="payroll_recon" data={{ matched: matchedCount, unmatched: unmatchedCount, suggested: suggestedCount, total: autoMatches.length }} />
@@ -177,7 +177,7 @@ export default function PayrollBankReconciliation() {
             <div className="flex-1">
               <Select value={selectedRunId} onValueChange={setSelectedRunId}>
                 <SelectTrigger>
-                  <SelectValue placeholder={t("selectPayrollRun" as any)} />
+                  <SelectValue placeholder={t("selectPayrollRun")} />
                 </SelectTrigger>
                 <SelectContent>
                   {runs.map((r: any) => (
@@ -191,7 +191,7 @@ export default function PayrollBankReconciliation() {
             {suggestedCount > 0 && (
               <Button onClick={confirmAll} disabled={confirmMutation.isPending}>
                 <CheckCircle className="h-4 w-4 mr-2" />
-                {t("confirmAllSuggested" as any)} ({suggestedCount})
+                {t("confirmAllSuggested")} ({suggestedCount})
               </Button>
             )}
           </div>
@@ -204,19 +204,19 @@ export default function PayrollBankReconciliation() {
             <Card>
               <CardContent className="pt-4 text-center">
                 <p className="text-2xl font-bold text-primary">{matchedCount}</p>
-                <p className="text-sm text-muted-foreground">{t("matched" as any)}</p>
+                <p className="text-sm text-muted-foreground">{t("matched")}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 text-center">
                 <p className="text-2xl font-bold text-warning">{suggestedCount}</p>
-                <p className="text-sm text-muted-foreground">{t("suggested" as any)}</p>
+                <p className="text-sm text-muted-foreground">{t("suggested")}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 text-center">
                 <p className="text-2xl font-bold text-destructive">{unmatchedCount}</p>
-                <p className="text-sm text-muted-foreground">{t("unmatched" as any)}</p>
+                <p className="text-sm text-muted-foreground">{t("unmatched")}</p>
               </CardContent>
             </Card>
           </div>
@@ -228,9 +228,9 @@ export default function PayrollBankReconciliation() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("employee")}</TableHead>
-                  <TableHead className="text-right">{t("netSalary" as any)}</TableHead>
-                  <TableHead>{t("bankPartner" as any)}</TableHead>
-                  <TableHead className="text-right">{t("bankAmount" as any)}</TableHead>
+                  <TableHead className="text-right">{t("netSalary")}</TableHead>
+                  <TableHead>{t("bankPartner")}</TableHead>
+                  <TableHead className="text-right">{t("bankAmount")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
                   <TableHead></TableHead>
                 </TableRow>

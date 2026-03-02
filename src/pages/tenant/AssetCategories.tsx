@@ -91,7 +91,7 @@ export default function AssetCategories() {
       }
     },
     onSuccess: () => {
-      toast.success(t("saved" as any));
+      toast.success(t("saved"));
       qc.invalidateQueries({ queryKey: ["asset-categories"] });
       setDialogOpen(false);
     },
@@ -104,7 +104,7 @@ export default function AssetCategories() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success(t("deleted" as any));
+      toast.success(t("deleted"));
       qc.invalidateQueries({ queryKey: ["asset-categories"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -113,8 +113,8 @@ export default function AssetCategories() {
   return (
     <div className="space-y-4 p-1">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("assetsCategories" as any)}</h1>
-        <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> {t("add" as any)}</Button>
+        <h1 className="text-2xl font-bold">{t("assetsCategories")}</h1>
+        <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> {t("add")}</Button>
       </div>
 
       {isLoading ? (
@@ -125,11 +125,11 @@ export default function AssetCategories() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("code" as any)}</TableHead>
-              <TableHead>{t("name" as any)}</TableHead>
-              <TableHead>{t("type" as any)}</TableHead>
-              <TableHead>{t("assetsUsefulLife" as any)}</TableHead>
-              <TableHead>{t("assetsDepreciationMethod" as any)}</TableHead>
+              <TableHead>{t("code")}</TableHead>
+              <TableHead>{t("name")}</TableHead>
+              <TableHead>{t("type")}</TableHead>
+              <TableHead>{t("assetsUsefulLife")}</TableHead>
+              <TableHead>{t("assetsDepreciationMethod")}</TableHead>
               <TableHead>{t("actions")}</TableHead>
             </TableRow>
           </TableHeader>
@@ -139,7 +139,7 @@ export default function AssetCategories() {
                 <TableCell className="font-mono">{cat.code}</TableCell>
                 <TableCell>{cat.name}</TableCell>
                 <TableCell><Badge variant="outline">{cat.asset_type}</Badge></TableCell>
-                <TableCell>{cat.default_useful_life_months ? `${cat.default_useful_life_months} ${t("assetsMonths" as any)}` : "—"}</TableCell>
+                <TableCell>{cat.default_useful_life_months ? `${cat.default_useful_life_months} ${t("assetsMonths")}` : "—"}</TableCell>
                 <TableCell>{cat.default_depreciation_method || "—"}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
@@ -152,12 +152,12 @@ export default function AssetCategories() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>{t("confirmDeleteRecord" as any)}</AlertDialogTitle>
+                          <AlertDialogTitle>{t("confirmDeleteRecord")}</AlertDialogTitle>
                           <AlertDialogDescription>{cat.name}</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteMutation.mutate(cat.id)}>{t("delete" as any)}</AlertDialogAction>
+                          <AlertDialogAction onClick={() => deleteMutation.mutate(cat.id)}>{t("delete")}</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -172,48 +172,48 @@ export default function AssetCategories() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? t("edit" as any) : t("add" as any)} {t("assetsCategory" as any)}</DialogTitle>
+            <DialogTitle>{editing ? t("edit") : t("add")} {t("assetsCategory")}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>{t("code" as any)}</Label>
+                <Label>{t("code")}</Label>
                 <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
               </div>
               <div>
-                <Label>{t("assetsCodePrefix" as any)}</Label>
+                <Label>{t("assetsCodePrefix")}</Label>
                 <Input value={form.code_prefix} onChange={(e) => setForm({ ...form, code_prefix: e.target.value })} placeholder="e.g. EQUIP" />
               </div>
             </div>
             <div>
-              <Label>{t("name" as any)}</Label>
+              <Label>{t("name")}</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <Label>{t("type" as any)}</Label>
+              <Label>{t("type")}</Label>
               <Select value={form.asset_type} onValueChange={(v) => setForm({ ...form, asset_type: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="fixed_asset">{t("assetsFixedAsset" as any)}</SelectItem>
-                  <SelectItem value="intangible">{t("assetsIntangible" as any)}</SelectItem>
-                  <SelectItem value="material_good">{t("assetsMaterialGood" as any)}</SelectItem>
-                  <SelectItem value="vehicle">{t("assetsVehicle" as any)}</SelectItem>
+                  <SelectItem value="fixed_asset">{t("assetsFixedAsset")}</SelectItem>
+                  <SelectItem value="intangible">{t("assetsIntangible")}</SelectItem>
+                  <SelectItem value="material_good">{t("assetsMaterialGood")}</SelectItem>
+                  <SelectItem value="vehicle">{t("assetsVehicle")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>{t("assetsUsefulLife" as any)} ({t("assetsMonths" as any)})</Label>
+                <Label>{t("assetsUsefulLife")} ({t("assetsMonths")})</Label>
                 <Input type="number" value={form.default_useful_life_months} onChange={(e) => setForm({ ...form, default_useful_life_months: e.target.value })} />
               </div>
               <div>
-                <Label>{t("assetsDepreciationMethod" as any)}</Label>
+                <Label>{t("assetsDepreciationMethod")}</Label>
                 <Select value={form.default_depreciation_method} onValueChange={(v) => setForm({ ...form, default_depreciation_method: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="straight_line">{t("assetsStraightLine" as any)}</SelectItem>
-                    <SelectItem value="declining_balance">{t("assetsDecliningBalance" as any)}</SelectItem>
-                    <SelectItem value="units_of_production">{t("assetsUnitsOfProduction" as any)}</SelectItem>
+                    <SelectItem value="straight_line">{t("assetsStraightLine")}</SelectItem>
+                    <SelectItem value="declining_balance">{t("assetsDecliningBalance")}</SelectItem>
+                    <SelectItem value="units_of_production">{t("assetsUnitsOfProduction")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -52,7 +52,7 @@ export function AttachDocumentButton({ entityType, entityId, size = "sm" }: Atta
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["entity-documents", entityType, entityId] });
-      toast({ title: t("documentUploaded" as any) || "Dokument priložen" });
+      toast({ title: t("documentUploaded") || "Dokument priložen" });
     },
     onError: (e: any) => {
       toast({ title: t("error"), description: e.message, variant: "destructive" });
@@ -82,7 +82,7 @@ export function AttachDocumentButton({ entityType, entityId, size = "sm" }: Atta
         onClick={() => fileInputRef.current?.click()}
       >
         <Paperclip className="h-4 w-4" />
-        {size !== "icon" && (t("attachDocument" as any) || "Priloži dokument")}
+        {size !== "icon" && (t("attachDocument") || "Priloži dokument")}
       </Button>
     </>
   );
