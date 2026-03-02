@@ -76,7 +76,7 @@ export function LeaveRequestDialog({ open, onOpenChange, employeeId, balance }: 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{t("leaveRequestTitle" as any) || "Zatraži odsustvo"}</DialogTitle>
+          <DialogTitle>{t("leaveRequestTitle") || "Zatraži odsustvo"}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4">
           <div className="grid gap-2">

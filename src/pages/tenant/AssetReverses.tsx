@@ -124,7 +124,7 @@ export default function AssetReverses() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["asset-reverses", tenantId] });
-      toast({ title: t("reversCreated" as any) });
+      toast({ title: t("reversCreated") });
       setDialogOpen(false);
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
@@ -146,8 +146,8 @@ export default function AssetReverses() {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["asset-reverses", tenantId] });
       const msg = data?.emailSent
-        ? t("reversSentForSignature" as any) + ` (${data.recipientEmail})`
-        : t("reversSentForSignature" as any) + ` — ${t("reversEmailNotConfigured" as any)}`;
+        ? t("reversSentForSignature") + ` (${data.recipientEmail})`
+        : t("reversSentForSignature") + ` — ${t("reversEmailNotConfigured")}`;
       toast({ title: msg });
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
@@ -168,7 +168,7 @@ export default function AssetReverses() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["asset-reverses", tenantId] });
-      toast({ title: t("reversReminderSent" as any) });
+      toast({ title: t("reversReminderSent") });
     },
   });
 
@@ -181,7 +181,7 @@ export default function AssetReverses() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["asset-reverses", tenantId] });
-      toast({ title: t("reversRejected" as any) });
+      toast({ title: t("reversRejected") });
       setRejectDialogOpen(false);
       setRejectionReason("");
     },
@@ -200,7 +200,7 @@ export default function AssetReverses() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["asset-reverses", tenantId] });
-      toast({ title: t("reversSigned" as any) });
+      toast({ title: t("reversSigned") });
     },
   });
 
@@ -233,11 +233,11 @@ export default function AssetReverses() {
 
   const statusLabel = (s: string) => {
     switch (s) {
-      case "draft": return t("draft" as any);
-      case "pending_signature": return t("reversPendingSignature" as any);
-      case "signed": return t("reversSigned" as any);
-      case "rejected": return t("reversRejected" as any);
-      case "cancelled": return t("cancelled" as any);
+      case "draft": return t("draft");
+      case "pending_signature": return t("reversPendingSignature");
+      case "signed": return t("reversSigned");
+      case "rejected": return t("reversRejected");
+      case "cancelled": return t("cancelled");
       default: return s;
     }
   };
@@ -245,9 +245,9 @@ export default function AssetReverses() {
   return (
     <div className="space-y-6 p-1">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold">{t("reversDocuments" as any)}</h1>
+        <h1 className="text-2xl font-bold">{t("reversDocuments")}</h1>
         <Button onClick={() => { setForm(emptyForm); setDialogOpen(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> {t("reversNew" as any)}
+          <Plus className="h-4 w-4 mr-1" /> {t("reversNew")}
         </Button>
       </div>
 
@@ -257,7 +257,7 @@ export default function AssetReverses() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>{t("reversDocuments" as any)}</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("reversDocuments")}</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="flex justify-center py-8"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
@@ -267,11 +267,11 @@ export default function AssetReverses() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("reversNumber" as any)}</TableHead>
-                  <TableHead>{t("date" as any)}</TableHead>
-                  <TableHead>{t("type" as any)}</TableHead>
-                  <TableHead>{t("assetsSelectAsset" as any)}</TableHead>
-                  <TableHead>{t("employee" as any)}</TableHead>
+                  <TableHead>{t("reversNumber")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("type")}</TableHead>
+                  <TableHead>{t("assetsSelectAsset")}</TableHead>
+                  <TableHead>{t("employee")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
                   <TableHead>{t("actions")}</TableHead>
                 </TableRow>
@@ -283,7 +283,7 @@ export default function AssetReverses() {
                     <TableCell>{r.revers_date}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {r.revers_type === "handover" ? t("reversHandover" as any) : t("reversReturn" as any)}
+                        {r.revers_type === "handover" ? t("reversHandover") : t("reversReturn")}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -299,25 +299,22 @@ export default function AssetReverses() {
                           <Badge className={statusColor(r.status)}>{statusLabel(r.status)}</Badge>
                         </TooltipTrigger>
                         <TooltipContent className="text-xs">
-                          {r.notification_sent_at && <div>{t("reversNotificationSent" as any)}: {new Date(r.notification_sent_at).toLocaleString()}</div>}
-                          {r.reminder_sent_at && <div>{t("reversReminderSentAt" as any)}: {new Date(r.reminder_sent_at).toLocaleString()}</div>}
-                          {r.employee_signed_at && <div>{t("reversSigned" as any)}: {new Date(r.employee_signed_at).toLocaleString()} ({r.employee_signed_by_name})</div>}
-                          {r.issuer_signed_at && <div>{t("reversIssuerSigned" as any)}: {new Date(r.issuer_signed_at).toLocaleString()}</div>}
+                          {r.notification_sent_at && <div>{t("reversNotificationSent")}: {new Date(r.notification_sent_at).toLocaleString()}</div>}
+                          {r.reminder_sent_at && <div>{t("reversReminderSentAt")}: {new Date(r.reminder_sent_at).toLocaleString()}</div>}
+                          {r.employee_signed_at && <div>{t("reversSigned")}: {new Date(r.employee_signed_at).toLocaleString()} ({r.employee_signed_by_name})</div>}
+                          {r.issuer_signed_at && <div>{t("reversIssuerSigned")}: {new Date(r.issuer_signed_at).toLocaleString()}</div>}
                           {!r.notification_sent_at && !r.employee_signed_at && <div>{statusLabel(r.status)}</div>}
                         </TooltipContent>
                       </Tooltip>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        {/* Detail / Preview */}
                         <Button variant="ghost" size="sm" onClick={() => { setDetailRevers(r); setDetailDialogOpen(true); }}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {/* PDF */}
                         <Button variant="ghost" size="sm" onClick={() => handleGeneratePdf(r)} disabled={pdfLoading === r.id}>
                           <FileText className="h-4 w-4" />
                         </Button>
-                        {/* Send for signature */}
                         {r.status === "draft" && (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -325,10 +322,9 @@ export default function AssetReverses() {
                                 <Send className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>{t("reversSendForSignature" as any)}</TooltipContent>
+                            <TooltipContent>{t("reversSendForSignature")}</TooltipContent>
                           </Tooltip>
                         )}
-                        {/* Reminder */}
                         {r.status === "pending_signature" && (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -336,10 +332,9 @@ export default function AssetReverses() {
                                 <Bell className="h-4 w-4 text-amber-500" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>{t("reversSendReminder" as any)}</TooltipContent>
+                            <TooltipContent>{t("reversSendReminder")}</TooltipContent>
                           </Tooltip>
                         )}
-                        {/* Admin sign */}
                         {r.status === "pending_signature" && (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -347,10 +342,9 @@ export default function AssetReverses() {
                                 <CheckCircle className="h-4 w-4 text-emerald-600" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>{t("reversAdminSign" as any)}</TooltipContent>
+                            <TooltipContent>{t("reversAdminSign")}</TooltipContent>
                           </Tooltip>
                         )}
-                        {/* Reject */}
                         {(r.status === "draft" || r.status === "pending_signature") && (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -358,7 +352,7 @@ export default function AssetReverses() {
                                 <XCircle className="h-4 w-4 text-destructive" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>{t("reversReject" as any)}</TooltipContent>
+                            <TooltipContent>{t("reversReject")}</TooltipContent>
                           </Tooltip>
                         )}
                       </div>
@@ -374,20 +368,20 @@ export default function AssetReverses() {
       {/* New Revers Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{t("reversNew" as any)}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("reversNew")}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>{t("type" as any)}</Label>
+              <Label>{t("type")}</Label>
               <Select value={form.revers_type} onValueChange={(v) => setForm({ ...form, revers_type: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="handover">{t("reversHandover" as any)}</SelectItem>
-                  <SelectItem value="return">{t("reversReturn" as any)}</SelectItem>
+                  <SelectItem value="handover">{t("reversHandover")}</SelectItem>
+                  <SelectItem value="return">{t("reversReturn")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>{t("assetsSelectAsset" as any)}</Label>
+              <Label>{t("assetsSelectAsset")}</Label>
               <Select value={form.asset_id} onValueChange={(v) => setForm({ ...form, asset_id: v })}>
                 <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>
@@ -398,7 +392,7 @@ export default function AssetReverses() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>{t("employee" as any)}</Label>
+              <Label>{t("employee")}</Label>
               <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
                 <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>
@@ -409,26 +403,26 @@ export default function AssetReverses() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>{t("date" as any)}</Label>
+              <Label>{t("date")}</Label>
               <Input type="date" value={form.revers_date} onChange={(e) => setForm({ ...form, revers_date: e.target.value })} />
             </div>
             <div className="grid gap-2">
-              <Label>{t("reversCondition" as any)}</Label>
-              <Input value={form.condition_on_handover} onChange={(e) => setForm({ ...form, condition_on_handover: e.target.value })} placeholder={t("reversConditionPlaceholder" as any)} />
+              <Label>{t("reversCondition")}</Label>
+              <Input value={form.condition_on_handover} onChange={(e) => setForm({ ...form, condition_on_handover: e.target.value })} placeholder={t("reversConditionPlaceholder")} />
             </div>
             <div className="grid gap-2">
-              <Label>{t("reversAccessories" as any)}</Label>
-              <Input value={form.accessories} onChange={(e) => setForm({ ...form, accessories: e.target.value })} placeholder={t("reversAccessoriesPlaceholder" as any)} />
+              <Label>{t("reversAccessories")}</Label>
+              <Input value={form.accessories} onChange={(e) => setForm({ ...form, accessories: e.target.value })} placeholder={t("reversAccessoriesPlaceholder")} />
             </div>
             <div className="grid gap-2">
-              <Label>{t("notes" as any)}</Label>
+              <Label>{t("notes")}</Label>
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("cancel")}</Button>
             <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !form.asset_id}>
-              <FileSignature className="h-4 w-4 mr-1" /> {t("reversCreateNew" as any)}
+              <FileSignature className="h-4 w-4 mr-1" /> {t("reversCreateNew")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -437,20 +431,20 @@ export default function AssetReverses() {
       {/* Reject Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{t("reversReject" as any)}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("reversReject")}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <p className="text-sm text-muted-foreground">
-              {t("reversRejectConfirm" as any)} <strong>{rejectTarget?.revers_number}</strong>
+              {t("reversRejectConfirm")} <strong>{rejectTarget?.revers_number}</strong>
             </p>
             <div className="space-y-2">
-              <Label>{t("reversRejectionReason" as any)}</Label>
-              <Textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={3} placeholder={t("reversRejectionReasonPlaceholder" as any)} />
+              <Label>{t("reversRejectionReason")}</Label>
+              <Textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={3} placeholder={t("reversRejectionReasonPlaceholder")} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>{t("cancel")}</Button>
             <Button variant="destructive" onClick={() => rejectTarget && rejectRevers.mutate({ id: rejectTarget.id, reason: rejectionReason })} disabled={rejectRevers.isPending || !rejectionReason.trim()}>
-              <XCircle className="h-4 w-4 mr-1" /> {t("reversReject" as any)}
+              <XCircle className="h-4 w-4 mr-1" /> {t("reversReject")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -459,21 +453,21 @@ export default function AssetReverses() {
       {/* Detail Preview Dialog */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{t("reversNumber" as any)}: {detailRevers?.revers_number}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("reversNumber")}: {detailRevers?.revers_number}</DialogTitle></DialogHeader>
           {detailRevers && (
             <div className="space-y-3 text-sm py-2">
-              <DetailRow label={t("type" as any)} value={detailRevers.revers_type === "handover" ? t("reversHandover" as any) : t("reversReturn" as any)} />
-              <DetailRow label={t("assetsSelectAsset" as any)} value={`${detailRevers.assets?.asset_code} — ${detailRevers.assets?.name}`} />
-              <DetailRow label={t("employee" as any)} value={detailRevers.employees ? `${detailRevers.employees.first_name} ${detailRevers.employees.last_name}` : "—"} />
-              <DetailRow label={t("date" as any)} value={detailRevers.revers_date} />
+              <DetailRow label={t("type")} value={detailRevers.revers_type === "handover" ? t("reversHandover") : t("reversReturn")} />
+              <DetailRow label={t("assetsSelectAsset")} value={`${detailRevers.assets?.asset_code} — ${detailRevers.assets?.name}`} />
+              <DetailRow label={t("employee")} value={detailRevers.employees ? `${detailRevers.employees.first_name} ${detailRevers.employees.last_name}` : "—"} />
+              <DetailRow label={t("date")} value={detailRevers.revers_date} />
               <DetailRow label={t("status")} value={statusLabel(detailRevers.status)} />
-              {detailRevers.condition_on_handover && <DetailRow label={t("reversCondition" as any)} value={detailRevers.condition_on_handover} />}
-              {detailRevers.accessories && <DetailRow label={t("reversAccessories" as any)} value={detailRevers.accessories} />}
-              {detailRevers.notes && <DetailRow label={t("notes" as any)} value={detailRevers.notes} />}
-              {detailRevers.rejection_reason && <DetailRow label={t("reversRejectionReason" as any)} value={detailRevers.rejection_reason} />}
-              {detailRevers.notification_sent_at && <DetailRow label={t("reversNotificationSent" as any)} value={new Date(detailRevers.notification_sent_at).toLocaleString()} />}
-              {detailRevers.employee_signed_at && <DetailRow label={t("reversEmployeeSigned" as any)} value={`${detailRevers.employee_signed_by_name} — ${new Date(detailRevers.employee_signed_at).toLocaleString()}`} />}
-              {detailRevers.issuer_signed_at && <DetailRow label={t("reversIssuerSigned" as any)} value={`${detailRevers.issuer_signed_by_name} — ${new Date(detailRevers.issuer_signed_at).toLocaleString()}`} />}
+              {detailRevers.condition_on_handover && <DetailRow label={t("reversCondition")} value={detailRevers.condition_on_handover} />}
+              {detailRevers.accessories && <DetailRow label={t("reversAccessories")} value={detailRevers.accessories} />}
+              {detailRevers.notes && <DetailRow label={t("notes")} value={detailRevers.notes} />}
+              {detailRevers.rejection_reason && <DetailRow label={t("reversRejectionReason")} value={detailRevers.rejection_reason} />}
+              {detailRevers.notification_sent_at && <DetailRow label={t("reversNotificationSent")} value={new Date(detailRevers.notification_sent_at).toLocaleString()} />}
+              {detailRevers.employee_signed_at && <DetailRow label={t("reversEmployeeSigned")} value={`${detailRevers.employee_signed_by_name} — ${new Date(detailRevers.employee_signed_at).toLocaleString()}`} />}
+              {detailRevers.issuer_signed_at && <DetailRow label={t("reversIssuerSigned")} value={`${detailRevers.issuer_signed_by_name} — ${new Date(detailRevers.issuer_signed_at).toLocaleString()}`} />}
             </div>
           )}
         </DialogContent>
