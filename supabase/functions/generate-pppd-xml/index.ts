@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 function validateJmbg(jmbg: string): boolean {
   if (!/^\d{13}$/.test(jmbg)) return false;
@@ -35,7 +37,7 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
     const { data: { user: authUser }, error: authErr } = await supabase.auth.getUser(
@@ -43,7 +45,7 @@ Deno.serve(async (req) => {
     );
     if (authErr || !authUser) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -61,7 +63,7 @@ Deno.serve(async (req) => {
         .eq("user_id", authUser.id).eq("role", "super_admin").maybeSingle();
       if (!memberChk && !saChk) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
         });
       }
     }
@@ -251,7 +253,7 @@ Deno.serve(async (req) => {
 
     // P2-06: Return proper XML content type for valid XML download
     return new Response(xml, {
-      headers: {
+      headers: withSecurityHeaders({
         ...corsHeaders,
         "Content-Type": "application/xml; charset=utf-8",
         "Content-Disposition": `attachment; filename="PPP-PD-${periodLabel}.xml"`,
@@ -260,7 +262,7 @@ Deno.serve(async (req) => {
   } catch (e) {
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
   }
 });

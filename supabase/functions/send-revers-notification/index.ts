@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 interface NotificationRequest {
   revers_id: string;
@@ -20,7 +22,7 @@ serve(async (req: Request) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -36,7 +38,7 @@ serve(async (req: Request) => {
     const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
     if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
     const userId = claimsData.claims.sub;
@@ -45,7 +47,7 @@ serve(async (req: Request) => {
 
     if (!revers_id || !tenant_id || !action) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -68,7 +70,7 @@ serve(async (req: Request) => {
         .maybeSingle();
       if (!superRole) {
         return new Response(JSON.stringify({ error: "Forbidden: not a member of this tenant" }), {
-          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
         });
       }
     }
@@ -85,7 +87,7 @@ serve(async (req: Request) => {
 
     if (reversError || !revers) {
       return new Response(JSON.stringify({ error: "Revers not found" }), {
-        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 404, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -252,14 +254,10 @@ serve(async (req: Request) => {
           ? "No recipient email found"
           : "RESEND_API_KEY not configured — revers status updated without email",
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
 
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    console.error("send-revers-notification error:", msg);
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  } catch (error) {
+    return createErrorResponse(error, req, { logPrefix: "send-revers-notification" });
   }
 });

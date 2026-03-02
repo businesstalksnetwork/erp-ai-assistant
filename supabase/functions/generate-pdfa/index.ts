@@ -8,6 +8,8 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflightRequest(req);
@@ -19,7 +21,7 @@ Deno.serve(async (req) => {
     if (req.method !== "POST") {
       return new Response(JSON.stringify({ error: "Method not allowed" }), {
         status: 405,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -27,7 +29,7 @@ Deno.serve(async (req) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -37,7 +39,7 @@ Deno.serve(async (req) => {
     if (!invoice_id) {
       return new Response(JSON.stringify({ error: "invoice_id required" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -55,7 +57,7 @@ Deno.serve(async (req) => {
     if (invErr || !invoice) {
       return new Response(JSON.stringify({ error: "Invoice not found" }), {
         status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -92,13 +94,10 @@ Deno.serve(async (req) => {
     };
 
     return new Response(JSON.stringify(archivalPackage), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  } catch (error) {
+    return createErrorResponse(error, req, { logPrefix: "generate-pdfa" });
   }
 });
 

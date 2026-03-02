@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 /**
  * Generate APR-format XML for Bilans Stanja and Bilans Uspeha
@@ -16,7 +18,7 @@ Deno.serve(async (req) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -30,7 +32,7 @@ Deno.serve(async (req) => {
     if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
     const userId = claimsData.claims.sub as string;
@@ -45,7 +47,7 @@ Deno.serve(async (req) => {
     if (!tenant_id || !report_type || !fiscal_year) {
       return new Response(JSON.stringify({ error: "Missing required fields: tenant_id, report_type, fiscal_year" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -60,7 +62,7 @@ Deno.serve(async (req) => {
     if (!membership) {
       return new Response(JSON.stringify({ error: "Access denied" }), {
         status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -101,19 +103,16 @@ Deno.serve(async (req) => {
     } else {
       return new Response(JSON.stringify({ error: "Invalid report_type. Use 'bilans_stanja' or 'bilans_uspeha'" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
     return new Response(JSON.stringify({ xml, filename }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createErrorResponse(error, req, { logPrefix: "generate-apr-xml" });
   }
 });
 

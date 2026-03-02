@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { S3Client } from 'https://deno.land/x/s3_lite_client@0.7.0/mod.ts';
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 // Initialize S3 client for DigitalOcean Spaces
 function getS3Client() {
@@ -43,7 +45,7 @@ Deno.serve(async (req) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
         status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }),
       });
     }
 
@@ -60,7 +62,7 @@ Deno.serve(async (req) => {
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }),
       });
     }
 
@@ -69,7 +71,7 @@ Deno.serve(async (req) => {
     if (!isAdmin) {
       return new Response(JSON.stringify({ error: 'Admin access required' }), {
         status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }),
       });
     }
 
@@ -310,15 +312,10 @@ Deno.serve(async (req) => {
         },
         results,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }) }
     );
 
   } catch (err) {
-    const error = err as Error;
-    console.error('Migration error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message || 'Migration failed' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return createErrorResponse(err, req, { logPrefix: "storage-migrate" });
   }
 });

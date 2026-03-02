@@ -2,6 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { S3Client } from 'https://deno.land/x/s3_lite_client@0.7.0/mod.ts';
 import { encode as base64Encode } from 'https://deno.land/std@0.208.0/encoding/base64.ts';
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 // Initialize S3 client for DigitalOcean Spaces
 function getS3Client() {
@@ -49,7 +51,7 @@ Deno.serve(async (req) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
         status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }),
       });
     }
 
@@ -65,7 +67,7 @@ Deno.serve(async (req) => {
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }),
       });
     }
 
@@ -75,7 +77,7 @@ Deno.serve(async (req) => {
     if (!url && !path) {
       return new Response(JSON.stringify({ error: 'Missing url or path parameter' }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }),
       });
     }
 
@@ -92,7 +94,7 @@ Deno.serve(async (req) => {
       } else {
         return new Response(JSON.stringify({ error: 'Invalid URL - not from our storage' }), {
           status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }),
         });
       }
     }
@@ -102,7 +104,7 @@ Deno.serve(async (req) => {
     if (pathParts[0] !== 'users' || pathParts.length < 2) {
       return new Response(JSON.stringify({ error: 'Invalid path format' }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }),
       });
     }
 
@@ -114,7 +116,7 @@ Deno.serve(async (req) => {
       if (!isBookkeeperFor) {
         return new Response(JSON.stringify({ error: 'Access denied' }), {
           status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }),
         });
       }
     }
@@ -151,15 +153,10 @@ Deno.serve(async (req) => {
         mimeType,
         size: combined.length,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }) }
     );
 
   } catch (err) {
-    const error = err as Error;
-    console.error('Storage get-base64 error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message || 'Failed to get file' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return createErrorResponse(err, req, { logPrefix: "storage-get-base64" });
   }
 });
