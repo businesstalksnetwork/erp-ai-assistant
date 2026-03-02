@@ -428,10 +428,10 @@ export function AiContextSidebar({ open, onToggle }: AiContextSidebarProps) {
                         <Bot className="h-3 w-3 text-primary" />
                       </div>
                     )}
-                    <div className={`max-w-[90%] rounded-md px-2 py-1.5 text-xs ${
+                    <div className={`rounded-md px-2 py-1.5 text-xs overflow-x-auto break-words ${
                       msg.role === "user"
-                        ? "bg-primary text-primary-foreground whitespace-pre-wrap"
-                        : "bg-muted"
+                        ? "bg-primary text-primary-foreground whitespace-pre-wrap max-w-[85%]"
+                        : "bg-muted max-w-full"
                     }`}>
                     {msg.role === "assistant" ? <SimpleMarkdown content={msg.content} /> : msg.content}
                     </div>
