@@ -106,7 +106,7 @@ export default function LoyaltyDashboard() {
   }, {} as Record<string, number>);
 
   const pieData = Object.entries(tierCounts).map(([tier, count]) => ({
-    name: t((`tier${tier.charAt(0).toUpperCase() + tier.slice(1)}`) as any),
+    name: t(`tier${tier.charAt(0).toUpperCase() + tier.slice(1)}`),
     value: count,
     color: TIER_COLORS[tier] || "hsl(var(--muted))",
   }));
@@ -130,43 +130,43 @@ export default function LoyaltyDashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t("loyaltyDashboard" as any)}</h1>
+      <h1 className="text-2xl font-bold">{t("loyaltyDashboard")}</h1>
 
       {/* KPI Row 1 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("totalMembers" as any)}</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("totalMembers")}</CardTitle></CardHeader>
           <CardContent><div className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" /><span className="text-2xl font-bold">{totalMembers}</span></div></CardContent>
         </Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("activeMembers" as any) || "Active"}</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("activeMembers") || "Active"}</CardTitle></CardHeader>
           <CardContent><div className="flex items-center gap-2"><Zap className="h-5 w-5 text-green-500" /><span className="text-2xl font-bold">{activeMembers}</span></div></CardContent>
         </Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("totalPointsOutstanding" as any)}</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("totalPointsOutstanding")}</CardTitle></CardHeader>
           <CardContent><div className="flex items-center gap-2"><Star className="h-5 w-5 text-yellow-500" /><span className="text-2xl font-bold">{totalPoints.toLocaleString()}</span></div></CardContent>
         </Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("newThisMonth" as any) || "New This Month"}</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("newThisMonth") || "New This Month"}</CardTitle></CardHeader>
           <CardContent><div className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-blue-500" /><span className="text-2xl font-bold">{newThisMonth}</span></div></CardContent>
         </Card>
       </div>
 
       {/* KPI Row 2 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("avgLifetimePoints" as any) || "Avg Lifetime"}</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("avgLifetimePoints") || "Avg Lifetime"}</CardTitle></CardHeader>
           <CardContent><div className="flex items-center gap-2"><Target className="h-5 w-5 text-orange-500" /><span className="text-2xl font-bold">{avgLifetime.toLocaleString()}</span></div></CardContent>
         </Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("pointsEarned" as any) || "Earned (Recent)"}</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("pointsEarned") || "Earned (Recent)"}</CardTitle></CardHeader>
           <CardContent><span className="text-2xl font-bold text-green-600">+{pointsEarned.toLocaleString()}</span></CardContent>
         </Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("pointsRedeemed" as any) || "Redeemed"}</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("pointsRedeemed") || "Redeemed"}</CardTitle></CardHeader>
           <CardContent><span className="text-2xl font-bold text-destructive">-{pointsRedeemed.toLocaleString()}</span></CardContent>
         </Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("redemptionsThisMonth" as any)}</CardTitle></CardHeader>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">{t("redemptionsThisMonth")}</CardTitle></CardHeader>
           <CardContent><div className="flex items-center gap-2"><Gift className="h-5 w-5 text-green-500" /><span className="text-2xl font-bold">{redemptionCount}</span></div></CardContent>
         </Card>
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card><CardHeader><CardTitle className="text-sm">{t("loyaltyTierDistribution" as any)}</CardTitle></CardHeader>
+        <Card><CardHeader><CardTitle className="text-sm">{t("loyaltyTierDistribution")}</CardTitle></CardHeader>
           <CardContent>{pieData.length > 0 ? (
             <ResponsiveContainer width="100%" height={180}>
               <PieChart><Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={35} outerRadius={60}>
@@ -219,7 +219,7 @@ export default function LoyaltyDashboard() {
       </div>
 
       {/* Recent Activity */}
-      <Card><CardHeader><CardTitle>{t("recentLoyaltyActivity" as any)}</CardTitle></CardHeader>
+      <Card><CardHeader><CardTitle>{t("recentLoyaltyActivity")}</CardTitle></CardHeader>
         <CardContent>{recentTx.length === 0 ? <p className="text-muted-foreground text-sm">No activity yet.</p> : (
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
             {recentTx.slice(0, 20).map((tx) => (

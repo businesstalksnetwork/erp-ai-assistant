@@ -311,7 +311,7 @@ export default function CrmDashboard() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              {t("expiringQuotes" as any) || "Expiring Quotes"} ({expiringQuotes.length})
+              {t("expiringQuotes") || "Expiring Quotes"} ({expiringQuotes.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
