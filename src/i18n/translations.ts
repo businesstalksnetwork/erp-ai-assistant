@@ -3574,6 +3574,19 @@ export const translations = {
     loyaltyManagement: "Loyalty Management",
     noActiveProgram: "No active loyalty program",
     programSettings: "Program Settings",
+
+    // POS extras
+    promotions: "Promotions",
+    giftCards: "Gift Cards",
+    marketBasket: "Market Basket",
+    loyaltyAnalytics: "Loyalty Analytics",
+
+    // Compliance (Super Admin)
+    capaManagement: "CAPA Management",
+    dsarManagement: "DSAR Requests",
+    aiModelCards: "AI Model Cards",
+    complianceWorkflows: "Workflows",
+    compliance: "Compliance",
   },
   sr: {
     // Auth
@@ -7100,6 +7113,19 @@ export const translations = {
     loyaltyManagement: "Upravljanje lojalnosti",
     noActiveProgram: "Nema aktivnog programa lojalnosti",
     programSettings: "Podešavanja programa",
+
+    // POS extras
+    promotions: "Promocije",
+    giftCards: "Poklon kartice",
+    marketBasket: "Analiza korpe",
+    loyaltyAnalytics: "Analitika lojalnosti",
+
+    // Compliance (Super Admin)
+    capaManagement: "CAPA upravljanje",
+    dsarManagement: "DSAR zahtevi",
+    aiModelCards: "AI kartice modela",
+    complianceWorkflows: "Tokovi rada",
+    compliance: "Usklađenost",
   },
 } as const;
 

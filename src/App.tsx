@@ -104,6 +104,7 @@ const App = () => (
                 <Route path="analytics" element={<React.Suspense fallback={<LoadingFallback />}><SuperAdminAnalytics /></React.Suspense>} />
                 <Route path="ai-governance" element={<React.Suspense fallback={<LoadingFallback />}><AiGovernanceDashboard /></React.Suspense>} />
                 <Route path="system-health" element={<React.Suspense fallback={<LoadingFallback />}><SystemHealth /></React.Suspense>} />
+                {complianceRoutes}
               </Route>
 
               {/* Tenant routes - modularized */}
@@ -124,7 +125,6 @@ const App = () => (
                 {assetsRoutes}
                 {serviceRoutes}
                 {loyaltyRoutes}
-                {complianceRoutes}
                 {miscRoutes}
               </Route>
 

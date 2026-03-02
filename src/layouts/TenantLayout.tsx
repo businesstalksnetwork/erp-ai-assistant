@@ -324,21 +324,15 @@ const loyaltyNav: NavItem[] = [
   { key: "loyaltyRewards", url: "/loyalty/rewards", icon: Gift },
 ];
 
-const complianceNav: NavItem[] = [
-  { key: "capaManagement" as any, url: "/compliance/capa", icon: ShieldCheck, section: "complianceWorkflows" },
-  { key: "dsarManagement" as any, url: "/compliance/dsar", icon: Shield },
-  { key: "aiModelCards" as any, url: "/super-admin/ai-model-cards", icon: Brain },
-];
-
 const posNav: NavItem[] = [
   { key: "posTerminal", url: "/pos/terminal", icon: Monitor, section: "terminal" },
   { key: "posSessions", url: "/pos/sessions", icon: CreditCard, section: "administration" },
   { key: "fiscalDevices", url: "/pos/fiscal-devices", icon: Receipt },
   { key: "dailyReport", url: "/pos/daily-report", icon: FileText },
-  { key: "promotions" as any, url: "/pos/promotions", icon: Tag },
-  { key: "giftCards" as any, url: "/pos/gift-cards", icon: Gift },
-  { key: "marketBasket" as any, url: "/pos/market-basket", icon: BarChart3 },
-  { key: "loyaltyAnalytics" as any, url: "/pos/loyalty-analytics", icon: TrendingUp },
+  { key: "promotions", url: "/pos/promotions", icon: Tag },
+  { key: "giftCards", url: "/pos/gift-cards", icon: Gift },
+  { key: "marketBasket", url: "/pos/market-basket", icon: BarChart3 },
+  { key: "loyaltyAnalytics", url: "/pos/loyalty-analytics", icon: TrendingUp },
 ];
 
 // Cleaned up: removed items relocated to parent modules
@@ -487,7 +481,6 @@ export default function TenantLayout() {
       { id: "production", items: productionNav },
       { id: "service", items: serviceNav },
       { id: "loyalty", items: loyaltyNav },
-      { id: "compliance", items: complianceNav },
       { id: "accounting", items: accountingNav },
       { id: "assets", items: assetsNav },
       { id: "hr", items: hrNav },
@@ -624,7 +617,7 @@ export default function TenantLayout() {
             {canAccess("loyalty") && (
               <CollapsibleNavGroup label={t("loyaltyModule" as any)} items={loyaltyNav} currentPath={currentPath} t={t} icon={Gift} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "loyalty"} onToggle={() => handleGroupToggle("loyalty")} />
             )}
-            <CollapsibleNavGroup label="Compliance" items={complianceNav} currentPath={currentPath} t={t} icon={ShieldCheck} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "compliance"} onToggle={() => handleGroupToggle("compliance")} />
+            
             {canAccess("accounting") && (
               <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} icon={Calculator} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "accounting"} onToggle={() => handleGroupToggle("accounting")} />
             )}
