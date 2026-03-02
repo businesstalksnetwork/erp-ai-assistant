@@ -159,10 +159,10 @@ export default function AiQualityPrediction() {
   const avgDefect = products.length > 0 ? Math.round(products.reduce((s, p) => s + p.predictedDefectRate, 0) / products.length * 10) / 10 : 0;
 
   const stats = [
-    { label: t("totalProducts" as any), value: products.length, icon: Activity, color: "text-primary" },
-    { label: t("predictedDefectRate" as any), value: `${avgDefect}%`, icon: AlertTriangle, color: "text-destructive" },
-    { label: t("qualityScore" as any), value: avgScore, icon: ShieldCheck, color: "text-primary" },
-    { label: t("topRiskProducts" as any), value: critCount + highCount, icon: TrendingDown, color: "text-orange-500" },
+    { label: t("totalProducts"), value: products.length, icon: Activity, color: "text-primary" },
+    { label: t("predictedDefectRate"), value: `${avgDefect}%`, icon: AlertTriangle, color: "text-destructive" },
+    { label: t("qualityScore"), value: avgScore, icon: ShieldCheck, color: "text-primary" },
+    { label: t("topRiskProducts"), value: critCount + highCount, icon: TrendingDown, color: "text-orange-500" },
   ];
 
   const riskColors: Record<string, string> = {
@@ -179,26 +179,26 @@ export default function AiQualityPrediction() {
   };
 
   const columns: ResponsiveColumn<ProductQuality>[] = [
-    { key: "productName", label: t("product" as any), primary: true, sortable: true, sortValue: (p) => p.productName, render: (p) => <span className="font-medium">{p.productName}</span> },
-    { key: "totalInspections", label: t("total" as any), align: "right", sortable: true, sortValue: (p) => p.totalInspections, render: (p) => p.totalInspections },
-    { key: "defectRate", label: t("defectProbability" as any), align: "right", sortable: true, sortValue: (p) => p.defectRate, render: (p) => `${p.defectRate}%` },
-    { key: "predictedDefectRate", label: t("predictedDefectRate" as any), align: "right", sortable: true, sortValue: (p) => p.predictedDefectRate, render: (p) => <span className="font-bold">{p.predictedDefectRate}%</span> },
-    { key: "qualityScore", label: t("qualityScore" as any), align: "right", sortable: true, sortValue: (p) => p.qualityScore, render: (p) => p.qualityScore },
-    { key: "trend", label: t("qualityTrend" as any), render: (p) => <Badge variant="secondary" className="text-[10px]">{trendLabels[p.trend]}</Badge> },
-    { key: "riskLevel", label: t("risk" as any), render: (p) => <Badge variant="outline" className={riskColors[p.riskLevel]}>{p.riskLevel}</Badge> },
+    { key: "productName", label: t("product"), primary: true, sortable: true, sortValue: (p) => p.productName, render: (p) => <span className="font-medium">{p.productName}</span> },
+    { key: "totalInspections", label: t("total"), align: "right", sortable: true, sortValue: (p) => p.totalInspections, render: (p) => p.totalInspections },
+    { key: "defectRate", label: t("defectProbability"), align: "right", sortable: true, sortValue: (p) => p.defectRate, render: (p) => `${p.defectRate}%` },
+    { key: "predictedDefectRate", label: t("predictedDefectRate"), align: "right", sortable: true, sortValue: (p) => p.predictedDefectRate, render: (p) => <span className="font-bold">{p.predictedDefectRate}%</span> },
+    { key: "qualityScore", label: t("qualityScore"), align: "right", sortable: true, sortValue: (p) => p.qualityScore, render: (p) => p.qualityScore },
+    { key: "trend", label: t("qualityTrend"), render: (p) => <Badge variant="secondary" className="text-[10px]">{trendLabels[p.trend]}</Badge> },
+    { key: "riskLevel", label: t("risk"), render: (p) => <Badge variant="outline" className={riskColors[p.riskLevel]}>{p.riskLevel}</Badge> },
   ];
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-64 w-full" /></div>;
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t("aiQualityPrediction" as any)} icon={ShieldCheck} />
+      <PageHeader title={t("aiQualityPrediction")} icon={ShieldCheck} />
       <StatsBar stats={stats} />
 
       {trendChart.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t("qualityTrend" as any)}</CardTitle>
+            <CardTitle className="text-base">{t("qualityTrend")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
@@ -207,7 +207,7 @@ export default function AiQualityPrediction() {
                 <XAxis dataKey="month" className="text-xs" />
                 <YAxis className="text-xs" unit="%" />
                 <Tooltip formatter={(v: number) => `${v}%`} />
-                <Line type="monotone" dataKey="defectRate" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} name={t("predictedDefectRate" as any)} />
+                <Line type="monotone" dataKey="defectRate" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} name={t("predictedDefectRate")} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>

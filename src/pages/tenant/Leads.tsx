@@ -166,7 +166,7 @@ export default function Leads() {
       if (l.status !== "converted" && l.status !== "lost") {
         actions.push(
           { label: t("convertToOpportunity"), icon: <ArrowRight className="h-3 w-3" />, onClick: () => convertMutation.mutate(l) },
-          { label: (t as any)("convertToPartner") || "Konvertuj u partnera", icon: <ArrowRight className="h-3 w-3" />, onClick: () => convertToPartnerMutation.mutate(l) },
+          { label: t("convertToPartner") || "Konvertuj u partnera", icon: <ArrowRight className="h-3 w-3" />, onClick: () => convertToPartnerMutation.mutate(l) },
         );
       }
       return <MobileActionMenu actions={actions} />;

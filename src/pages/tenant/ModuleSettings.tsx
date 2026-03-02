@@ -71,9 +71,9 @@ export default function ModuleSettings() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tenant-modules-settings", tenantId] });
       qc.invalidateQueries({ queryKey: ["tenant-enabled-modules", tenantId] });
-      toast.success(t("saved" as any));
+      toast.success(t("saved"));
     },
-    onError: () => toast.error(t("errorOccurred" as any)),
+    onError: () => toast.error(t("errorOccurred")),
   });
 
   const isEnabled = (moduleKey: string): boolean => {
@@ -85,8 +85,8 @@ export default function ModuleSettings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">{t("modules" as any)}</h1>
-        <p className="text-muted-foreground">{t("modulesDescription" as any)}</p>
+        <h1 className="text-2xl font-bold">{t("modules")}</h1>
+        <p className="text-muted-foreground">{t("modulesDescription")}</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {MODULE_CARDS.map(({ key, icon: Icon, titleKey, descKey }) => (
@@ -94,7 +94,7 @@ export default function ModuleSettings() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <div className="flex items-center gap-2">
                 <Icon className="h-5 w-5 text-primary" />
-                <CardTitle className="text-base">{t(titleKey as any)}</CardTitle>
+                <CardTitle className="text-base">{t(titleKey)}</CardTitle>
               </div>
               <Switch
                 checked={isEnabled(key)}
@@ -103,7 +103,7 @@ export default function ModuleSettings() {
               />
             </CardHeader>
             <CardContent>
-              <CardDescription>{t(descKey as any)}</CardDescription>
+              <CardDescription>{t(descKey)}</CardDescription>
             </CardContent>
           </Card>
         ))}

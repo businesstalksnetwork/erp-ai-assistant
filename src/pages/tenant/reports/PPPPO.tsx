@@ -37,7 +37,7 @@ export default function PPPPO() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [year, setYear] = useState(String(currentYear - 1));
-  const tl = (key: string) => (t as any)(key) || key;
+  const tl = (key: string) => t(key) || key;
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["ppppo", tenantId, year],

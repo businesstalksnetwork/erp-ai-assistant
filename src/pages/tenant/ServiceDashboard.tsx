@@ -48,7 +48,7 @@ export default function ServiceDashboard() {
     enabled: !!tenantId,
   });
 
-  const statusLabel = (s: string) => (t as any)(`status${s.charAt(0).toUpperCase() + s.slice(1).replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())}`) || s;
+  const statusLabel = (s: string) => t(`status${s.charAt(0).toUpperCase() + s.slice(1).replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())}`) || s;
 
   // KPIs
   const openStatuses = ["received", "diagnosed", "in_repair", "waiting_parts"];
@@ -83,7 +83,7 @@ export default function ServiceDashboard() {
   const techLoad = workOrders.reduce((acc: Record<string, { name: string; count: number }>, wo: any) => {
     const emp = wo.employees as any;
     const key = wo.assigned_to || "unassigned";
-    if (!acc[key]) acc[key] = { name: emp ? `${emp.first_name} ${emp.last_name}` : t("unassigned" as any) || "Unassigned", count: 0 };
+    if (!acc[key]) acc[key] = { name: emp ? `${emp.first_name} ${emp.last_name}` : t("unassigned") || "Unassigned", count: 0 };
     acc[key].count++;
     return acc;
   }, {});
@@ -136,7 +136,7 @@ export default function ServiceDashboard() {
       {overdueOrders.length > 0 && (
         <Card className="border-destructive/30">
           <CardContent className="p-4">
-            <p className="text-sm font-medium text-destructive">⚠ {overdueOrders.length} {t("overdueRepairs" as any) || "overdue repairs"}</p>
+            <p className="text-sm font-medium text-destructive">⚠ {overdueOrders.length} {t("overdueRepairs") || "overdue repairs"}</p>
           </CardContent>
         </Card>
       )}

@@ -183,7 +183,7 @@ export default function ServiceOrderDetail() {
   if (isLoading) return <div className="p-6 text-center text-muted-foreground">Loading...</div>;
   if (!order) return <div className="p-6 text-center text-muted-foreground">Not found</div>;
 
-  const statusLabel = (s: string) => (t as any)(`status${s.charAt(0).toUpperCase() + s.slice(1).replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())}`) || s;
+  const statusLabel = (s: string) => t(`status${s.charAt(0).toUpperCase() + s.slice(1).replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())}`) || s;
   const device = order.service_devices as any;
   const warrantyActive = device?.warranty_expiry && new Date(device.warranty_expiry) >= new Date();
   const nextStatuses = STATUS_FLOW[order.status] || [];
@@ -293,7 +293,7 @@ export default function ServiceOrderDetail() {
 
           <Tabs defaultValue="details">
             <TabsList>
-              <TabsTrigger value="details"><Wrench className="h-3.5 w-3.5 mr-1.5" />{t("details" as any) || "Details"}</TabsTrigger>
+              <TabsTrigger value="details"><Wrench className="h-3.5 w-3.5 mr-1.5" />{t("details") || "Details"}</TabsTrigger>
               <TabsTrigger value="parts"><Package className="h-3.5 w-3.5 mr-1.5" />{t("partsCost")} ({lines.length})</TabsTrigger>
               <TabsTrigger value="work"><Clock className="h-3.5 w-3.5 mr-1.5" />{t("workOrders")} ({workOrders.length})</TabsTrigger>
             </TabsList>
@@ -322,13 +322,13 @@ export default function ServiceOrderDetail() {
                         const p = products.find((pr: any) => pr.id === v);
                         if (p?.default_sale_price) setPartPrice(String(p.default_sale_price));
                       }}>
-                        <SelectTrigger><SelectValue placeholder={t("products" as any) || "Product"} /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder={t("products") || "Product"} /></SelectTrigger>
                         <SelectContent>
                           {products.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}{p.sku ? ` (${p.sku})` : ""}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <Input type="number" min="1" value={partQty} onChange={e => setPartQty(e.target.value)} placeholder={t("quantity" as any) || "Qty"} />
-                      <Input type="number" min="0" step="0.01" value={partPrice} onChange={e => setPartPrice(e.target.value)} placeholder={t("price" as any) || "Price"} />
+                      <Input type="number" min="1" value={partQty} onChange={e => setPartQty(e.target.value)} placeholder={t("quantity") || "Qty"} />
+                      <Input type="number" min="0" step="0.01" value={partPrice} onChange={e => setPartPrice(e.target.value)} placeholder={t("price") || "Price"} />
                       <div className="flex items-center gap-2">
                         <Switch checked={partWarranty} onCheckedChange={setPartWarranty} />
                         <Label className="text-xs">{t("warrantyCovered")}</Label>
@@ -348,9 +348,9 @@ export default function ServiceOrderDetail() {
                     <table className="w-full text-sm">
                       <thead><tr className="text-muted-foreground text-xs">
                         <th className="text-left py-1">{t("description")}</th>
-                        <th className="text-right py-1">{t("quantity" as any)}</th>
-                        <th className="text-right py-1">{t("price" as any)}</th>
-                        <th className="text-right py-1">{t("total" as any)}</th>
+                        <th className="text-right py-1">{t("quantity")}</th>
+                        <th className="text-right py-1">{t("price")}</th>
+                        <th className="text-right py-1">{t("total")}</th>
                       </tr></thead>
                       <tbody>
                         {lines.map((l: any) => (

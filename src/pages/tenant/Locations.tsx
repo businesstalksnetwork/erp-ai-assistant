@@ -191,8 +191,8 @@ export default function Locations() {
             <TableRow>
               <TableHead>{t("name")}</TableHead>
               <TableHead>{t("type")}</TableHead>
-              <TableHead>{t("parentLocation" as any)}</TableHead>
-              <TableHead>{t("company" as any)}</TableHead>
+              <TableHead>{t("parentLocation")}</TableHead>
+              <TableHead>{t("company")}</TableHead>
               <TableHead>{t("warehouse")}</TableHead>
               <TableHead>{t("city")}</TableHead>
               <TableHead>{t("status")}</TableHead>
@@ -247,7 +247,7 @@ export default function Locations() {
               </Select>
             </div>
             <div>
-              <Label>{t("parentLocation" as any)}</Label>
+              <Label>{t("parentLocation")}</Label>
               <Select value={form.parent_id || "__none__"} onValueChange={v => setForm(f => ({ ...f, parent_id: v === "__none__" ? "" : v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -259,7 +259,7 @@ export default function Locations() {
               </Select>
             </div>
             <div>
-              <Label>{t("company" as any)}</Label>
+              <Label>{t("company")}</Label>
               <Select value={form.company_id || "__none__"} onValueChange={v => setForm(f => ({ ...f, company_id: v === "__none__" ? "" : v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
