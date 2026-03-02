@@ -51,6 +51,7 @@ import {
   analyticsRoutes,
   serviceRoutes,
   loyaltyRoutes,
+  complianceRoutes,
   miscRoutes,
 } from "@/routes/otherRoutes";
 import { assetsRoutes } from "@/routes/assetsRoutes";
@@ -123,6 +124,7 @@ const App = () => (
                 {assetsRoutes}
                 {serviceRoutes}
                 {loyaltyRoutes}
+                {complianceRoutes}
                 {miscRoutes}
               </Route>
 

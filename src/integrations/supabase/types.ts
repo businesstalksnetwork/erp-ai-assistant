@@ -361,6 +361,56 @@ export type Database = {
           },
         ]
       }
+      ai_bias_test_log: {
+        Row: {
+          created_at: string
+          id: string
+          metrics: Json | null
+          model_card_id: string
+          notes: string | null
+          passed: boolean
+          result: string
+          test_date: string
+          test_description: string | null
+          test_type: string
+          tested_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          model_card_id: string
+          notes?: string | null
+          passed?: boolean
+          result: string
+          test_date?: string
+          test_description?: string | null
+          test_type: string
+          tested_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          model_card_id?: string
+          notes?: string | null
+          passed?: boolean
+          result?: string
+          test_date?: string
+          test_description?: string | null
+          test_type?: string
+          tested_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_bias_test_log_model_card_id_fkey"
+            columns: ["model_card_id"]
+            isOneToOne: false
+            referencedRelation: "ai_model_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_conversations: {
         Row: {
           created_at: string
@@ -496,6 +546,77 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ai_insights_cache_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_model_cards: {
+        Row: {
+          bias_risk_level: string | null
+          created_at: string
+          ethical_considerations: string | null
+          function_name: string
+          id: string
+          input_description: string | null
+          is_active: boolean
+          last_review_date: string | null
+          limitations: string | null
+          model_name: string
+          next_review_date: string | null
+          output_description: string | null
+          performance_metrics: Json | null
+          purpose: string
+          reviewed_by: string | null
+          tenant_id: string | null
+          training_data_description: string | null
+          updated_at: string
+        }
+        Insert: {
+          bias_risk_level?: string | null
+          created_at?: string
+          ethical_considerations?: string | null
+          function_name: string
+          id?: string
+          input_description?: string | null
+          is_active?: boolean
+          last_review_date?: string | null
+          limitations?: string | null
+          model_name: string
+          next_review_date?: string | null
+          output_description?: string | null
+          performance_metrics?: Json | null
+          purpose: string
+          reviewed_by?: string | null
+          tenant_id?: string | null
+          training_data_description?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bias_risk_level?: string | null
+          created_at?: string
+          ethical_considerations?: string | null
+          function_name?: string
+          id?: string
+          input_description?: string | null
+          is_active?: boolean
+          last_review_date?: string | null
+          limitations?: string | null
+          model_name?: string
+          next_review_date?: string | null
+          output_description?: string | null
+          performance_metrics?: Json | null
+          purpose?: string
+          reviewed_by?: string | null
+          tenant_id?: string | null
+          training_data_description?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_model_cards_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -3256,6 +3377,83 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "business_contract_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capa_actions: {
+        Row: {
+          assigned_to: string | null
+          completed_date: string | null
+          corrective_action: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          preventive_action: string | null
+          root_cause: string | null
+          severity: string
+          source_id: string | null
+          source_type: string
+          status: string
+          target_date: string | null
+          tenant_id: string
+          title: string
+          updated_at: string
+          verification_notes: string | null
+          verified_by: string | null
+          verified_date: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_date?: string | null
+          corrective_action?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          preventive_action?: string | null
+          root_cause?: string | null
+          severity?: string
+          source_id?: string | null
+          source_type?: string
+          status?: string
+          target_date?: string | null
+          tenant_id: string
+          title: string
+          updated_at?: string
+          verification_notes?: string | null
+          verified_by?: string | null
+          verified_date?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_date?: string | null
+          corrective_action?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          preventive_action?: string | null
+          root_cause?: string | null
+          severity?: string
+          source_id?: string | null
+          source_type?: string
+          status?: string
+          target_date?: string | null
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          verification_notes?: string | null
+          verified_by?: string | null
+          verified_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capa_actions_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -6924,6 +7122,74 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "drives_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dsar_requests: {
+        Row: {
+          assigned_to: string | null
+          completed_date: string | null
+          created_at: string
+          created_by: string | null
+          deadline_date: string
+          description: string | null
+          id: string
+          received_date: string
+          request_number: string
+          request_type: string
+          response_notes: string | null
+          status: string
+          subject_email: string | null
+          subject_id_verified: boolean
+          subject_name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline_date?: string
+          description?: string | null
+          id?: string
+          received_date?: string
+          request_number: string
+          request_type?: string
+          response_notes?: string | null
+          status?: string
+          subject_email?: string | null
+          subject_id_verified?: boolean
+          subject_name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline_date?: string
+          description?: string | null
+          id?: string
+          received_date?: string
+          request_number?: string
+          request_type?: string
+          response_notes?: string | null
+          status?: string
+          subject_email?: string | null
+          subject_id_verified?: boolean
+          subject_name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dsar_requests_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -18978,6 +19244,27 @@ export type Database = {
           },
         ]
       }
+      rate_limit_log: {
+        Row: {
+          category: string
+          id: string
+          key: string
+          ts: string
+        }
+        Insert: {
+          category?: string
+          id?: string
+          key: string
+          ts?: string
+        }
+        Update: {
+          category?: string
+          id?: string
+          key?: string
+          ts?: string
+        }
+        Relationships: []
+      }
       recurring_invoices: {
         Row: {
           auto_post: boolean
@@ -25266,6 +25553,7 @@ export type Database = {
         Args: { p_entry_date: string; p_tenant_id: string }
         Returns: string
       }
+      cleanup_rate_limit_log: { Args: never; Returns: undefined }
       complete_pos_transaction: {
         Args: {
           p_fiscal_receipt_date?: string
