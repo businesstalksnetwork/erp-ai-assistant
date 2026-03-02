@@ -24616,6 +24616,18 @@ export type Database = {
         Args: { encryption_key: string; plain_text: string }
         Returns: string
       }
+      enforce_document_retention: {
+        Args: never
+        Returns: {
+          action_taken: string
+          archive_book_id: string
+          content_description: string
+          entry_number: number
+          expiry_year: number
+          retention_years: number
+          year_of_creation: number
+        }[]
+      }
       execute_readonly_query:
         | { Args: { query_text: string }; Returns: Json }
         | {

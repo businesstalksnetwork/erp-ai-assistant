@@ -30,6 +30,7 @@ const PlatformMonitoring = React.lazy(() => import("@/pages/super-admin/Platform
 const IntegrationSupport = React.lazy(() => import("@/pages/super-admin/IntegrationSupport"));
 const SuperAdminAnalytics = React.lazy(() => import("@/pages/super-admin/Analytics"));
 const AiGovernanceDashboard = React.lazy(() => import("@/pages/superadmin/AiGovernanceDashboard"));
+const SystemHealth = React.lazy(() => import("@/pages/super-admin/SystemHealth"));
 
 // Lazy-loaded tenant dashboard
 const TenantDashboard = React.lazy(() => import("@/pages/tenant/Dashboard"));
@@ -101,6 +102,7 @@ const App = () => (
                 <Route path="integrations" element={<React.Suspense fallback={<LoadingFallback />}><IntegrationSupport /></React.Suspense>} />
                 <Route path="analytics" element={<React.Suspense fallback={<LoadingFallback />}><SuperAdminAnalytics /></React.Suspense>} />
                 <Route path="ai-governance" element={<React.Suspense fallback={<LoadingFallback />}><AiGovernanceDashboard /></React.Suspense>} />
+                <Route path="system-health" element={<React.Suspense fallback={<LoadingFallback />}><SystemHealth /></React.Suspense>} />
               </Route>
 
               {/* Tenant routes - modularized */}

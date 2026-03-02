@@ -22,7 +22,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
-  LayoutDashboard, Building2, Puzzle, Users, Activity, Plug, LogOut, BarChart3, Brain,
+  LayoutDashboard, Building2, Puzzle, Users, Activity, Plug, LogOut, BarChart3, Brain, HeartPulse,
 } from "lucide-react";
 
 const superAdminNav = [
@@ -34,6 +34,7 @@ const superAdminNav = [
   { key: "integrations" as const, url: "/super-admin/integrations", icon: Plug },
   { key: "analytics" as const, url: "/super-admin/analytics", icon: BarChart3 },
   { key: "aiGovernance" as const, url: "/super-admin/ai-governance", icon: Brain },
+  { key: "systemHealth" as const, url: "/super-admin/system-health", icon: HeartPulse },
 ];
 
 export default function SuperAdminLayout() {
