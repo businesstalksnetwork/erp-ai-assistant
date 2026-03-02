@@ -461,7 +461,8 @@ export default function PosTerminal() {
   const completeSale = useMutation({
     mutationFn: async () => {
       if (!tenantId || !activeSession) throw new Error("No active session");
-      const txNum = `POS-${Date.now()}`;
+      // CR10-14: More unique transaction number with tenant prefix + timestamp + random
+      const txNum = `POS-${tenantId.slice(0,4).toUpperCase()}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
 
       // Step 1: Insert transaction with pending_fiscal status
       const { data: tx, error: txErr } = await supabase.from("pos_transactions").insert({
@@ -942,7 +943,7 @@ export default function PosTerminal() {
       {/* Receipt Reprint Dialog */}
       <ReceiptReprintDialog open={reprintDialogOpen} onOpenChange={setReprintDialogOpen} />
       <PosXReportDialog open={xReportOpen} onOpenChange={setXReportOpen} sessionId={activeSession?.id || null} />
-      <SplitPaymentDialog open={splitPaymentOpen} onOpenChange={setSplitPaymentOpen} total={total} onConfirm={(payments) => { setPaymentMethod(payments[0]?.method || "cash"); completeSale.mutate(); }} />
+      <SplitPaymentDialog open={splitPaymentOpen} onOpenChange={setSplitPaymentOpen} total={total} onConfirm={(payments) => { setPaymentMethod(payments.map((p: any) => p.method).join("+")); completeSale.mutate(); }} />
 
       {/* POS-01: Discount Override Request Dialog */}
       <Dialog open={discountDialogOpen} onOpenChange={setDiscountDialogOpen}>

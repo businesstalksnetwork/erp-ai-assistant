@@ -62,7 +62,7 @@ export default function DsarManagement() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["dsar_requests"] }); toast({ title: t("success") }); },
   });
 
-  const overdue = requests.filter((r: any) => r.status !== "completed" && r.status !== "rejected" && new Date(r.deadline_date) < new Date()).length;
+  const overdue = requests.filter((r: any) => r.status !== "completed" && r.status !== "rejected" && r.deadline_date && new Date(r.deadline_date) < new Date()).length;
   const pending = requests.filter((r: any) => !["completed", "rejected"].includes(r.status)).length;
 
   return (
@@ -94,8 +94,8 @@ export default function DsarManagement() {
           </TableHeader>
           <TableBody>
             {requests.map((r: any) => {
-              const daysLeft = differenceInDays(new Date(r.deadline_date), new Date());
-              const isOverdue = daysLeft < 0 && !["completed", "rejected"].includes(r.status);
+              const daysLeft = r.deadline_date ? differenceInDays(new Date(r.deadline_date), new Date()) : null;
+              const isOverdue = daysLeft !== null && daysLeft < 0 && !["completed", "rejected"].includes(r.status);
               const nextIdx = STATUSES.indexOf(r.status) + 1;
               const nextStatus = nextIdx < STATUSES.length ? STATUSES[nextIdx] : null;
               return (
@@ -104,8 +104,8 @@ export default function DsarManagement() {
                   <TableCell>{r.subject_name}</TableCell>
                   <TableCell><Badge variant="outline">{r.request_type}</Badge></TableCell>
                   <TableCell><Badge variant={r.status === "completed" ? "default" : isOverdue ? "destructive" : "secondary"}>{r.status.replace(/_/g, " ")}</Badge></TableCell>
-                  <TableCell>{format(new Date(r.deadline_date), "dd MMM yyyy")}</TableCell>
-                  <TableCell className={isOverdue ? "text-destructive font-bold" : ""}>{["completed", "rejected"].includes(r.status) ? "—" : `${daysLeft}d`}</TableCell>
+                  <TableCell>{r.deadline_date ? format(new Date(r.deadline_date), "dd MMM yyyy") : "—"}</TableCell>
+                  <TableCell className={isOverdue ? "text-destructive font-bold" : ""}>{["completed", "rejected"].includes(r.status) ? "—" : daysLeft !== null ? `${daysLeft}d` : "—"}</TableCell>
                   <TableCell>
                     {nextStatus && !["completed", "rejected"].includes(r.status) && (
                       <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: r.id, status: nextStatus })}>

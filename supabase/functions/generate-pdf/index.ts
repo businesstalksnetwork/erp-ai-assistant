@@ -19,6 +19,8 @@ Deno.serve(async (req) => {
 
   const corsHeaders = getCorsHeaders(req);
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+
   try {
     if (req.method !== "POST") {
       return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -29,15 +31,18 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
-      });
+      return createErrorResponse("Unauthorized", req, { status: 401 });
+    }
+
+    // Verify user identity
+    const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+    const { data: { user }, error: authErr } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (authErr || !user) {
+      return createErrorResponse("Unauthorized", req, { status: 401 });
     }
 
     // Rate limit: export category (5/min)
-    const token = authHeader.replace("Bearer ", "");
-    const rl = await checkRateLimit(`generate-pdf:${token.slice(-8)}`, "export");
+    const rl = await checkRateLimit(`generate-pdf:${user.id}`, "export");
     if (!rl.allowed) {
       return new Response(JSON.stringify({ error: "Too many requests" }), {
         status: 429,
@@ -55,7 +60,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(supabaseUrl, serviceKey);
 
@@ -67,10 +71,19 @@ Deno.serve(async (req) => {
       .single();
 
     if (invErr || !invoice) {
-      return new Response(JSON.stringify({ error: "Invoice not found" }), {
-        status: 404,
-        headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
-      });
+      return createErrorResponse("Invoice not found", req, { status: 404, logPrefix: "generate-pdf" });
+    }
+
+    // CR10-03: Verify user has access to this invoice's tenant
+    const { data: membership } = await sb
+      .from("tenant_members")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("tenant_id", invoice.tenant_id)
+      .eq("status", "active")
+      .maybeSingle();
+    if (!membership) {
+      return createErrorResponse("Forbidden", req, { status: 403, logPrefix: "generate-pdf" });
     }
 
     // Fetch customer partner if customer_id exists

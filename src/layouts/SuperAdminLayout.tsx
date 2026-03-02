@@ -8,7 +8,7 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/shared/PageSkeleton";
-import { Sparkles } from "lucide-react";
+
 import {
   SidebarProvider,
   Sidebar,
