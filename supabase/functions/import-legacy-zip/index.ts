@@ -1807,6 +1807,14 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   try {
+    // CR12-08: Rate limit
+    const { checkRateLimit, rateLimitHeaders } = await import("../_shared/rate-limiter.ts");
+    const clientIp = req.headers.get("x-forwarded-for") || "unknown";
+    const rl = await checkRateLimit(`import-legacy-zip:${clientIp}`, "export");
+    if (!rl.allowed) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, ...rateLimitHeaders(rl.retryAfterMs!), "Content-Type": "application/json" } });
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!

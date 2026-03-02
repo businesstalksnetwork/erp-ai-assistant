@@ -35,7 +35,8 @@ export function LoyaltyCardPrint({ member }: LoyaltyCardPrintProps) {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
     
-    const tier = member.current_tier || "bronze";
+    // CR12-16: Normalize tier key to lowercase for color lookup
+    const tier = (member.current_tier || "Bronze").toLowerCase();
     const tierColor = TIER_COLORS[tier] || TIER_COLORS.bronze;
     const name = `${member.first_name || ""} ${member.last_name || ""}`.trim() || "Member";
 

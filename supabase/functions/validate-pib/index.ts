@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     if (!pib || !/^\d{9}$/.test(pib)) {
       return new Response(
         JSON.stringify({ valid: false, error: 'PIB mora imati tačno 9 cifara' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }) }
       );
     }
 
@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
           
           return new Response(
             JSON.stringify({ valid: true, companyName }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            { headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }) }
           );
         }
       }
@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
       console.log(`PIB ${pib} not found in Checkpoint.rs registry`);
       return new Response(
         JSON.stringify({ valid: false, error: 'PIB nije pronađen u registru aktivnih firmi' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }) }
       );
       
     } catch (apiError) {
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
     // CR10-30: Don't fail open — return valid: false on unexpected errors
     return new Response(
       JSON.stringify({ valid: false, companyName: null, error: 'Validacija nedostupna' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }), status: 500 }
     );
   }
 });

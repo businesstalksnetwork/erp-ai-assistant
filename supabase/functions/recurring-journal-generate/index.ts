@@ -14,6 +14,21 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   try {
+    // CR12-04: Fail-closed CRON_SECRET verification
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    if (!cronSecret) {
+      console.error("CRON_SECRET not configured");
+      return new Response(JSON.stringify({ error: "CRON_SECRET not configured" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const incomingSecret = req.headers.get("x-cron-secret") || req.headers.get("Authorization")?.replace("Bearer ", "");
+    if (incomingSecret !== cronSecret) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,

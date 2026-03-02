@@ -16,8 +16,10 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
-    if (Deno.env.get("ENVIRONMENT") === "production") {
-      return new Response(JSON.stringify({ error: "Seed functions are disabled in production" }), { status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
+    // CR12-15: Allowlist — only run if ENVIRONMENT is explicitly set to a non-production value
+    const env = Deno.env.get("ENVIRONMENT");
+    if (!env || env === "production") {
+      return new Response(JSON.stringify({ error: "Seed functions are disabled (ENVIRONMENT not set or is production)" }), { status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
     }
 
     const cronSecret = req.headers.get("x-cron-secret");

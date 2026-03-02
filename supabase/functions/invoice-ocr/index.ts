@@ -10,6 +10,14 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   try {
+    // CR12-08: Rate limit
+    const { checkRateLimit, rateLimitHeaders } = await import("../_shared/rate-limiter.ts");
+    const clientIp = req.headers.get("x-forwarded-for") || "unknown";
+    const rl = await checkRateLimit(`invoice-ocr:${clientIp}`, "ai");
+    if (!rl.allowed) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: { ...corsHeaders, ...rateLimitHeaders(rl.retryAfterMs!), "Content-Type": "application/json" } });
+    }
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });

@@ -182,7 +182,7 @@ export default function PosTerminal() {
     queryFn: async () => {
       if (!tenantId) return [];
       const { data } = await supabase.from("pos_transactions")
-        .select("id, transaction_number, fiscal_receipt_number, total, items, created_at, receipt_type, payment_method")
+        .select("id, transaction_number, fiscal_receipt_number, total, items, created_at, receipt_type, payment_method, payment_details")
         .eq("tenant_id", tenantId)
         .eq("receipt_type", "sale")
         .in("status", ["fiscalized", "completed"])
@@ -359,6 +359,7 @@ export default function PosTerminal() {
         tax_amount: refundTax,
         total: refundTotal,
         payment_method: selectedOriginalTx.payment_method || "cash",
+        payment_details: (selectedOriginalTx as any).payment_details || null,
         receipt_type: "refund",
         original_transaction_id: selectedOriginalTx.id,
         status: "pending_fiscal",
@@ -384,7 +385,12 @@ export default function PosTerminal() {
                 tax_rate: i.tax_rate,
                 total_amount: i.unit_price * i.quantity,
               })),
-              payments: [{ amount: refundTotal, method: selectedOriginalTx.payment_method || "cash" }],
+              payments: (selectedOriginalTx as any).payment_details?.length > 1
+                ? (selectedOriginalTx as any).payment_details.map((p: any) => ({
+                    method: p.method,
+                    amount: Math.round((p.amount / (selectedOriginalTx as any).total) * refundTotal * 100) / 100,
+                  }))
+                : [{ amount: refundTotal, method: selectedOriginalTx.payment_method || "cash" }],
               receipt_type: "refund",
               transaction_type: "refund",
               referent_receipt_number: selectedOriginalTx.fiscal_receipt_number,
@@ -428,16 +434,26 @@ export default function PosTerminal() {
         }
       }
 
-      // GAP 3: Bridge cash refund to cash register
-      if ((selectedOriginalTx.payment_method || "cash") === "cash") {
+      // CR12-11: Bridge cash refund per-method from original split payment
+      const origPayments = (selectedOriginalTx as any).payment_details;
+      const refundCashPayments = Array.isArray(origPayments) && origPayments.length > 1
+        ? origPayments.filter((p: any) => p.method === "cash").map((p: any) => ({
+            method: "cash",
+            amount: Math.round((p.amount / (selectedOriginalTx as any).total) * refundTotal * 100) / 100,
+          }))
+        : (selectedOriginalTx.payment_method || "cash") === "cash"
+          ? [{ method: "cash", amount: refundTotal }]
+          : [];
+      for (let rIdx = 0; rIdx < refundCashPayments.length; rIdx++) {
+        const rcp = refundCashPayments[rIdx];
         try {
           await supabase.from("cash_register").insert({
             tenant_id: tenantId,
-            entry_number: `POS-REF-${tx.transaction_number}`,
+            entry_number: refundCashPayments.length > 1 ? `POS-REF-${tx.transaction_number}-${rIdx + 1}` : `POS-REF-${tx.transaction_number}`,
             entry_date: new Date().toISOString().split("T")[0],
             direction: "out",
-            amount: refundTotal,
-            description: `POS refund ${tx.transaction_number}`,
+            amount: rcp.amount,
+            description: `POS refund ${tx.transaction_number} (${rcp.method})`,
             created_by: user?.id || null,
             pos_transaction_id: tx.id,
             source: "pos",
@@ -461,7 +477,9 @@ export default function PosTerminal() {
   });
 
   const completeSale = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (args: { payments?: { method: string; amount: number }[] } | void) => {
+      // CR12-02: Accept payments as mutation arg to avoid React state race condition
+      const effectivePayments = (args && args.payments) || (splitPayments.length > 1 ? splitPayments : []);
       if (!tenantId || !activeSession) throw new Error("No active session");
       // CR10-14: More unique transaction number with tenant prefix + timestamp + random
       const txNum = `POS-${tenantId.slice(0,4).toUpperCase()}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
@@ -476,7 +494,7 @@ export default function PosTerminal() {
         tax_amount: taxAmount,
         total,
         payment_method: paymentMethod,
-        payment_details: splitPayments.length > 1 ? splitPayments : null,
+        payment_details: effectivePayments.length > 1 ? effectivePayments : null,
         customer_name: customerName || null,
         location_id: activeSession.location_id || null,
         warehouse_id: activeSession.warehouse_id || null,
@@ -508,7 +526,7 @@ export default function PosTerminal() {
                 tax_rate: voucherType === "multi_purpose" ? 0 : c.tax_rate,
                 total_amount: c.unit_price * c.quantity,
               })),
-              payments: splitPayments.length > 1 ? splitPayments : [{ amount: total, method: paymentMethod }],
+              payments: effectivePayments.length > 1 ? effectivePayments : [{ amount: total, method: paymentMethod }],
               buyer_id: buyerId || null,
               receipt_type: "normal",
               transaction_type: "sale",
@@ -569,15 +587,16 @@ export default function PosTerminal() {
           toast({ title: "Upozorenje", description: "Fiskalni račun je izdat ali knjiženje nije uspelo. Kontaktirajte administratora.", variant: "destructive" });
         }
 
-        // CR11-01: Bridge cash entries per-method for split payments
-        const cashPayments = splitPayments.length > 1
-          ? splitPayments.filter(p => p.method === "cash")
+        // CR11-01 + CR12-12: Bridge cash entries per-method for split payments with indexed entry numbers
+        const cashPayments = effectivePayments.length > 1
+          ? effectivePayments.filter(p => p.method === "cash")
           : paymentMethod === "cash" ? [{ method: "cash", amount: total }] : [];
-        for (const cp of cashPayments) {
+        for (let cpIdx = 0; cpIdx < cashPayments.length; cpIdx++) {
+          const cp = cashPayments[cpIdx];
           try {
             await supabase.from("cash_register").insert({
               tenant_id: tenantId,
-              entry_number: `POS-${txNum}`,
+              entry_number: cashPayments.length > 1 ? `POS-${txNum}-${cpIdx + 1}` : `POS-${txNum}`,
               entry_date: new Date().toISOString().split("T")[0],
               direction: "in",
               amount: cp.amount,
@@ -632,6 +651,8 @@ export default function PosTerminal() {
       setLoyaltyMember(null);
       setLoyaltySearch("");
       setSplitPayments([]);
+      setPaymentMethod("cash");
+      setVoucherType(null);
       setCart([]);
       setCustomerName("");
       setBuyerId("");
@@ -869,7 +890,7 @@ export default function PosTerminal() {
                 <div className="flex justify-between"><span>{t("taxAmount")}</span><span>{taxAmount.toFixed(2)}</span></div>
                 <div className="flex justify-between font-bold text-lg"><span>{t("total")}</span><span>{total.toFixed(2)}</span></div>
               </div>
-              <Button className="w-full" size="lg" disabled={cart.length === 0} onClick={() => completeSale.mutate()}>
+              <Button className="w-full" size="lg" disabled={cart.length === 0 || completeSale.isPending} onClick={() => completeSale.mutate()}>
                 <Receipt className="h-4 w-4 mr-2" />{t("completeSale")}
               </Button>
 
@@ -950,7 +971,7 @@ export default function PosTerminal() {
       {/* Receipt Reprint Dialog */}
       <ReceiptReprintDialog open={reprintDialogOpen} onOpenChange={setReprintDialogOpen} />
       <PosXReportDialog open={xReportOpen} onOpenChange={setXReportOpen} sessionId={activeSession?.id || null} />
-      <SplitPaymentDialog open={splitPaymentOpen} onOpenChange={setSplitPaymentOpen} total={total} onConfirm={(payments) => { setSplitPayments(payments); setPaymentMethod(payments[0]?.method || "cash"); completeSale.mutate(); }} />
+      <SplitPaymentDialog open={splitPaymentOpen} onOpenChange={setSplitPaymentOpen} total={total} onConfirm={(payments) => { setSplitPayments(payments); setPaymentMethod(payments[0]?.method || "cash"); completeSale.mutate({ payments }); }} />
 
       {/* POS-01: Discount Override Request Dialog */}
       <Dialog open={discountDialogOpen} onOpenChange={setDiscountDialogOpen}>

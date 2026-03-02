@@ -73,16 +73,13 @@ Deno.serve(async (req) => {
 
     const tenantId = membership.tenant_id;
 
-    // Parse cursor from request body or URL
+    // CR12-09: Parse cursor from URL only (body already consumed above for tenant_id)
     let cursors: Record<string, string> = {};
     try {
       const url = new URL(req.url);
       const cursorParam = url.searchParams.get("cursor");
       if (cursorParam) {
         cursors = JSON.parse(atob(cursorParam));
-      } else if (req.method === "POST") {
-        const body = await req.json().catch(() => ({}));
-        if (body.cursor) cursors = body.cursor;
       }
     } catch { /* no cursor = start from beginning */ }
 

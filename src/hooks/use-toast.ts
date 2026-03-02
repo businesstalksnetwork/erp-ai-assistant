@@ -50,7 +50,8 @@ function toast(props: ToastProps) {
 function useToast() {
   return {
     toast,
-    dismiss: (id?: string) => sonnerToast.dismiss(id ? Number(id) : undefined),
+    // CR12-20: Pass raw id to dismiss — sonner accepts string | number
+    dismiss: (id?: string) => sonnerToast.dismiss(id ?? undefined),
     toasts: [] as any[],
   };
 }
