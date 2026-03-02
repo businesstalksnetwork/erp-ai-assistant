@@ -612,17 +612,17 @@ export default function TenantLayout() {
               <CollapsibleNavGroup label={t("production")} items={productionNav} currentPath={currentPath} t={t} icon={Factory} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "production"} onToggle={() => handleGroupToggle("production")} />
             )}
             {canAccess("service") && (
-              <CollapsibleNavGroup label={t("serviceModule" as any)} items={serviceNav} currentPath={currentPath} t={t} icon={Wrench} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "service"} onToggle={() => handleGroupToggle("service")} />
+              <CollapsibleNavGroup label={t("serviceModule")} items={serviceNav} currentPath={currentPath} t={t} icon={Wrench} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "service"} onToggle={() => handleGroupToggle("service")} />
             )}
             {canAccess("loyalty") && (
-              <CollapsibleNavGroup label={t("loyaltyModule" as any)} items={loyaltyNav} currentPath={currentPath} t={t} icon={Gift} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "loyalty"} onToggle={() => handleGroupToggle("loyalty")} />
+              <CollapsibleNavGroup label={t("loyaltyModule")} items={loyaltyNav} currentPath={currentPath} t={t} icon={Gift} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "loyalty"} onToggle={() => handleGroupToggle("loyalty")} />
             )}
             
             {canAccess("accounting") && (
               <CollapsibleNavGroup label={t("accounting")} items={accountingNav} currentPath={currentPath} t={t} icon={Calculator} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "accounting"} onToggle={() => handleGroupToggle("accounting")} />
             )}
             {canAccess("assets") && (
-              <CollapsibleNavGroup label={t("assetsModule" as any)} items={assetsNav} currentPath={currentPath} t={t} icon={Building2} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "assets"} onToggle={() => handleGroupToggle("assets")} />
+              <CollapsibleNavGroup label={t("assetsModule")} items={assetsNav} currentPath={currentPath} t={t} icon={Building2} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "assets"} onToggle={() => handleGroupToggle("assets")} />
             )}
             {canAccess("hr") && (
               <CollapsibleNavGroup label={t("hr")} items={hrNav} currentPath={currentPath} t={t} icon={UserCheck} isModuleEnabled={isModuleEnabled} isOpen={openGroupId === "hr"} onToggle={() => handleGroupToggle("hr")} />

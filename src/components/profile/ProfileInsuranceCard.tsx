@@ -32,12 +32,12 @@ export function ProfileInsuranceCard({ employeeId }: Props) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5" />
-          {t("profileInsurance" as any)}
+          {t("profileInsurance")}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {records.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("profileNoInsurance" as any)}</p>
+          <p className="text-sm text-muted-foreground">{t("profileNoInsurance")}</p>
         ) : (
           <div className="space-y-4">
             {records.map((r: any) => (
@@ -55,15 +55,15 @@ export function ProfileInsuranceCard({ employeeId }: Props) {
                   <span className="font-mono">{r.lbo || "—"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("profileInsuranceStart" as any)}</span>
+                  <span className="text-muted-foreground">{t("profileInsuranceStart")}</span>
                   <span>{r.insurance_start || "—"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("profileInsuranceEnd" as any)}</span>
+                  <span className="text-muted-foreground">{t("profileInsuranceEnd")}</span>
                   <span>{r.insurance_end || "—"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("profileRegistrationDate" as any)}</span>
+                  <span className="text-muted-foreground">{t("profileRegistrationDate")}</span>
                   <span>{r.registration_date || "—"}</span>
                 </div>
               </div>

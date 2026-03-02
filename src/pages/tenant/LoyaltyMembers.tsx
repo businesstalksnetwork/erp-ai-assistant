@@ -163,8 +163,8 @@ export default function LoyaltyMembers() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold">{t("loyaltyMembers" as any)}</h1>
-        <Button onClick={() => setEnrollOpen(true)}><UserPlus className="h-4 w-4 mr-1" />{t("enrollMember" as any)}</Button>
+        <h1 className="text-2xl font-bold">{t("loyaltyMembers")}</h1>
+        <Button onClick={() => setEnrollOpen(true)}><UserPlus className="h-4 w-4 mr-1" />{t("enrollMember")}</Button>
       </div>
 
       <div className="relative max-w-sm">
@@ -178,8 +178,8 @@ export default function LoyaltyMembers() {
             <TableRow>
               <TableHead>{t("name")}</TableHead>
               <TableHead><CreditCard className="h-3 w-3 inline mr-1" />Card #</TableHead>
-              <TableHead>{t("pointsBalance" as any)}</TableHead>
-              <TableHead>{t("lifetimePoints" as any)}</TableHead>
+              <TableHead>{t("pointsBalance")}</TableHead>
+              <TableHead>{t("lifetimePoints")}</TableHead>
               <TableHead>Tier</TableHead>
               <TableHead>{t("date")}</TableHead>
               <TableHead></TableHead>
@@ -194,7 +194,7 @@ export default function LoyaltyMembers() {
                 <TableCell>{m.lifetime_points?.toLocaleString()}</TableCell>
                 <TableCell>
                   <Badge variant={TIER_VARIANT[m.current_tier] || "outline"}>
-                    {t((`tier${m.current_tier.charAt(0).toUpperCase() + m.current_tier.slice(1)}`) as any)}
+                    {t(`tier${m.current_tier.charAt(0).toUpperCase() + m.current_tier.slice(1)}`)}
                   </Badge>
                 </TableCell>
                 <TableCell>{format(new Date(m.enrolled_at), "dd MMM yyyy")}</TableCell>
@@ -215,37 +215,37 @@ export default function LoyaltyMembers() {
       {/* Enroll Dialog */}
       <Dialog open={enrollOpen} onOpenChange={setEnrollOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{t("enrollMember" as any)}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("enrollMember")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>{t("firstName" as any)}</Label>
+              <div><Label>{t("firstName")}</Label>
                 <Input value={enrollForm.first_name} onChange={e => setEnrollForm(p => ({ ...p, first_name: e.target.value }))} />
               </div>
-              <div><Label>{t("lastName" as any)}</Label>
+              <div><Label>{t("lastName")}</Label>
                 <Input value={enrollForm.last_name} onChange={e => setEnrollForm(p => ({ ...p, last_name: e.target.value }))} />
               </div>
             </div>
             <div><Label>{t("email")}</Label>
               <Input type="email" value={enrollForm.email} onChange={e => setEnrollForm(p => ({ ...p, email: e.target.value }))} />
             </div>
-            <div><Label>{t("phone" as any)}</Label>
+            <div><Label>{t("phone")}</Label>
               <Input value={enrollForm.phone} onChange={e => setEnrollForm(p => ({ ...p, phone: e.target.value }))} />
             </div>
-            <div><Label>{t("dateOfBirth" as any)}</Label>
+            <div><Label>{t("dateOfBirth")}</Label>
               <Input type="date" value={enrollForm.date_of_birth} onChange={e => setEnrollForm(p => ({ ...p, date_of_birth: e.target.value }))} />
             </div>
             <div><Label>{t("partner")}</Label>
               <EntitySelector options={partnerOptions} value={enrollForm.partner_id} onValueChange={v => setEnrollForm(p => ({ ...p, partner_id: v }))} placeholder={t("selectPartner")} />
             </div>
-            <div><Label>{t("referredBy" as any)}</Label>
+            <div><Label>{t("referredBy")}</Label>
               <EntitySelector options={memberOptions} value={enrollForm.referred_by} onValueChange={v => setEnrollForm(p => ({ ...p, referred_by: v }))} placeholder="Select referrer (optional)" />
             </div>
             <div className="flex items-center gap-2">
               <Checkbox checked={enrollForm.marketing_consent} onCheckedChange={c => setEnrollForm(p => ({ ...p, marketing_consent: !!c }))} />
-              <Label className="text-sm">{t("marketingConsent" as any)}</Label>
+              <Label className="text-sm">{t("marketingConsent")}</Label>
             </div>
             <Button onClick={() => enrollMutation.mutate()} disabled={enrollMutation.isPending} className="w-full">
-              <UserPlus className="h-4 w-4 mr-1" />{t("enrollMember" as any)}
+              <UserPlus className="h-4 w-4 mr-1" />{t("enrollMember")}
             </Button>
           </div>
         </DialogContent>
@@ -260,7 +260,7 @@ export default function LoyaltyMembers() {
               <div className="flex gap-4 text-sm flex-wrap">
                 <div><Star className="h-4 w-4 inline text-yellow-500" /> {detailMember.points_balance?.toLocaleString()} pts</div>
                 <Badge variant={TIER_VARIANT[detailMember.current_tier] || "outline"}>
-                  {t((`tier${detailMember.current_tier.charAt(0).toUpperCase() + detailMember.current_tier.slice(1)}`) as any)}
+                  {t(`tier${detailMember.current_tier.charAt(0).toUpperCase() + detailMember.current_tier.slice(1)}`)}
                 </Badge>
                 {detailMember.card_number && <span className="font-mono text-xs bg-muted px-2 py-1 rounded"><CreditCard className="h-3 w-3 inline mr-1" />{detailMember.card_number}</span>}
               </div>
@@ -272,7 +272,7 @@ export default function LoyaltyMembers() {
               )}
 
               <div className="flex gap-2">
-                <Input type="number" placeholder={t("adjustPoints" as any)} value={adjustPoints} onChange={e => setAdjustPoints(e.target.value)} className="w-24" />
+                <Input type="number" placeholder={t("adjustPoints")} value={adjustPoints} onChange={e => setAdjustPoints(e.target.value)} className="w-24" />
                 <Input placeholder={t("description")} value={adjustDesc} onChange={e => setAdjustDesc(e.target.value)} />
                 <Button size="sm" onClick={() => adjustMutation.mutate()} disabled={!adjustPoints || adjustMutation.isPending}>
                   {parseInt(adjustPoints) >= 0 ? <Plus className="h-3 w-3" /> : <Minus className="h-3 w-3" />}

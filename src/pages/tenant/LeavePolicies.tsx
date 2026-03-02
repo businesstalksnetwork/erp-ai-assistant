@@ -127,9 +127,9 @@ export default function LeavePolicies() {
   const columns: ResponsiveColumn<any>[] = [
     { key: "name", label: t("name"), primary: true, render: (p) => <span className="font-medium">{p.name}</span> },
     { key: "type", label: t("leaveType"), render: (p) => <Badge variant="outline">{leaveLabel(p.leave_type)}</Badge> },
-    { key: "entitlement", label: t("entitledDays" as any) || "Pravo na dane", render: (p) => `${p.annual_entitlement} ${t("daysCount").toLowerCase()}` },
-    { key: "carryover", label: t("carriedOverDays" as any) || "Max prenos", hideOnMobile: true, render: (p) => p.max_carryover },
-    { key: "advance", label: t("minAdvance" as any) || "Min. najava", hideOnMobile: true, render: (p) => `${p.min_days_advance} ${t("daysCount").toLowerCase()}` },
+    { key: "entitlement", label: t("entitledDays") || "Pravo na dane", render: (p) => `${p.annual_entitlement} ${t("daysCount").toLowerCase()}` },
+    { key: "carryover", label: t("carriedOverDays") || "Max prenos", hideOnMobile: true, render: (p) => p.max_carryover },
+    { key: "advance", label: t("minAdvance") || "Min. najava", hideOnMobile: true, render: (p) => `${p.min_days_advance} ${t("daysCount").toLowerCase()}` },
     { key: "status", label: t("status"), render: (p) => <Badge variant={p.is_active ? "default" : "secondary"}>{p.is_active ? t("active") : t("inactive")}</Badge> },
     { key: "actions", label: t("actions"), render: (p) => (
       <div className="flex gap-1">
@@ -142,8 +142,8 @@ export default function LeavePolicies() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t("leavePolicies" as any) || "Politike odsustva"}
-        description={t("leavePoliciesDesc" as any) || "Konfigurisanje pravila za sve tipove odsustva"}
+        title={t("leavePolicies") || "Politike odsustva"}
+        description={t("leavePoliciesDesc") || "Konfigurisanje pravila za sve tipove odsustva"}
         icon={Shield}
       />
 
@@ -178,7 +178,7 @@ export default function LeavePolicies() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label>{t("accrualMethod" as any) || "Način sticanja"}</Label>
+                <Label>{t("accrualMethod") || "Način sticanja"}</Label>
                 <Select value={form.accrual_method} onValueChange={(v) => setForm({ ...form, accrual_method: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{ACCRUAL_METHODS.map((am) => <SelectItem key={am} value={am}>{am}</SelectItem>)}</SelectContent>
@@ -187,32 +187,32 @@ export default function LeavePolicies() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>{t("entitledDays" as any) || "Godišnji dani"}</Label>
+                <Label>{t("entitledDays") || "Godišnji dani"}</Label>
                 <Input type="number" min={0} value={form.annual_entitlement} onChange={(e) => setForm({ ...form, annual_entitlement: e.target.value })} />
               </div>
               <div className="grid gap-2">
-                <Label>{t("maxCarryover" as any) || "Max prenos"}</Label>
+                <Label>{t("maxCarryover") || "Max prenos"}</Label>
                 <Input type="number" min={0} value={form.max_carryover} onChange={(e) => setForm({ ...form, max_carryover: e.target.value })} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>{t("minAdvance" as any) || "Min. dana unapred"}</Label>
+                <Label>{t("minAdvance") || "Min. dana unapred"}</Label>
                 <Input type="number" min={0} value={form.min_days_advance} onChange={(e) => setForm({ ...form, min_days_advance: e.target.value })} />
               </div>
               <div className="grid gap-2">
-                <Label>{t("maxConsecutive" as any) || "Max uzastopnih"}</Label>
+                <Label>{t("maxConsecutive") || "Max uzastopnih"}</Label>
                 <Input type="number" min={0} value={form.max_consecutive_days} onChange={(e) => setForm({ ...form, max_consecutive_days: e.target.value })} placeholder={t("optional")} />
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>{t("probationMonths" as any) || "Probni rok (meseci)"}</Label>
+              <Label>{t("probationMonths") || "Probni rok (meseci)"}</Label>
               <Input type="number" min={0} value={form.probation_months} onChange={(e) => setForm({ ...form, probation_months: e.target.value })} />
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Switch checked={form.requires_approval} onCheckedChange={(v) => setForm({ ...form, requires_approval: v })} />
-                <Label>{t("requiresApproval" as any) || "Zahteva odobrenje"}</Label>
+                <Label>{t("requiresApproval") || "Zahteva odobrenje"}</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
