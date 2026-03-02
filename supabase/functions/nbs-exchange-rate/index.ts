@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 serve(async (req) => {
   const preflight = handleCorsPreflightRequest(req);
@@ -121,11 +123,6 @@ serve(async (req) => {
     );
 
   } catch (err) {
-    console.error('Error fetching exchange rate:', err);
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ error: 'Internal server error', details: message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return createErrorResponse(err, req, { logPrefix: "nbs-exchange-rate" });
   }
 });

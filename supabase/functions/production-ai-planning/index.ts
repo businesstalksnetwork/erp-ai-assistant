@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 serve(async (req) => {
   const preflight = handleCorsPreflightRequest(req);
@@ -481,10 +483,9 @@ Return the baseline exactly as provided, and project the scenario KPIs based on 
       console.warn("Failed to log AI action:", logErr);
     }
 
-    return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify(parsed), { headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
 
   } catch (e) {
-    console.error("production-ai-planning error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return createErrorResponse(e, req, { logPrefix: "production-ai-planning" });
   }
 });

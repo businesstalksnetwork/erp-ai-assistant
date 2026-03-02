@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 interface SendInvoiceRequest {
   invoiceId: string;
@@ -237,18 +238,17 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ success: true, message: "Email sent successfully" }),
       {
         status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: withSecurityHeaders({ "Content-Type": "application/json", ...corsHeaders }),
       }
     );
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-    console.error("Error in send-invoice-email:", errorMessage);
-    
+    console.error("Error in send-invoice-email:", error);
+    const safeMessage = "Internal server error";
     return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
+      JSON.stringify({ success: false, error: safeMessage }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: withSecurityHeaders({ "Content-Type": "application/json", ...corsHeaders }),
       }
     );
   }
