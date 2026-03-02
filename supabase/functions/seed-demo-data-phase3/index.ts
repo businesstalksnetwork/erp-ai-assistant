@@ -5,6 +5,7 @@ const NOW = new Date();
 const TOTAL_MONTHS = (NOW.getFullYear() - 2025) * 12 + NOW.getMonth() + 1;
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

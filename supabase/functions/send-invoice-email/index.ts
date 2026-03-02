@@ -43,6 +43,7 @@ function renderTemplate(template: string, data: Record<string, string>): string 
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
   console.log("send-invoice-email function called");
   
   // Handle CORS preflight
