@@ -257,7 +257,7 @@ Deno.serve(async (req) => {
         ...corsHeaders,
         "Content-Type": "application/xml; charset=utf-8",
         "Content-Disposition": `attachment; filename="PPP-PD-${periodLabel}.xml"`,
-      },
+      }),
     });
   } catch (e) {
     return new Response(JSON.stringify({ error: (e as Error).message }), {
