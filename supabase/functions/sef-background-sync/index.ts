@@ -389,6 +389,4 @@ serve(async (req) => {
   } catch (error) {
     return createErrorResponse(error, req, { logPrefix: "Background sync error" });
   }
-    });
-  }
 });
