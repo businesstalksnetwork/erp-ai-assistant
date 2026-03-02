@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 const systemPrompts: Record<string, string> = {
   dashboard: `You are a financial analyst AI. Given the user's financial KPIs, provide a 2-3 sentence executive summary. Be specific about which metrics are good/concerning.`,
@@ -345,12 +347,9 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ narrative, recommendations }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
   } catch (e) {
-    console.error("ai-analytics-narrative error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createErrorResponse(e, req, { logPrefix: "ai-analytics-narrative error" });
   }
 });

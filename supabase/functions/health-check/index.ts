@@ -4,6 +4,7 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflightRequest(req);
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
     }),
     {
       status: overall === "healthy" ? 200 : 503,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     }
   );
 });

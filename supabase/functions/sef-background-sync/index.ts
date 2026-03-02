@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
 
 const SEF_API_BASE = 'https://efaktura.mfin.gov.rs/api/publicApi';
 
@@ -386,13 +387,8 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Background sync error:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error instanceof Error ? error.message : 'Background sync failed',
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return createErrorResponse(error, req, { logPrefix: "Background sync error" });
+  }
     });
   }
 });

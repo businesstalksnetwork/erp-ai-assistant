@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -132,9 +134,8 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       readiness, checks, pass_count: passCount, fail_count: failCount,
       total_checks: checks.length, ai_summary: aiSummary,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }), { headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
   } catch (error) {
-    console.error("Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return createErrorResponse(error, req, { logPrefix: "ai-year-end-check error" });
   }
 });

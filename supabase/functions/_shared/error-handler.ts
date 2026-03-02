@@ -40,10 +40,8 @@ export function createErrorResponse(
   console.error(`${logPrefix}:`, error);
 
   // Client gets sanitized message only
-  const safeMessage =
-    status < 500 && error instanceof Error
-      ? error.message
-      : SAFE_MESSAGES[status] || SAFE_MESSAGES[500];
+  // SEC-05: Always use safe messages — never leak raw error details to clients
+  const safeMessage = SAFE_MESSAGES[status] || SAFE_MESSAGES[500];
 
   return new Response(
     JSON.stringify({ error: safeMessage }),

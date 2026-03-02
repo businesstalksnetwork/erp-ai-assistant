@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -113,9 +115,6 @@ serve(async (req) => {
     });
 
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createErrorResponse(e, req, { logPrefix: "ai-weekly-email error" });
   }
 });
