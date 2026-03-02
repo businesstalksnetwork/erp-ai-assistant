@@ -107,10 +107,10 @@ export const SimpleMarkdown = forwardRef<HTMLDivElement, { content: string }>(
         continue;
       }
 
-      elements.push(<p key={i} className="my-0.5">{applyInlineBold(line)}</p>);
+      elements.push(<p key={i} className="my-0.5 break-words">{applyInlineBold(line)}</p>);
       i++;
     }
 
-    return <div ref={ref} className="space-y-0">{elements}</div>;
+    return <div ref={ref} className="space-y-0 break-words overflow-hidden">{elements}</div>;
   }
 );
