@@ -128,13 +128,13 @@ export default function AssetDepreciation() {
       const journalId = await postWithRuleOrFallback({
         tenantId, userId: user.id, entryDate,
         modelCode: "ASSET_DEPRECIATION", amount,
-        description: `${t("assetsDepreciation" as any)} - ${asset.name} - ${period}`,
+        description: `${t("assetsDepreciation")} - ${asset.name} - ${period}`,
         reference: `DEP-${asset.asset_code}-${period}`,
         legalEntityId: asset.legal_entity_id || undefined,
         context: {},
         fallbackLines: [
-          { accountCode: expenseAccount, debit: amount, credit: 0, description: `${t("assetsDepExpense" as any)} - ${asset.name}`, sortOrder: 0 },
-          { accountCode: accumAccount, debit: 0, credit: amount, description: `${t("assetsAccumDep" as any)} - ${asset.name}`, sortOrder: 1 },
+          { accountCode: expenseAccount, debit: amount, credit: 0, description: `${t("assetsDepExpense")} - ${asset.name}`, sortOrder: 0 },
+          { accountCode: accumAccount, debit: 0, credit: amount, description: `${t("assetsAccumDep")} - ${asset.name}`, sortOrder: 1 },
         ],
       });
 
@@ -164,7 +164,7 @@ export default function AssetDepreciation() {
       qc.invalidateQueries({ queryKey: ["depreciation-schedules", tenantId] });
       qc.invalidateQueries({ queryKey: ["depreciation-assets", tenantId] });
       qc.invalidateQueries({ queryKey: ["assets-stats", tenantId] });
-      toast({ title: t("assetsDepPosted" as any) });
+      toast({ title: t("assetsDepPosted") });
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
@@ -184,7 +184,7 @@ export default function AssetDepreciation() {
     },
     onSuccess: (count) => {
       qc.invalidateQueries({ queryKey: ["depreciation-schedules", tenantId] });
-      toast({ title: `${count} ${t("assetsDepProcessed" as any)}` });
+      toast({ title: `${count} ${t("assetsDepProcessed")}` });
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
@@ -212,7 +212,7 @@ export default function AssetDepreciation() {
   return (
     <div className="space-y-6 p-1">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold">{t("assetsDepreciation" as any)}</h1>
+        <h1 className="text-2xl font-bold">{t("assetsDepreciation")}</h1>
         <div className="flex gap-2 items-center">
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
@@ -227,7 +227,7 @@ export default function AssetDepreciation() {
           </Select>
           {activeTab === "accounting" && (
             <Button onClick={() => batchMutation.mutate()} disabled={batchMutation.isPending || totalPending === 0}>
-              <Play className="h-4 w-4 mr-1" /> {t("assetsRunBatch" as any)} ({totalPending})
+              <Play className="h-4 w-4 mr-1" /> {t("assetsRunBatch")} ({totalPending})
             </Button>
           )}
         </div>
@@ -235,15 +235,15 @@ export default function AssetDepreciation() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("assetsTotalAssets" as any)}</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("assetsTotalAssets")}</CardTitle></CardHeader>
           <CardContent><div className="text-2xl font-bold">{assets.length}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("assetsDepPending" as any)}</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("assetsDepPending")}</CardTitle></CardHeader>
           <CardContent><div className="text-2xl font-bold text-amber-600">{totalPending}</div></CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("assetsDepCompleted" as any)}</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("assetsDepCompleted")}</CardTitle></CardHeader>
           <CardContent><div className="text-2xl font-bold text-emerald-600">{assets.length - totalPending}</div></CardContent>
         </Card>
       </div>
@@ -256,7 +256,7 @@ export default function AssetDepreciation() {
 
         <TabsContent value="accounting">
           <Card>
-            <CardHeader><CardTitle>{t("assetsDepSchedule" as any)} — {period}</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("assetsDepSchedule")} — {period}</CardTitle></CardHeader>
             <CardContent>
               {isLoading ? (
                 <div className="flex justify-center py-8"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
@@ -266,13 +266,13 @@ export default function AssetDepreciation() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{t("code" as any)}</TableHead>
-                      <TableHead>{t("name" as any)}</TableHead>
-                      <TableHead>{t("assetsDepreciationMethod" as any)}</TableHead>
-                      <TableHead className="text-right">{t("assetsAcquisitionCost" as any)}</TableHead>
-                      <TableHead className="text-right">{t("assetsAccumDep" as any)}</TableHead>
-                      <TableHead className="text-right">{t("bookValue" as any)}</TableHead>
-                      <TableHead className="text-right">{t("assetsMonthlyDep" as any)}</TableHead>
+                       <TableHead>{t("code")}</TableHead>
+                      <TableHead>{t("name")}</TableHead>
+                      <TableHead>{t("assetsDepreciationMethod")}</TableHead>
+                      <TableHead className="text-right">{t("assetsAcquisitionCost")}</TableHead>
+                      <TableHead className="text-right">{t("assetsAccumDep")}</TableHead>
+                      <TableHead className="text-right">{t("bookValue")}</TableHead>
+                      <TableHead className="text-right">{t("assetsMonthlyDep")}</TableHead>
                       <TableHead>{t("status")}</TableHead>
                       <TableHead>{t("actions")}</TableHead>
                     </TableRow>
@@ -292,7 +292,7 @@ export default function AssetDepreciation() {
                           <TableCell className="font-medium">{asset.name}</TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              {method === "straight_line" ? t("assetsStraightLine" as any) : t("assetsDecliningBalance" as any)}
+                              {method === "straight_line" ? t("assetsStraightLine") : t("assetsDecliningBalance")}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right font-mono">{formatCurrency(asset.acquisition_cost)}</TableCell>
@@ -302,12 +302,12 @@ export default function AssetDepreciation() {
                           <TableCell>
                             {done ? (
                               <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                <CheckCircle className="h-3 w-3 mr-1" /> {t("done" as any)}
+                                <CheckCircle className="h-3 w-3 mr-1" /> {t("done")}
                               </Badge>
                             ) : monthly > 0 ? (
-                              <Badge variant="outline" className="text-amber-600">{t("assetsDepPending" as any)}</Badge>
+                              <Badge variant="outline" className="text-amber-600">{t("assetsDepPending")}</Badge>
                             ) : (
-                              <Badge variant="secondary">{t("fullyDepreciated" as any)}</Badge>
+                              <Badge variant="secondary">{t("fullyDepreciated")}</Badge>
                             )}
                           </TableCell>
                           <TableCell>

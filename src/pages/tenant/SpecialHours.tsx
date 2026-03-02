@@ -25,12 +25,12 @@ export default function SpecialHours() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t("specialHours" as any)}</h1>
+      <h1 className="text-2xl font-bold">{t("specialHours")}</h1>
       <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ tab: v })}>
         <TabsList>
           <TabsTrigger value="overtime">{t("overtimeHours")}</TabsTrigger>
           <TabsTrigger value="night">{t("nightWork")}</TabsTrigger>
-          <TabsTrigger value="caps">{t("overtimeCaps" as any)}</TabsTrigger>
+          <TabsTrigger value="caps">{t("overtimeCaps")}</TabsTrigger>
         </TabsList>
         <TabsContent value="overtime"><OvertimeTab /></TabsContent>
         <TabsContent value="night"><NightWorkTab /></TabsContent>
