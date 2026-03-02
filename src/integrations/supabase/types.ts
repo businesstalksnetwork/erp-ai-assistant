@@ -544,6 +544,68 @@ export type Database = {
           },
         ]
       }
+      ai_prompt_registry: {
+        Row: {
+          confidence_auto_approve: number | null
+          confidence_flag_threshold: number | null
+          created_at: string
+          function_name: string
+          id: string
+          is_active: boolean
+          max_tokens: number | null
+          metadata: Json | null
+          model: string
+          prompt_key: string
+          prompt_template: string
+          temperature: number | null
+          tenant_id: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          confidence_auto_approve?: number | null
+          confidence_flag_threshold?: number | null
+          created_at?: string
+          function_name: string
+          id?: string
+          is_active?: boolean
+          max_tokens?: number | null
+          metadata?: Json | null
+          model?: string
+          prompt_key: string
+          prompt_template: string
+          temperature?: number | null
+          tenant_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          confidence_auto_approve?: number | null
+          confidence_flag_threshold?: number | null
+          created_at?: string
+          function_name?: string
+          id?: string
+          is_active?: boolean
+          max_tokens?: number | null
+          metadata?: Json | null
+          model?: string
+          prompt_key?: string
+          prompt_template?: string
+          temperature?: number | null
+          tenant_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_prompt_registry_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_rate_limits: {
         Row: {
           id: string
