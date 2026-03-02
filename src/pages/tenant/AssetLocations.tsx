@@ -70,7 +70,6 @@ export default function AssetLocations() {
     return l.name.toLowerCase().includes(s) || l.address?.toLowerCase().includes(s) || l.location_type.toLowerCase().includes(s);
   });
 
-  // Build parent lookup for display
   const parentMap = new Map(locations.map((l) => [l.id, l.name]));
 
   const openNew = () => {
@@ -111,7 +110,7 @@ export default function AssetLocations() {
       }
     },
     onSuccess: () => {
-      toast.success(t("saved" as any));
+      toast.success(t("saved"));
       qc.invalidateQueries({ queryKey: ["asset-locations-all"] });
       setDialogOpen(false);
     },
@@ -124,7 +123,7 @@ export default function AssetLocations() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success(t("deleted" as any));
+      toast.success(t("deleted"));
       qc.invalidateQueries({ queryKey: ["asset-locations-all"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -132,11 +131,11 @@ export default function AssetLocations() {
 
   const typeLabel = (t2: string) => {
     switch (t2) {
-      case "building": return t("locBuilding" as any);
-      case "room": return t("locRoom" as any);
-      case "warehouse": return t("locWarehouse" as any);
-      case "floor": return t("locFloor" as any);
-      case "site": return t("locSite" as any);
+      case "building": return t("locBuilding");
+      case "room": return t("locRoom");
+      case "warehouse": return t("locWarehouse");
+      case "floor": return t("locFloor");
+      case "site": return t("locSite");
       default: return t2;
     }
   };
@@ -144,8 +143,8 @@ export default function AssetLocations() {
   return (
     <div className="space-y-4 p-1">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold">{t("assetsLocationsTitle" as any)}</h1>
-        <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> {t("add" as any)}</Button>
+        <h1 className="text-2xl font-bold">{t("assetsLocationsTitle")}</h1>
+        <Button onClick={openNew}><Plus className="h-4 w-4 mr-1" /> {t("add")}</Button>
       </div>
 
       <div className="relative max-w-sm">
@@ -159,10 +158,10 @@ export default function AssetLocations() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("name" as any)}</TableHead>
-              <TableHead>{t("type" as any)}</TableHead>
-              <TableHead>{t("address" as any)}</TableHead>
-              <TableHead>{t("locParent" as any)}</TableHead>
+              <TableHead>{t("name")}</TableHead>
+              <TableHead>{t("type")}</TableHead>
+              <TableHead>{t("address")}</TableHead>
+              <TableHead>{t("locParent")}</TableHead>
               <TableHead>{t("status")}</TableHead>
               <TableHead>{t("actions")}</TableHead>
             </TableRow>
@@ -179,7 +178,7 @@ export default function AssetLocations() {
                 <TableCell>{loc.parent_id ? parentMap.get(loc.parent_id) || "—" : "—"}</TableCell>
                 <TableCell>
                   <Badge className={loc.is_active ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-muted text-muted-foreground"}>
-                    {loc.is_active ? t("active") : t("inactive" as any)}
+                    {loc.is_active ? t("active") : t("inactive")}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -191,12 +190,12 @@ export default function AssetLocations() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>{t("confirmDeleteRecord" as any)}</AlertDialogTitle>
+                          <AlertDialogTitle>{t("confirmDeleteRecord")}</AlertDialogTitle>
                           <AlertDialogDescription>{loc.name}</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteMutation.mutate(loc.id)}>{t("delete" as any)}</AlertDialogAction>
+                          <AlertDialogAction onClick={() => deleteMutation.mutate(loc.id)}>{t("delete")}</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -211,36 +210,36 @@ export default function AssetLocations() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? t("edit" as any) : t("add" as any)} {t("assetsLocation" as any)}</DialogTitle>
+            <DialogTitle>{editing ? t("edit") : t("add")} {t("assetsLocation")}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div>
-              <Label>{t("name" as any)}</Label>
+              <Label>{t("name")}</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <Label>{t("type" as any)}</Label>
+              <Label>{t("type")}</Label>
               <Select value={form.location_type} onValueChange={(v) => setForm({ ...form, location_type: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="site">{t("locSite" as any)}</SelectItem>
-                  <SelectItem value="building">{t("locBuilding" as any)}</SelectItem>
-                  <SelectItem value="floor">{t("locFloor" as any)}</SelectItem>
-                  <SelectItem value="room">{t("locRoom" as any)}</SelectItem>
-                  <SelectItem value="warehouse">{t("locWarehouse" as any)}</SelectItem>
+                  <SelectItem value="site">{t("locSite")}</SelectItem>
+                  <SelectItem value="building">{t("locBuilding")}</SelectItem>
+                  <SelectItem value="floor">{t("locFloor")}</SelectItem>
+                  <SelectItem value="room">{t("locRoom")}</SelectItem>
+                  <SelectItem value="warehouse">{t("locWarehouse")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>{t("address" as any)}</Label>
+              <Label>{t("address")}</Label>
               <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </div>
             <div>
-              <Label>{t("locParent" as any)}</Label>
+              <Label>{t("locParent")}</Label>
               <Select value={form.parent_id} onValueChange={(v) => setForm({ ...form, parent_id: v })}>
                 <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">({t("none" as any)})</SelectItem>
+                  <SelectItem value="">({t("none")})</SelectItem>
                   {locations.filter((l) => l.id !== editing?.id).map((l) => (
                     <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                   ))}
@@ -249,11 +248,11 @@ export default function AssetLocations() {
             </div>
             {costCenters.length > 0 && (
               <div>
-                <Label>{t("costCenter" as any)}</Label>
+                <Label>{t("costCenter")}</Label>
                 <Select value={form.cost_center_id} onValueChange={(v) => setForm({ ...form, cost_center_id: v })}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">({t("none" as any)})</SelectItem>
+                    <SelectItem value="">({t("none")})</SelectItem>
                     {costCenters.map((cc: any) => (
                       <SelectItem key={cc.id} value={cc.id}>{cc.code} — {cc.name}</SelectItem>
                     ))}

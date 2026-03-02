@@ -130,13 +130,12 @@ export default function AssetAssignments() {
       const { error } = await supabase.from("asset_assignments").insert(payload);
       if (error) throw error;
 
-      // Update asset status to in_use
       await supabase.from("assets").update({ status: "in_use" }).eq("id", form.asset_id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["asset-assignments", tenantId] });
       qc.invalidateQueries({ queryKey: ["assignable-assets", tenantId] });
-      toast({ title: t("assetsAssigned" as any) });
+      toast({ title: t("assetsAssigned") });
       setDialogOpen(false);
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
@@ -152,7 +151,6 @@ export default function AssetAssignments() {
         .eq("id", assignmentId);
       if (error) throw error;
 
-      // Check if asset has other active assignments
       if (assignment?.asset_id) {
         const { data: otherActive } = await supabase.from("asset_assignments")
           .select("id")
@@ -168,7 +166,7 @@ export default function AssetAssignments() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["asset-assignments", tenantId] });
       qc.invalidateQueries({ queryKey: ["assignable-assets", tenantId] });
-      toast({ title: t("assetsReturned" as any) });
+      toast({ title: t("assetsReturned") });
       setReturnDialogId(null);
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
@@ -183,9 +181,9 @@ export default function AssetAssignments() {
   return (
     <div className="space-y-6 p-1">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold">{t("assetsAssignments" as any)}</h1>
+        <h1 className="text-2xl font-bold">{t("assetsAssignments")}</h1>
         <Button onClick={() => { setForm(emptyForm); setDialogOpen(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> {t("assetsNewAssignment" as any)}
+          <Plus className="h-4 w-4 mr-1" /> {t("assetsNewAssignment")}
         </Button>
       </div>
 
@@ -195,7 +193,7 @@ export default function AssetAssignments() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>{t("assetsAssignmentHistory" as any)}</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("assetsAssignmentHistory")}</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="flex justify-center py-8"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
@@ -205,12 +203,12 @@ export default function AssetAssignments() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("code" as any)}</TableHead>
-                  <TableHead>{t("name" as any)}</TableHead>
-                  <TableHead>{t("assetsAssignedTo" as any)}</TableHead>
-                  <TableHead>{t("type" as any)}</TableHead>
-                  <TableHead>{t("date" as any)}</TableHead>
-                  <TableHead>{t("assetsReturnDate" as any)}</TableHead>
+                  <TableHead>{t("code")}</TableHead>
+                  <TableHead>{t("name")}</TableHead>
+                  <TableHead>{t("assetsAssignedTo")}</TableHead>
+                  <TableHead>{t("type")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("assetsReturnDate")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
                   <TableHead>{t("actions")}</TableHead>
                 </TableRow>
@@ -227,7 +225,7 @@ export default function AssetAssignments() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {a.assignment_type === "employee" ? <><UserCheck className="h-3 w-3 mr-1" /> {t("employee" as any)}</> : t("assetsLocation" as any)}
+                        {a.assignment_type === "employee" ? <><UserCheck className="h-3 w-3 mr-1" /> {t("employee")}</> : t("assetsLocation")}
                       </Badge>
                     </TableCell>
                     <TableCell>{a.assigned_date}</TableCell>
@@ -236,7 +234,7 @@ export default function AssetAssignments() {
                     <TableCell>
                       {a.status === "active" && (
                         <Button variant="ghost" size="sm" onClick={() => setReturnDialogId(a.id)}>
-                          <RotateCcw className="h-4 w-4 mr-1" /> {t("assetsReturn" as any)}
+                          <RotateCcw className="h-4 w-4 mr-1" /> {t("assetsReturn")}
                         </Button>
                       )}
                     </TableCell>
@@ -251,10 +249,10 @@ export default function AssetAssignments() {
       {/* New Assignment Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t("assetsNewAssignment" as any)}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("assetsNewAssignment")}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>{t("assetsSelectAsset" as any)}</Label>
+              <Label>{t("assetsSelectAsset")}</Label>
               <Select value={form.asset_id} onValueChange={(v) => setForm({ ...form, asset_id: v })}>
                 <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>
@@ -265,18 +263,18 @@ export default function AssetAssignments() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>{t("assetsAssignmentType" as any)}</Label>
+              <Label>{t("assetsAssignmentType")}</Label>
               <Select value={form.assignment_type} onValueChange={(v) => setForm({ ...form, assignment_type: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="employee">{t("employee" as any)}</SelectItem>
-                  <SelectItem value="location">{t("assetsLocation" as any)}</SelectItem>
+                  <SelectItem value="employee">{t("employee")}</SelectItem>
+                  <SelectItem value="location">{t("assetsLocation")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             {form.assignment_type === "employee" && (
               <div className="grid gap-2">
-                <Label>{t("employee" as any)}</Label>
+                <Label>{t("employee")}</Label>
                 <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent>
@@ -289,7 +287,7 @@ export default function AssetAssignments() {
             )}
             {form.assignment_type === "location" && (
               <div className="grid gap-2">
-                <Label>{t("assetsLocation" as any)}</Label>
+                <Label>{t("assetsLocation")}</Label>
                 <Select value={form.location_id} onValueChange={(v) => setForm({ ...form, location_id: v })}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent>
@@ -301,18 +299,18 @@ export default function AssetAssignments() {
               </div>
             )}
             <div className="grid gap-2">
-              <Label>{t("date" as any)}</Label>
+              <Label>{t("date")}</Label>
               <Input type="date" value={form.assigned_date} onChange={(e) => setForm({ ...form, assigned_date: e.target.value })} />
             </div>
             <div className="grid gap-2">
-              <Label>{t("notes" as any)}</Label>
+              <Label>{t("notes")}</Label>
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("cancel")}</Button>
             <Button onClick={() => assignMutation.mutate()} disabled={assignMutation.isPending || !form.asset_id}>
-              <UserCheck className="h-4 w-4 mr-1" /> {t("assetsAssign" as any)}
+              <UserCheck className="h-4 w-4 mr-1" /> {t("assetsAssign")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -321,12 +319,12 @@ export default function AssetAssignments() {
       {/* Return Confirmation */}
       <Dialog open={!!returnDialogId} onOpenChange={() => setReturnDialogId(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t("assetsConfirmReturn" as any)}</DialogTitle></DialogHeader>
-          <p className="text-muted-foreground">{t("assetsConfirmReturnDesc" as any)}</p>
+          <DialogHeader><DialogTitle>{t("assetsConfirmReturn")}</DialogTitle></DialogHeader>
+          <p className="text-muted-foreground">{t("assetsConfirmReturnDesc")}</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReturnDialogId(null)}>{t("cancel")}</Button>
             <Button onClick={() => returnDialogId && returnMutation.mutate(returnDialogId)} disabled={returnMutation.isPending}>
-              <RotateCcw className="h-4 w-4 mr-1" /> {t("assetsReturn" as any)}
+              <RotateCcw className="h-4 w-4 mr-1" /> {t("assetsReturn")}
             </Button>
           </DialogFooter>
         </DialogContent>

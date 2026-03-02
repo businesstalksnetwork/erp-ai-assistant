@@ -53,7 +53,7 @@ export function LeaveRequestHistory({ employeeId }: Props) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <FileText className="h-5 w-5" />
-          {t("leaveRequestHistory" as any) || "Istorija zahteva za odsustvo"}
+          {t("leaveRequestHistory") || "Istorija zahteva za odsustvo"}
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">

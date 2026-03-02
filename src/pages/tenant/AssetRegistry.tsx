@@ -58,14 +58,14 @@ export default function AssetRegistry() {
     new Intl.NumberFormat("sr-Latn-RS", { style: "decimal", minimumFractionDigits: 2 }).format(val || 0);
 
   const columns: ResponsiveColumn<any>[] = [
-    { key: "code", label: t("code" as any), primary: true, sortable: true, sortValue: (a) => a.asset_code || "", render: (a) => <span className="font-mono text-sm">{a.asset_code}</span> },
-    { key: "name", label: t("name" as any), sortable: true, sortValue: (a) => a.name, render: (a) => <span className="font-medium">{a.name}</span> },
-    { key: "category", label: t("assetsCategory" as any), hideOnMobile: true, sortable: true, sortValue: (a) => a.asset_categories?.name || "", render: (a) => a.asset_categories?.name || "—" },
-    { key: "supplier", label: t("supplier" as any), hideOnMobile: true, render: (a) => a.partners?.name || "—" },
-    { key: "warehouse", label: t("warehouse" as any), hideOnMobile: true, render: (a) => a.warehouses?.name || "—" },
-    { key: "employee", label: t("assetsCrossEmployee" as any), hideOnMobile: true, render: (a) => a.employees?.full_name || "—" },
+    { key: "code", label: t("code"), primary: true, sortable: true, sortValue: (a) => a.asset_code || "", render: (a) => <span className="font-mono text-sm">{a.asset_code}</span> },
+    { key: "name", label: t("name"), sortable: true, sortValue: (a) => a.name, render: (a) => <span className="font-medium">{a.name}</span> },
+    { key: "category", label: t("assetsCategory"), hideOnMobile: true, sortable: true, sortValue: (a) => a.asset_categories?.name || "", render: (a) => a.asset_categories?.name || "—" },
+    { key: "supplier", label: t("supplier"), hideOnMobile: true, render: (a) => a.partners?.name || "—" },
+    { key: "warehouse", label: t("warehouse"), hideOnMobile: true, render: (a) => a.warehouses?.name || "—" },
+    { key: "employee", label: t("assetsCrossEmployee"), hideOnMobile: true, render: (a) => a.employees?.full_name || "—" },
     { key: "status", label: t("status"), sortable: true, sortValue: (a) => a.status, render: (a) => <Badge className={STATUS_COLORS[a.status] || ""}>{a.status}</Badge> },
-    { key: "value", label: t("assetsCurrentValue" as any), align: "right" as const, sortable: true, sortValue: (a) => Number(a.current_value || 0), render: (a) => <span className="font-mono">{formatCurrency(a.current_value)}</span> },
+    { key: "value", label: t("assetsCurrentValue"), align: "right" as const, sortable: true, sortValue: (a) => Number(a.current_value || 0), render: (a) => <span className="font-mono">{formatCurrency(a.current_value)}</span> },
   ];
 
   if (isLoading) {
@@ -79,10 +79,10 @@ export default function AssetRegistry() {
   return (
     <div className="space-y-4 p-1">
       <PageHeader
-        title={t("assetsRegistry" as any)}
+        title={t("assetsRegistry")}
         actions={
           <Button onClick={() => navigate("/assets/registry/new")}>
-            <Plus className="h-4 w-4 mr-1" /> {t("assetsNewAsset" as any)}
+            <Plus className="h-4 w-4 mr-1" /> {t("assetsNewAsset")}
           </Button>
         }
       />
@@ -94,11 +94,11 @@ export default function AssetRegistry() {
 
       <Tabs value={typeFilter} onValueChange={setTypeFilter}>
         <TabsList>
-          <TabsTrigger value="all">{t("all" as any)}</TabsTrigger>
-          <TabsTrigger value="fixed_asset">{t("assetsFixedAsset" as any)}</TabsTrigger>
-          <TabsTrigger value="intangible">{t("assetsIntangible" as any)}</TabsTrigger>
-          <TabsTrigger value="material_good">{t("assetsMaterialGood" as any)}</TabsTrigger>
-          <TabsTrigger value="vehicle">{t("assetsVehicle" as any)}</TabsTrigger>
+          <TabsTrigger value="all">{t("all")}</TabsTrigger>
+          <TabsTrigger value="fixed_asset">{t("assetsFixedAsset")}</TabsTrigger>
+          <TabsTrigger value="intangible">{t("assetsIntangible")}</TabsTrigger>
+          <TabsTrigger value="material_good">{t("assetsMaterialGood")}</TabsTrigger>
+          <TabsTrigger value="vehicle">{t("assetsVehicle")}</TabsTrigger>
         </TabsList>
       </Tabs>
 

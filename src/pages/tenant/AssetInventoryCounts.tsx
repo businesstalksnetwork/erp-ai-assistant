@@ -54,7 +54,6 @@ export default function AssetInventoryCounts() {
     mutationFn: async () => {
       if (!tenantId) throw new Error("No tenant");
 
-      // Get assets matching filter
       let query = supabase.from("assets")
         .select("id, current_value, acquisition_cost")
         .eq("tenant_id", tenantId)
@@ -66,7 +65,6 @@ export default function AssetInventoryCounts() {
       const { data: assets } = await query;
       const assetList = assets || [];
 
-      // Create count header
       const { data: countData, error } = await supabase.from("asset_inventory_counts").insert({
         tenant_id: tenantId,
         count_number: form.count_number || `POP-${form.year}-${String(counts.length + 1).padStart(3, "0")}`,
@@ -80,7 +78,6 @@ export default function AssetInventoryCounts() {
       }).select("id").single();
       if (error) throw error;
 
-      // Create count items for each asset
       if (assetList.length > 0 && countData) {
         const items = assetList.map((a: any) => ({
           tenant_id: tenantId,
@@ -98,7 +95,7 @@ export default function AssetInventoryCounts() {
     },
     onSuccess: (id) => {
       qc.invalidateQueries({ queryKey: ["asset-inventory-counts", tenantId] });
-      toast({ title: t("assetsCountCreated" as any) });
+      toast({ title: t("assetsCountCreated") });
       setDialogOpen(false);
       if (id) navigate(`/assets/inventory-count/${id}`);
     },
@@ -116,7 +113,7 @@ export default function AssetInventoryCounts() {
   return (
     <div className="space-y-6 p-1">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold">{t("assetsInventoryCount" as any)}</h1>
+        <h1 className="text-2xl font-bold">{t("assetsInventoryCount")}</h1>
         <Button onClick={() => {
           setForm({
             count_number: `POP-${currentYear}-${String(counts.length + 1).padStart(3, "0")}`,
@@ -125,12 +122,12 @@ export default function AssetInventoryCounts() {
           });
           setDialogOpen(true);
         }}>
-          <Plus className="h-4 w-4 mr-1" /> {t("assetsNewCount" as any)}
+          <Plus className="h-4 w-4 mr-1" /> {t("assetsNewCount")}
         </Button>
       </div>
 
       <Card>
-        <CardHeader><CardTitle>{t("assetsCountList" as any)}</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("assetsCountList")}</CardTitle></CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="flex justify-center py-8"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
@@ -140,12 +137,12 @@ export default function AssetInventoryCounts() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("assetsCountNumber" as any)}</TableHead>
-                  <TableHead>{t("date" as any)}</TableHead>
-                  <TableHead>{t("year" as any)}</TableHead>
-                  <TableHead>{t("assetsTotalAssets" as any)}</TableHead>
-                  <TableHead>{t("assetsFound" as any)}</TableHead>
-                  <TableHead>{t("assetsMissing" as any)}</TableHead>
+                  <TableHead>{t("assetsCountNumber")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("year")}</TableHead>
+                  <TableHead>{t("assetsTotalAssets")}</TableHead>
+                  <TableHead>{t("assetsFound")}</TableHead>
+                  <TableHead>{t("assetsMissing")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
                   <TableHead>{t("actions")}</TableHead>
                 </TableRow>
@@ -159,10 +156,10 @@ export default function AssetInventoryCounts() {
                     <TableCell>{c.total_assets}</TableCell>
                     <TableCell className="text-emerald-600 font-medium">{c.found_count || 0}</TableCell>
                     <TableCell className="text-destructive font-medium">{c.missing_count || 0}</TableCell>
-                    <TableCell><Badge className={statusColor(c.status)}>{t(`assetsCount${c.status.charAt(0).toUpperCase() + c.status.slice(1)}` as any) || c.status}</Badge></TableCell>
+                    <TableCell><Badge className={statusColor(c.status)}>{t(`assetsCount${c.status.charAt(0).toUpperCase() + c.status.slice(1)}`) || c.status}</Badge></TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm" onClick={() => navigate(`/assets/inventory-count/${c.id}`)}>
-                        <Eye className="h-4 w-4 mr-1" /> {t("view" as any)}
+                        <Eye className="h-4 w-4 mr-1" /> {t("view")}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -175,46 +172,46 @@ export default function AssetInventoryCounts() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t("assetsNewCount" as any)}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("assetsNewCount")}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>{t("assetsCountNumber" as any)}</Label>
+                <Label>{t("assetsCountNumber")}</Label>
                 <Input value={form.count_number} onChange={(e) => setForm({ ...form, count_number: e.target.value })} />
               </div>
               <div className="grid gap-2">
-                <Label>{t("date" as any)}</Label>
+                <Label>{t("date")}</Label>
                 <Input type="date" value={form.count_date} onChange={(e) => setForm({ ...form, count_date: e.target.value })} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>{t("year" as any)}</Label>
+                <Label>{t("year")}</Label>
                 <Input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: Number(e.target.value) })} />
               </div>
               <div className="grid gap-2">
-                <Label>{t("assetsTypeFilter" as any)}</Label>
+                <Label>{t("assetsTypeFilter")}</Label>
                 <Select value={form.asset_type_filter || "__all__"} onValueChange={(v) => setForm({ ...form, asset_type_filter: v === "__all__" ? "" : v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__all__">{t("all" as any)}</SelectItem>
-                    <SelectItem value="fixed_asset">{t("assetsFixedAsset" as any)}</SelectItem>
-                    <SelectItem value="intangible">{t("assetsIntangible" as any)}</SelectItem>
-                    <SelectItem value="material_good">{t("assetsMaterialGood" as any)}</SelectItem>
-                    <SelectItem value="vehicle">{t("assetsVehicle" as any)}</SelectItem>
+                    <SelectItem value="__all__">{t("all")}</SelectItem>
+                    <SelectItem value="fixed_asset">{t("assetsFixedAsset")}</SelectItem>
+                    <SelectItem value="intangible">{t("assetsIntangible")}</SelectItem>
+                    <SelectItem value="material_good">{t("assetsMaterialGood")}</SelectItem>
+                    <SelectItem value="vehicle">{t("assetsVehicle")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>{t("description" as any)}</Label>
+              <Label>{t("description")}</Label>
               <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("cancel")}</Button>
             <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-              <ClipboardList className="h-4 w-4 mr-1" /> {t("assetsStartCount" as any)}
+              <ClipboardList className="h-4 w-4 mr-1" /> {t("assetsStartCount")}
             </Button>
           </DialogFooter>
         </DialogContent>
