@@ -31,7 +31,7 @@ export function CashChangeCalculator({ total }: CashChangeCalculatorProps) {
         onClick={() => setShowCalculator(true)}
       >
         <Banknote className="h-4 w-4" />
-        {t("cashChange" as any) || "Kusur"}
+        {t("cashChange") || "Kusur"}
       </Button>
     );
   }
@@ -39,7 +39,7 @@ export function CashChangeCalculator({ total }: CashChangeCalculatorProps) {
   return (
     <div className="space-y-2 p-3 rounded-lg border bg-muted/50">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">{t("customerGives" as any) || "Kupac daje"}:</span>
+        <span className="text-sm font-medium">{t("customerGives") || "Kupac daje"}:</span>
         <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setShowCalculator(false)}>✕</Button>
       </div>
       <Input
@@ -67,7 +67,7 @@ export function CashChangeCalculator({ total }: CashChangeCalculatorProps) {
       </div>
       {givenAmount > 0 && (
         <div className={`flex justify-between font-bold text-lg ${change < 0 ? "text-destructive" : "text-success"}`}>
-          <span>{t("changeDue" as any) || "Kusur"}:</span>
+          <span>{t("changeDue") || "Kusur"}:</span>
           <span className="font-mono">{change >= 0 ? change.toFixed(2) : `−${Math.abs(change).toFixed(2)}`}</span>
         </div>
       )}

@@ -79,21 +79,21 @@ export default function LoyaltyPrograms() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("loyaltyPrograms" as any)}</h1>
+        <h1 className="text-2xl font-bold">{t("loyaltyPrograms")}</h1>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-1" />{t("addNew" as any)}</Button>
+            <Button><Plus className="h-4 w-4 mr-1" />{t("addNew")}</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>{t("loyaltyPrograms" as any)}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("loyaltyPrograms")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div><Label>{t("name")}</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-              <div><Label>{t("pointsPerCurrency" as any)}</Label><Input type="number" value={form.points_per_unit_currency} onChange={e => setForm(f => ({ ...f, points_per_unit_currency: e.target.value }))} /></div>
+              <div><Label>{t("pointsPerCurrency")}</Label><Input type="number" value={form.points_per_unit_currency} onChange={e => setForm(f => ({ ...f, points_per_unit_currency: e.target.value }))} /></div>
               <div className="grid grid-cols-2 gap-2">
-                <div><Label>{t("tierBronze" as any)}</Label><Input type="number" value={form.bronze} onChange={e => setForm(f => ({ ...f, bronze: e.target.value }))} /></div>
-                <div><Label>{t("tierSilver" as any)}</Label><Input type="number" value={form.silver} onChange={e => setForm(f => ({ ...f, silver: e.target.value }))} /></div>
-                <div><Label>{t("tierGold" as any)}</Label><Input type="number" value={form.gold} onChange={e => setForm(f => ({ ...f, gold: e.target.value }))} /></div>
-                <div><Label>{t("tierPlatinum" as any)}</Label><Input type="number" value={form.platinum} onChange={e => setForm(f => ({ ...f, platinum: e.target.value }))} /></div>
+                <div><Label>{t("tierBronze")}</Label><Input type="number" value={form.bronze} onChange={e => setForm(f => ({ ...f, bronze: e.target.value }))} /></div>
+                <div><Label>{t("tierSilver")}</Label><Input type="number" value={form.silver} onChange={e => setForm(f => ({ ...f, silver: e.target.value }))} /></div>
+                <div><Label>{t("tierGold")}</Label><Input type="number" value={form.gold} onChange={e => setForm(f => ({ ...f, gold: e.target.value }))} /></div>
+                <div><Label>{t("tierPlatinum")}</Label><Input type="number" value={form.platinum} onChange={e => setForm(f => ({ ...f, platinum: e.target.value }))} /></div>
               </div>
               <Button onClick={() => saveMutation.mutate()} disabled={!form.name || saveMutation.isPending}>
                 <Save className="h-4 w-4 mr-1" />{t("save")}
@@ -104,7 +104,7 @@ export default function LoyaltyPrograms() {
       </div>
 
       {programs.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-muted-foreground">{t("noActiveProgram" as any)}</CardContent></Card>
+        <Card><CardContent className="py-8 text-center text-muted-foreground">{t("noActiveProgram")}</CardContent></Card>
       ) : (
         <div className="space-y-4">
           {programs.map((p: any) => {
@@ -118,11 +118,11 @@ export default function LoyaltyPrograms() {
                   </div>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div><span className="text-muted-foreground">{t("pointsPerCurrency" as any)}:</span> {p.points_per_unit_currency}</div>
-                  <div><span className="text-muted-foreground">{t("tierBronze" as any)}:</span> {thresholds.bronze ?? 0}</div>
-                  <div><span className="text-muted-foreground">{t("tierSilver" as any)}:</span> {thresholds.silver ?? 1000}</div>
-                  <div><span className="text-muted-foreground">{t("tierGold" as any)}:</span> {thresholds.gold ?? 5000}</div>
-                  <div><span className="text-muted-foreground">{t("tierPlatinum" as any)}:</span> {thresholds.platinum ?? 20000}</div>
+                  <div><span className="text-muted-foreground">{t("pointsPerCurrency")}:</span> {p.points_per_unit_currency}</div>
+                  <div><span className="text-muted-foreground">{t("tierBronze")}:</span> {thresholds.bronze ?? 0}</div>
+                  <div><span className="text-muted-foreground">{t("tierSilver")}:</span> {thresholds.silver ?? 1000}</div>
+                  <div><span className="text-muted-foreground">{t("tierGold")}:</span> {thresholds.gold ?? 5000}</div>
+                  <div><span className="text-muted-foreground">{t("tierPlatinum")}:</span> {thresholds.platinum ?? 20000}</div>
                 </CardContent>
               </Card>
             );

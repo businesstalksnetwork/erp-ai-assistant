@@ -196,21 +196,21 @@ export default function OrgChart() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t("orgChart" as any) || "Organizaciona šema"} />
+      <PageHeader title={t("orgChart") || "Organizaciona šema"} />
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input className="pl-9" placeholder={t("search")} value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <Button size="sm" variant="outline" onClick={expandAll}>{t("expandAll" as any) || "Proširi sve"}</Button>
-        <Button size="sm" variant="outline" onClick={collapseAll}>{t("collapseAll" as any) || "Skupi sve"}</Button>
-        <Badge variant="secondary">{employees.length} {t("employees" as any) || "zaposlenih"}</Badge>
+        <Button size="sm" variant="outline" onClick={expandAll}>{t("expandAll") || "Proširi sve"}</Button>
+        <Button size="sm" variant="outline" onClick={collapseAll}>{t("collapseAll") || "Skupi sve"}</Button>
+        <Badge variant="secondary">{employees.length} {t("employees") || "zaposlenih"}</Badge>
       </div>
 
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">{t("loading")}</div>
       ) : filteredTree.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">{t("noResults" as any) || "Nema rezultata"}</div>
+        <div className="text-center py-12 text-muted-foreground">{t("noResults") || "Nema rezultata"}</div>
       ) : (
         <div className="space-y-1">
           {filteredTree.map(node => (

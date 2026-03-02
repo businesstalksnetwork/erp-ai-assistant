@@ -172,19 +172,19 @@ export default function DocumentTemplates() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{t("documentTemplates" as any) || "Šabloni dokumenata"}</h1>
-          <p className="text-muted-foreground text-sm">{t("documentTemplatesDesc" as any) || "Upravljajte šablonima sa promenljivim vrednostima"}</p>
+          <h1 className="text-2xl font-bold">{t("documentTemplates") || "Šabloni dokumenata"}</h1>
+          <p className="text-muted-foreground text-sm">{t("documentTemplatesDesc") || "Upravljajte šablonima sa promenljivim vrednostima"}</p>
         </div>
         <div className="flex gap-2">
           {templates.length === 0 && (
             <Button variant="outline" onClick={() => seedPresets.mutate()} disabled={seedPresets.isPending}>
               <Copy className="h-4 w-4 mr-2" />
-              {t("importPresets" as any) || "Uvezi srpske šablone"}
+              {t("importPresets") || "Uvezi srpske šablone"}
             </Button>
           )}
           <Button onClick={openNew}>
             <Plus className="h-4 w-4 mr-2" />
-            {t("newTemplate" as any) || "Novi šablon"}
+            {t("newTemplate") || "Novi šablon"}
           </Button>
         </div>
       </div>
@@ -250,7 +250,7 @@ export default function DocumentTemplates() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingTemplate ? t("editTemplate" as any) || "Izmeni šablon" : t("newTemplate" as any) || "Novi šablon"}</DialogTitle>
+            <DialogTitle>{editingTemplate ? t("editTemplate") || "Izmeni šablon" : t("newTemplate") || "Novi šablon"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Input placeholder={t("name")} value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} />
@@ -265,7 +265,7 @@ export default function DocumentTemplates() {
             </Select>
             <div>
               <p className="text-xs text-muted-foreground mb-1">
-                {t("templateHint" as any) || "Koristite {{naziv_promenljive}} za promenljive vrednosti"}
+                {t("templateHint") || "Koristite {{naziv_promenljive}} za promenljive vrednosti"}
               </p>
               <textarea
                 className="w-full h-64 p-3 rounded-md border bg-background text-sm font-mono resize-y"
@@ -276,7 +276,7 @@ export default function DocumentTemplates() {
             </div>
             {formData.content && (
               <div className="flex flex-wrap gap-1">
-                <span className="text-xs text-muted-foreground mr-1">{t("detectedVariables" as any) || "Pronađene promenljive"}:</span>
+                <span className="text-xs text-muted-foreground mr-1">{t("detectedVariables") || "Pronađene promenljive"}:</span>
                 {extractVariables(formData.content).map(v => (
                   <Badge key={v} variant="secondary" className="text-xs font-mono">{v}</Badge>
                 ))}

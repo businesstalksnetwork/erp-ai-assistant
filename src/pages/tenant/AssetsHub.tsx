@@ -31,18 +31,18 @@ export default function AssetsHub() {
   });
 
   const kpis = [
-    { label: t("assetsTotalAssets" as any), value: stats?.total ?? 0, icon: Package, color: "text-primary" },
-    { label: t("assetsActive" as any), value: stats?.active ?? 0, icon: CheckCircle, color: "text-emerald-500" },
-    { label: t("assetsDisposed" as any), value: stats?.disposed ?? 0, icon: XCircle, color: "text-destructive" },
-    { label: t("assetsDraft" as any), value: stats?.draft ?? 0, icon: TrendingDown, color: "text-muted-foreground" },
+    { label: t("assetsTotalAssets"), value: stats?.total ?? 0, icon: Package, color: "text-primary" },
+    { label: t("assetsActive"), value: stats?.active ?? 0, icon: CheckCircle, color: "text-emerald-500" },
+    { label: t("assetsDisposed"), value: stats?.disposed ?? 0, icon: XCircle, color: "text-destructive" },
+    { label: t("assetsDraft"), value: stats?.draft ?? 0, icon: TrendingDown, color: "text-muted-foreground" },
   ];
 
   return (
     <div className="space-y-6 p-1">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{t("assetsModule" as any)}</h1>
-          <p className="text-muted-foreground text-sm">{t("assetsModuleDesc" as any)}</p>
+          <h1 className="text-2xl font-bold">{t("assetsModule")}</h1>
+          <p className="text-muted-foreground text-sm">{t("assetsModuleDesc")}</p>
         </div>
       </div>
 
@@ -65,8 +65,8 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <Plus className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("assetsNewAsset" as any)}</p>
-              <p className="text-sm text-muted-foreground">{t("assetsNewAssetDesc" as any)}</p>
+              <p className="font-semibold">{t("assetsNewAsset")}</p>
+              <p className="text-sm text-muted-foreground">{t("assetsNewAssetDesc")}</p>
             </div>
           </CardContent>
         </Card>
@@ -74,8 +74,8 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <List className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("assetsRegistry" as any)}</p>
-              <p className="text-sm text-muted-foreground">{t("assetsRegistryDesc" as any)}</p>
+              <p className="font-semibold">{t("assetsRegistry")}</p>
+              <p className="text-sm text-muted-foreground">{t("assetsRegistryDesc")}</p>
             </div>
           </CardContent>
         </Card>
@@ -83,8 +83,8 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <Calculator className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("assetsDepreciation" as any)}</p>
-              <p className="text-sm text-muted-foreground">{t("assetsDepSchedule" as any)}</p>
+              <p className="font-semibold">{t("assetsDepreciation")}</p>
+              <p className="text-sm text-muted-foreground">{t("assetsDepSchedule")}</p>
             </div>
           </CardContent>
         </Card>
@@ -92,8 +92,8 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <Trash2 className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("assetsDisposals" as any)}</p>
-              <p className="text-sm text-muted-foreground">{t("assetsDisposalHistory" as any)}</p>
+              <p className="font-semibold">{t("assetsDisposals")}</p>
+              <p className="text-sm text-muted-foreground">{t("assetsDisposalHistory")}</p>
             </div>
           </CardContent>
         </Card>
@@ -101,7 +101,7 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <TrendingUp className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("assetsRevalImpairment" as any)}</p>
+              <p className="font-semibold">{t("assetsRevalImpairment")}</p>
               <p className="text-sm text-muted-foreground">MRS 16 / MRS 36</p>
             </div>
           </CardContent>
@@ -110,8 +110,8 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <UserCheck className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("assetsAssignments" as any)}</p>
-              <p className="text-sm text-muted-foreground">{t("assetsAssignmentHistory" as any)}</p>
+              <p className="font-semibold">{t("assetsAssignments")}</p>
+              <p className="text-sm text-muted-foreground">{t("assetsAssignmentHistory")}</p>
             </div>
           </CardContent>
         </Card>
@@ -119,8 +119,8 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <FileSignature className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("reversDocuments" as any)}</p>
-              <p className="text-sm text-muted-foreground">{t("reversHandover" as any)} / {t("reversReturn" as any)}</p>
+              <p className="font-semibold">{t("reversDocuments")}</p>
+              <p className="text-sm text-muted-foreground">{t("reversHandover")} / {t("reversReturn")}</p>
             </div>
           </CardContent>
         </Card>
@@ -128,8 +128,8 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <ClipboardList className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("assetsInventoryCount" as any)}</p>
-              <p className="text-sm text-muted-foreground">{t("assetsCountSheet" as any)}</p>
+              <p className="font-semibold">{t("assetsInventoryCount")}</p>
+              <p className="text-sm text-muted-foreground">{t("assetsCountSheet")}</p>
             </div>
           </CardContent>
         </Card>
@@ -137,8 +137,8 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <FolderTree className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("assetsCategories" as any)}</p>
-              <p className="text-sm text-muted-foreground">{t("assetsCategoriesDesc" as any)}</p>
+              <p className="font-semibold">{t("assetsCategories")}</p>
+              <p className="text-sm text-muted-foreground">{t("assetsCategoriesDesc")}</p>
             </div>
           </CardContent>
         </Card>
@@ -146,8 +146,8 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <Car className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("fleetDashboard" as any)}</p>
-              <p className="text-sm text-muted-foreground">{t("fleetManagement" as any)}</p>
+              <p className="font-semibold">{t("fleetDashboard")}</p>
+              <p className="text-sm text-muted-foreground">{t("fleetManagement")}</p>
             </div>
           </CardContent>
         </Card>
@@ -155,8 +155,8 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <FileSignature className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("leaseContracts" as any)}</p>
-              <p className="text-sm text-muted-foreground">{t("leaseAccounting" as any)}</p>
+              <p className="font-semibold">{t("leaseContracts")}</p>
+              <p className="text-sm text-muted-foreground">{t("leaseAccounting")}</p>
             </div>
           </CardContent>
         </Card>
@@ -164,8 +164,8 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <MapPin className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("assetsLocationsTitle" as any)}</p>
-              <p className="text-sm text-muted-foreground">{t("locBuilding" as any)} / {t("locRoom" as any)} / {t("locWarehouse" as any)}</p>
+              <p className="font-semibold">{t("assetsLocationsTitle")}</p>
+              <p className="text-sm text-muted-foreground">{t("locBuilding")} / {t("locRoom")} / {t("locWarehouse")}</p>
             </div>
           </CardContent>
         </Card>
@@ -173,7 +173,7 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <FileSpreadsheet className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("assetsReports" as any)}</p>
+              <p className="font-semibold">{t("assetsReports")}</p>
               <p className="text-sm text-muted-foreground">PDF / Excel</p>
             </div>
           </CardContent>
@@ -182,8 +182,8 @@ export default function AssetsHub() {
           <CardContent className="flex items-center gap-3 py-6">
             <UserX className="h-8 w-8 text-primary" />
             <div>
-              <p className="font-semibold">{t("offboardingTitle" as any)}</p>
-              <p className="text-sm text-muted-foreground">{t("offboardingDesc" as any)}</p>
+              <p className="font-semibold">{t("offboardingTitle")}</p>
+              <p className="text-sm text-muted-foreground">{t("offboardingDesc")}</p>
             </div>
           </CardContent>
         </Card>

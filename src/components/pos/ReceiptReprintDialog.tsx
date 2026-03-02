@@ -35,7 +35,6 @@ export function ReceiptReprintDialog({ open, onOpenChange }: ReceiptReprintDialo
         .order("created_at", { ascending: false })
         .limit(20);
 
-      // Search by number, fiscal number, or amount
       const numVal = parseFloat(searchQuery);
       if (!isNaN(numVal) && searchQuery.match(/^\d+(\.\d+)?$/)) {
         query = query.eq("total", numVal);
@@ -51,7 +50,6 @@ export function ReceiptReprintDialog({ open, onOpenChange }: ReceiptReprintDialo
 
   const handleReprint = (tx: any) => {
     setSelectedTx(tx);
-    // Build receipt content for printing
     const items = (tx.items as any[]) || [];
     const receiptContent = `
 ================================
@@ -72,7 +70,6 @@ Tip: ${tx.receipt_type === "refund" ? "POVRAĆAJ" : "PRODAJA"}
 ================================
     `.trim();
 
-    // Open print window
     const printWindow = window.open("", "_blank", "width=400,height=600");
     if (printWindow) {
       printWindow.document.write(`
@@ -89,21 +86,21 @@ Tip: ${tx.receipt_type === "refund" ? "POVRAĆAJ" : "PRODAJA"}
       printWindow.document.close();
     }
 
-    toast({ title: t("receiptReprintSuccess" as any) || "Račun štampan (kopija)" });
+    toast({ title: t("receiptReprintSuccess") || "Račun štampan (kopija)" });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{t("receiptReprint" as any) || "Pretraga i reprint računa"}</DialogTitle>
+          <DialogTitle>{t("receiptReprint") || "Pretraga i reprint računa"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               className="pl-9"
-              placeholder={t("searchByNumberOrAmount" as any) || "Broj računa ili iznos..."}
+              placeholder={t("searchByNumberOrAmount") || "Broj računa ili iznos..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               autoFocus
@@ -113,7 +110,7 @@ Tip: ${tx.receipt_type === "refund" ? "POVRAĆAJ" : "PRODAJA"}
           <div className="max-h-[400px] overflow-y-auto space-y-2">
             {isLoading && <p className="text-sm text-muted-foreground">{t("loading")}</p>}
             {!isLoading && searchQuery && transactions.length === 0 && (
-              <p className="text-sm text-muted-foreground">{t("noResults" as any) || "Nema rezultata"}</p>
+              <p className="text-sm text-muted-foreground">{t("noResults") || "Nema rezultata"}</p>
             )}
             {transactions.map((tx: any) => (
               <Card key={tx.id} className="hover:bg-accent transition-colors">

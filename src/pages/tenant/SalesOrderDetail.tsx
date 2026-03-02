@@ -289,7 +289,7 @@ export default function SalesOrderDetail() {
                 <div><span className="text-muted-foreground">{t("currency")}:</span> <span className="font-medium">{order.currency}</span></div>
                 <div></div>
                 <div><span className="text-muted-foreground">{t("subtotal")}:</span> <span className="font-medium">{fmt(order.subtotal || 0)}</span></div>
-                <div><span className="text-muted-foreground">{t("taxAmount" as any)}:</span> <span className="font-medium">{fmt(order.tax_amount || 0)}</span></div>
+                <div><span className="text-muted-foreground">{t("taxAmount")}:</span> <span className="font-medium">{fmt(order.tax_amount || 0)}</span></div>
                 <div><span className="text-muted-foreground">{t("total")}:</span> <span className="font-semibold text-base">{fmt(order.total || 0)}</span></div>
               </div>
               {order.notes && <p className="mt-4 text-sm text-muted-foreground">{order.notes}</p>}
