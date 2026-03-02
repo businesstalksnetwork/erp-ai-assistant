@@ -22,7 +22,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
-  LayoutDashboard, Building2, Puzzle, Users, Activity, Plug, LogOut, BarChart3,
+  LayoutDashboard, Building2, Puzzle, Users, Activity, Plug, LogOut, BarChart3, Brain,
 } from "lucide-react";
 
 const superAdminNav = [
@@ -33,6 +33,7 @@ const superAdminNav = [
   { key: "monitoring" as const, url: "/super-admin/monitoring", icon: Activity },
   { key: "integrations" as const, url: "/super-admin/integrations", icon: Plug },
   { key: "analytics" as const, url: "/super-admin/analytics", icon: BarChart3 },
+  { key: "aiGovernance" as const, url: "/super-admin/ai-governance", icon: Brain },
 ];
 
 export default function SuperAdminLayout() {
@@ -75,7 +76,7 @@ export default function SuperAdminLayout() {
                             activeClassName="bg-sidebar-primary/10 text-sidebar-primary font-medium"
                           >
                             <item.icon className="h-5 w-5 opacity-50" />
-                            <span>{t(item.key)}</span>
+                            <span>{t(item.key as any)}</span>
                           </NavLink>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
