@@ -59,7 +59,7 @@ export default function ServiceDeviceDetail() {
   const daysLeft = d.warranty_expiry ? Math.max(0, Math.ceil((new Date(d.warranty_expiry).getTime() - Date.now()) / 86400000)) : null;
   const totalRepairCost = serviceHistory.reduce((sum: number, so: any) => sum + Number(so.total_amount || 0), 0);
 
-  const statusLabel = (s: string) => (t as any)(`status${s.charAt(0).toUpperCase() + s.slice(1).replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())}`) || s;
+  const statusLabel = (s: string) => t(`status${s.charAt(0).toUpperCase() + s.slice(1).replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())}`) || s;
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -74,7 +74,7 @@ export default function ServiceDeviceDetail() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 space-y-2">
-            <p className="text-xs text-muted-foreground">{t("owner" as any) || "Owner"}</p>
+            <p className="text-xs text-muted-foreground">{t("owner") || "Owner"}</p>
             <p className="font-medium">{d.is_internal ? (d.departments?.name || t("internalEquipment")) : (d.partners?.name || "—")}</p>
             {d.products?.name && <p className="text-sm text-muted-foreground">{d.products.name}</p>}
             {d.warehouses?.name && <p className="text-sm">📍 {d.warehouses.name}</p>}

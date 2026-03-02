@@ -229,7 +229,7 @@ export default function TravelOrderForm() {
   const updateExpense = (idx: number, field: string, value: any) => setExpenses(prev => prev.map((e, i) => i === idx ? { ...e, [field]: value } : e));
 
   const isSettled = form.status === "settled";
-  const travelLabel = (key: string) => (t as any)(key) || key;
+  const travelLabel = (key: string) => t(key) || key;
 
   return (
     <div className="space-y-6 max-w-4xl">

@@ -25,7 +25,7 @@ export default function TravelOrders() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const tl = (key: string) => (t as any)(key) || key;
+  const tl = (key: string) => t(key) || key;
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["travel_orders", tenantId, statusFilter],

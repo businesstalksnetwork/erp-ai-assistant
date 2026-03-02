@@ -368,7 +368,7 @@ export default function ProductionOrders() {
               <div className="border rounded-md p-3 space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground">{t("materialSummary")}</Label>
                 <Table>
-                  <TableHeader><TableRow><TableHead>{t("product")}</TableHead><TableHead className="text-right">{t("quantity")}</TableHead><TableHead className="text-right">{t("available" as any)}</TableHead><TableHead>{t("status")}</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>{t("product")}</TableHead><TableHead className="text-right">{t("quantity")}</TableHead><TableHead className="text-right">{t("available")}</TableHead><TableHead>{t("status")}</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {materialAvailability.map((m: any, i: number) => (
                       <TableRow key={i}>

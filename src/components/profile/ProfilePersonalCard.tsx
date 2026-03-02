@@ -19,16 +19,16 @@ export function ProfilePersonalCard({ employee, departmentName, locationName, ma
   };
 
   const rows: [string, string | null | undefined][] = [
-    [t("name" as any), employee.full_name],
+    [t("name"), employee.full_name],
     [t("email"), employee.email],
-    [t("phone" as any), employee.phone],
-    [t("profileJmbg" as any), maskJmbg(employee.jmbg)],
-    [t("address" as any), [employee.address, employee.city].filter(Boolean).join(", ") || null],
-    [t("department" as any), departmentName],
-    [t("profilePosition" as any), employee.position],
-    [t("profileLocation" as any), locationName],
-    [t("profileEmploymentType" as any), employee.employment_type],
-    [t("profileDailyHours" as any), employee.daily_work_hours ? `${employee.daily_work_hours}h` : null],
+    [t("phone"), employee.phone],
+    [t("profileJmbg"), maskJmbg(employee.jmbg)],
+    [t("address"), [employee.address, employee.city].filter(Boolean).join(", ") || null],
+    [t("department"), departmentName],
+    [t("profilePosition"), employee.position],
+    [t("profileLocation"), locationName],
+    [t("profileEmploymentType"), employee.employment_type],
+    [t("profileDailyHours"), employee.daily_work_hours ? `${employee.daily_work_hours}h` : null],
     ["Manager", managerName],
   ];
 
@@ -37,8 +37,8 @@ export function ProfilePersonalCard({ employee, departmentName, locationName, ma
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <UserCheck className="h-5 w-5" />
-          {t("profilePersonalData" as any)}
-          {employee.is_ghost && <Badge variant="outline" className="text-xs">{t("profileGhost" as any)}</Badge>}
+          {t("profilePersonalData")}
+          {employee.is_ghost && <Badge variant="outline" className="text-xs">{t("profileGhost")}</Badge>}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 text-sm">

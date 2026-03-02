@@ -37,7 +37,7 @@ export default function ServiceDevices() {
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <h1 className="text-2xl font-bold">{(t as any)("deviceRegistry")}</h1>
+      <h1 className="text-2xl font-bold">{t("deviceRegistry")}</h1>
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder={t("search")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
@@ -46,13 +46,13 @@ export default function ServiceDevices() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              <th className="px-4 py-3 text-left">{(t as any)("brand")}</th>
-              <th className="px-4 py-3 text-left">{(t as any)("model")}</th>
-              <th className="px-4 py-3 text-left">{t("serialNumber" as any)}</th>
-              <th className="px-4 py-3 text-left">{t("owner" as any) || "Owner"}</th>
-              <th className="px-4 py-3 text-left">{(t as any)("deviceType")}</th>
-              <th className="px-4 py-3 text-left">📍 {(t as any)("currentLocation")}</th>
-              <th className="px-4 py-3 text-left">{(t as any)("isWarranty")}</th>
+              <th className="px-4 py-3 text-left">{t("brand")}</th>
+              <th className="px-4 py-3 text-left">{t("model")}</th>
+              <th className="px-4 py-3 text-left">{t("serialNumber")}</th>
+              <th className="px-4 py-3 text-left">{t("owner") || "Owner"}</th>
+              <th className="px-4 py-3 text-left">{t("deviceType")}</th>
+              <th className="px-4 py-3 text-left">📍 {t("currentLocation")}</th>
+              <th className="px-4 py-3 text-left">{t("isWarranty")}</th>
             </tr>
           </thead>
           <tbody>
@@ -67,7 +67,7 @@ export default function ServiceDevices() {
                   <td className="px-4 py-3">{d.brand || "—"}</td>
                   <td className="px-4 py-3">{d.model || "—"}</td>
                   <td className="px-4 py-3 font-mono text-xs">{d.serial_number || "—"}</td>
-                  <td className="px-4 py-3">{d.is_internal ? (d.departments?.name || (t as any)("internalEquipment")) : (d.partners?.name || "—")}</td>
+                  <td className="px-4 py-3">{d.is_internal ? (d.departments?.name || t("internalEquipment")) : (d.partners?.name || "—")}</td>
                   <td className="px-4 py-3 capitalize">{d.device_type}</td>
                   <td className="px-4 py-3">{d.warehouses?.name || "—"}</td>
                   <td className="px-4 py-3">

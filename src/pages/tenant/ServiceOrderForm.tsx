@@ -114,7 +114,7 @@ export default function ServiceOrderForm() {
       return data;
     },
     onSuccess: (id) => {
-      toast.success((t as any)("serviceOrders") + " created");
+      toast.success(t("serviceOrders") + " created");
       qc.invalidateQueries({ queryKey: ["service-orders"] });
       navigate(`/service/orders/${id}`);
     },
@@ -125,18 +125,18 @@ export default function ServiceOrderForm() {
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">{(t as any)("newServiceOrder")}</h1>
+      <h1 className="text-2xl font-bold">{t("newServiceOrder")}</h1>
 
       {/* Channel selector */}
       <Card>
-        <CardHeader><CardTitle className="text-base">{(t as any)("intakeChannel")}</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t("intakeChannel")}</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-3">
             {CHANNELS.map((ch) => (
               <button key={ch.value} onClick={() => { setChannel(ch.value); setPartnerId(""); setDeviceId(""); }}
                 className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${channel === ch.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
                 <ch.icon className={`h-6 w-6 ${channel === ch.value ? "text-primary" : "text-muted-foreground"}`} />
-                <span className="text-sm font-medium">{(t as any)(ch.labelKey)}</span>
+                <span className="text-sm font-medium">{t(ch.labelKey)}</span>
                 <span className="text-xs text-muted-foreground text-center">{ch.desc}</span>
               </button>
             ))}
@@ -147,7 +147,7 @@ export default function ServiceOrderForm() {
       {/* Retail: walk-in customer */}
       {channel === "retail" && (
         <Card>
-          <CardHeader><CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4" /> {t("customer" as any) || "Customer"}</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4" /> {t("customer") || "Customer"}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <p className="text-xs text-muted-foreground">Walk-in — no partner registration required</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -156,7 +156,7 @@ export default function ServiceOrderForm() {
                 <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Ime i prezime" />
               </div>
               <div className="space-y-1.5">
-                <Label className="flex items-center gap-1.5"><Phone className="h-3 w-3" /> {t("phone" as any) || "Phone"}</Label>
+                <Label className="flex items-center gap-1.5"><Phone className="h-3 w-3" /> {t("phone") || "Phone"}</Label>
                 <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="+381..." />
               </div>
             </div>
@@ -171,7 +171,7 @@ export default function ServiceOrderForm() {
       {/* Wholesale: registered partner */}
       {channel === "wholesale" && (
         <div className="space-y-2">
-          <Label>{t("partner" as any) || "Partner"}</Label>
+          <Label>{t("partner") || "Partner"}</Label>
           <Select value={partnerId} onValueChange={setPartnerId}>
             <SelectTrigger><SelectValue placeholder="Select partner..." /></SelectTrigger>
             <SelectContent>{partners.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
@@ -181,7 +181,7 @@ export default function ServiceOrderForm() {
 
       {/* Device — linked to products */}
       <Card>
-        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Package className="h-4 w-4" /> {t("device" as any) || "Device"}</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Package className="h-4 w-4" /> {t("device") || "Device"}</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <Select value={deviceId} onValueChange={setDeviceId}>
             <SelectTrigger><SelectValue placeholder="Select device..." /></SelectTrigger>
@@ -197,14 +197,14 @@ export default function ServiceOrderForm() {
             <div className="flex items-center gap-2">
               {warrantyActive ? (
                 <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200 gap-1">
-                  <ShieldCheck className="h-3 w-3" /> {(t as any)("warrantyActive")} — {warrantyDaysLeft} {(t as any)("daysRemaining")}
+                  <ShieldCheck className="h-3 w-3" /> {t("warrantyActive")} — {warrantyDaysLeft} {t("daysRemaining")}
                 </Badge>
               ) : selectedDevice.warranty_expiry ? (
                 <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 gap-1">
-                  <ShieldX className="h-3 w-3" /> {(t as any)("warrantyExpired")}
+                  <ShieldX className="h-3 w-3" /> {t("warrantyExpired")}
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-muted-foreground gap-1">{(t as any)("noWarranty")}</Badge>
+                <Badge variant="outline" className="text-muted-foreground gap-1">{t("noWarranty")}</Badge>
               )}
             </div>
           )}
@@ -214,14 +214,14 @@ export default function ServiceOrderForm() {
       {/* Locations */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>{(t as any)("originLocation")}</Label>
+          <Label>{t("originLocation")}</Label>
           <Select value={originLocationId} onValueChange={setOriginLocationId}>
             <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
             <SelectContent>{warehouses.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>{(t as any)("serviceCenter")} *</Label>
+          <Label>{t("serviceCenter")} *</Label>
           <Select value={serviceLocationId} onValueChange={setServiceLocationId}>
             <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
             <SelectContent>{locationOptions.map((w: any) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
@@ -231,23 +231,23 @@ export default function ServiceOrderForm() {
 
       {/* Issue */}
       <div className="space-y-2">
-        <Label>{(t as any)("reportedIssue")} *</Label>
+        <Label>{t("reportedIssue")} *</Label>
         <Textarea value={reportedIssue} onChange={(e) => setReportedIssue(e.target.value)} rows={3} placeholder="Describe the issue..." />
       </div>
 
       {/* Priority & Date */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>{t("priority" as any) || "Priority"}</Label>
+          <Label>{t("priority") || "Priority"}</Label>
           <Select value={priority} onValueChange={setPriority}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              {["low","normal","high","urgent"].map(p => <SelectItem key={p} value={p}>{(t as any)(`priority${p.charAt(0).toUpperCase() + p.slice(1)}`)}</SelectItem>)}
+              {["low","normal","high","urgent"].map(p => <SelectItem key={p} value={p}>{t(`priority${p.charAt(0).toUpperCase() + p.slice(1)}`)}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>{(t as any)("estimatedCompletion")}</Label>
+          <Label>{t("estimatedCompletion")}</Label>
           <Input type="date" value={estimatedCompletion} onChange={(e) => setEstimatedCompletion(e.target.value)} />
         </div>
       </div>
@@ -255,7 +255,7 @@ export default function ServiceOrderForm() {
       <div className="flex justify-end gap-3 pt-4">
         <Button variant="outline" onClick={() => navigate("/service/orders")}>{t("cancel")}</Button>
         <Button onClick={() => createMutation.mutate()} disabled={!canSubmit}>
-          {createMutation.isPending ? "..." : (t as any)("newServiceOrder")}
+          {createMutation.isPending ? "..." : t("newServiceOrder")}
         </Button>
       </div>
     </div>

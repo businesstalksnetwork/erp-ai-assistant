@@ -398,9 +398,9 @@ export default function EmployeeDetail() {
           <TabsTrigger value="worklogs">{t("workLogs")}</TabsTrigger>
           <TabsTrigger value="deductions">{t("deductionsModule")}</TabsTrigger>
           <TabsTrigger value="insurance">{t("insuranceRecords")}</TabsTrigger>
-          <TabsTrigger value="assets">{t("assetsCrossEmployeeAssets" as any)}</TabsTrigger>
+          <TabsTrigger value="assets">{t("assetsCrossEmployeeAssets")}</TabsTrigger>
           <TabsTrigger value="documents">{t("documents")}</TabsTrigger>
-          <TabsTrigger value="onboarding">{t("onboardingChecklists" as any)}</TabsTrigger>
+          <TabsTrigger value="onboarding">{t("onboardingChecklists")}</TabsTrigger>
           <TabsTrigger value="education">Obrazovanje</TabsTrigger>
         </TabsList>
 

@@ -80,14 +80,14 @@ export default function ServiceOrders() {
     );
   });
 
-  const statusLabel = (s: string) => (t as any)(`status${s.charAt(0).toUpperCase() + s.slice(1).replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())}`) || s;
+  const statusLabel = (s: string) => t(`status${s.charAt(0).toUpperCase() + s.slice(1).replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())}`) || s;
 
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{(t as any)("serviceOrders")}</h1>
+        <h1 className="text-2xl font-bold">{t("serviceOrders")}</h1>
         <Button onClick={() => navigate("/service/orders/new")}>
-          <Plus className="h-4 w-4 mr-2" /> {(t as any)("newServiceOrder")}
+          <Plus className="h-4 w-4 mr-2" /> {t("newServiceOrder")}
         </Button>
       </div>
 
@@ -95,15 +95,15 @@ export default function ServiceOrders() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card><CardContent className="p-4 flex items-center gap-3">
           <ClipboardCheck className="h-8 w-8 text-primary opacity-60" />
-          <div><p className="text-sm text-muted-foreground">{(t as any)("openServiceOrders")}</p><p className="text-2xl font-bold">{stats?.open ?? "—"}</p></div>
+          <div><p className="text-sm text-muted-foreground">{t("openServiceOrders")}</p><p className="text-2xl font-bold">{stats?.open ?? "—"}</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
           <AlertTriangle className="h-8 w-8 text-destructive opacity-60" />
-          <div><p className="text-sm text-muted-foreground">{(t as any)("urgentServiceOrders")}</p><p className="text-2xl font-bold">{stats?.urgent ?? "—"}</p></div>
+          <div><p className="text-sm text-muted-foreground">{t("urgentServiceOrders")}</p><p className="text-2xl font-bold">{stats?.urgent ?? "—"}</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
           <Clock className="h-8 w-8 text-amber-500 opacity-60" />
-          <div><p className="text-sm text-muted-foreground">{(t as any)("statusWaitingParts")}</p><p className="text-2xl font-bold">{stats?.waitingParts ?? "—"}</p></div>
+          <div><p className="text-sm text-muted-foreground">{t("statusWaitingParts")}</p><p className="text-2xl font-bold">{stats?.waitingParts ?? "—"}</p></div>
         </CardContent></Card>
       </div>
 
@@ -116,7 +116,7 @@ export default function ServiceOrders() {
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{t("all" as any) || "All"}</SelectItem>
+            <SelectItem value="all">{t("all") || "All"}</SelectItem>
             {["received","diagnosed","waiting_parts","in_repair","completed","delivered","cancelled"].map(s => (
               <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>
             ))}
@@ -130,12 +130,12 @@ export default function ServiceOrders() {
           <thead className="bg-muted/50">
             <tr>
               <th className="px-4 py-3 text-left font-medium">#</th>
-              <th className="px-4 py-3 text-left font-medium">{(t as any)("status")}</th>
-              <th className="px-4 py-3 text-left font-medium">{(t as any)("intakeChannel")}</th>
-              <th className="px-4 py-3 text-left font-medium">{t("customer" as any) || "Customer"}</th>
-              <th className="px-4 py-3 text-left font-medium">{t("device" as any) || "Device"}</th>
-              <th className="px-4 py-3 text-left font-medium">{t("priority" as any) || "Priority"}</th>
-              <th className="px-4 py-3 text-right font-medium">{(t as any)("totalServiceCost")}</th>
+              <th className="px-4 py-3 text-left font-medium">{t("status")}</th>
+              <th className="px-4 py-3 text-left font-medium">{t("intakeChannel")}</th>
+              <th className="px-4 py-3 text-left font-medium">{t("customer") || "Customer"}</th>
+              <th className="px-4 py-3 text-left font-medium">{t("device") || "Device"}</th>
+              <th className="px-4 py-3 text-left font-medium">{t("priority") || "Priority"}</th>
+              <th className="px-4 py-3 text-right font-medium">{t("totalServiceCost")}</th>
             </tr>
           </thead>
           <tbody>
@@ -147,10 +147,10 @@ export default function ServiceOrders() {
               <tr key={o.id} className="border-t hover:bg-muted/30 cursor-pointer" onClick={() => navigate(`/service/orders/${o.id}`)}>
                 <td className="px-4 py-3 font-mono text-xs">{o.order_number}</td>
                 <td className="px-4 py-3"><Badge variant="outline" className={STATUS_COLORS[o.status] || ""}>{statusLabel(o.status)}</Badge></td>
-                <td className="px-4 py-3 capitalize">{o.intake_channel === "retail" ? "🏪" : o.intake_channel === "wholesale" ? "🏢" : "🔧"} {(t as any)(`channel${o.intake_channel.charAt(0).toUpperCase() + o.intake_channel.slice(1)}`)}</td>
+                <td className="px-4 py-3 capitalize">{o.intake_channel === "retail" ? "🏪" : o.intake_channel === "wholesale" ? "🏢" : "🔧"} {t(`channel${o.intake_channel.charAt(0).toUpperCase() + o.intake_channel.slice(1)}`)}</td>
                 <td className="px-4 py-3">{o.partners?.name || "—"}</td>
                 <td className="px-4 py-3">{o.service_devices ? `${o.service_devices.brand || ""} ${o.service_devices.model || ""}`.trim() : "—"}</td>
-                <td className="px-4 py-3"><Badge variant="outline" className={PRIORITY_COLORS[o.priority] || ""}>{(t as any)(`priority${o.priority.charAt(0).toUpperCase() + o.priority.slice(1)}`)}</Badge></td>
+                <td className="px-4 py-3"><Badge variant="outline" className={PRIORITY_COLORS[o.priority] || ""}>{t(`priority${o.priority.charAt(0).toUpperCase() + o.priority.slice(1)}`)}</Badge></td>
                 <td className="px-4 py-3 text-right font-mono">{Number(o.total_amount || 0).toLocaleString("sr-RS")} RSD</td>
               </tr>
             ))}

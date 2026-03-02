@@ -33,7 +33,7 @@ export default function PK1Book() {
   const [dateFrom, setDateFrom] = useState(format(startOfMonth(today), "yyyy-MM-dd"));
   const [dateTo, setDateTo] = useState(format(endOfMonth(today), "yyyy-MM-dd"));
   const [legalEntityId, setLegalEntityId] = useState<string>("all");
-  const tl = (key: string) => (t as any)(key) || key;
+  const tl = (key: string) => t(key) || key;
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["pk1_book", tenantId, dateFrom, dateTo, legalEntityId],
