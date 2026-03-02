@@ -130,6 +130,12 @@
   }
 }
 
+/* Disable Radix Collapsible animation to prevent sidebar jank */
+[data-radix-collapsible-content] {
+  transition: none !important;
+  animation: none !important;
+}
+
 @layer base {
   * {
     @apply border-border;

@@ -407,7 +407,7 @@ const CollapsibleNavGroup = React.memo(function CollapsibleNavGroup({
           </span>
           <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 opacity-50 ${isOpen ? "rotate-180" : ""}`} />
         </CollapsibleTrigger>
-        <CollapsibleContent className="overflow-hidden bg-sidebar-accent/30 rounded-md mx-1 mb-1">
+        <CollapsibleContent className="overflow-hidden bg-sidebar-accent/30 rounded-md mx-1 mb-1 data-[state=open]:animate-none data-[state=closed]:animate-none" style={{ animationDuration: '0s' }}>
           <SidebarGroupContent>
             <SidebarMenu>
               {filteredItems.map((item) => {
