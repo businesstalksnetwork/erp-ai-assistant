@@ -1,94 +1,87 @@
 
 
-# Phase 3 Status: Complete
+# ISO 100% + Loyalty Upgrade — Phased Implementation Plan
 
-All 4 features (R1-R4) are implemented:
-- R1: Promotions engine (DB + UI)
-- R2: AI Market Basket Analysis (edge function + UI)
-- R3: Gift Card Management (DB + UI)
-- R4: Loyalty Analytics with RFM/CLV (UI)
-
-R5-R8 (multi-location sync, customer display, table service, e-commerce sync) are P2/P3 and can be deferred.
+This PRD contains 4 phases with 14 work items. Several items overlap with work already done (rate limiting exists in-memory, `generate-pdf` exists but returns JSON not PDF bytes, `AccountingCustomerParty` already exists in SEF functions but not in `generate-pdf`). Here's the breakdown:
 
 ---
 
-# Phase 4: Purchasing/Inventory 4.75 → 5.0
+## Phase 1: Critical Infrastructure (3 items)
 
-## 8 Features (I1-I8)
+### 1A. SEC-08: Upgrade Rate Limiter to DB-Backed
+The current `_shared/rate-limiter.ts` is in-memory (per-instance). Upgrade to DB-backed sliding window with a `rate_limit_log` table, cleanup function, and proper 429 responses with `Retry-After` headers. Apply to all edge functions per the PRD's category limits (AI: 30/min, SEF: 60/min, CRUD: 120/min, Auth: 10/min, Export: 5/min).
 
-### 4A. I1 — AI Ordering Prediction per Supplier (P0 Flagship)
-**DB migration**: Create `supplier_order_predictions` and `supplier_lead_times` tables with RLS policies (tenant-scoped). Add indexes on `(tenant_id, supplier_id)` and `(tenant_id, product_id)`.
+**Files:** New migration, rewrite `_shared/rate-limiter.ts`, update 5+ edge functions.
 
-**Edge function** `ai-ordering-prediction`:
-- Input: `{ tenant_id, supplier_id?, horizon_days: 30 }`
-- Fetches products linked to supplier via `purchase_order_lines` JOIN `purchase_orders`
-- For each product: pulls 24 months of `invoice_lines` + `pos_transactions` sales, applies `seasonalDecompose()` (reuse algorithm from `DemandForecasting.tsx`), fetches avg lead time from `supplier_lead_times`, calculates EOQ/reorder point/safety stock
-- Compares current `inventory_stock` to reorder point; generates predictions for products at or below threshold
-- Stores in `supplier_order_predictions`, returns sorted by urgency
-- Includes rate limiting (10 req/min) and audit logging
+### 1B. SQ-02: CI/CD Pipeline
+Create `.github/workflows/ci.yml` with lint, typecheck, unit tests, build, E2E (Playwright), security audit (npm audit + TruffleHog). Triggers on push to main/develop and PRs.
 
-**UI page** `SupplierOrderPredictions.tsx`:
-- Supplier dropdown filter
-- Table: Product, Current Stock, Avg Daily Demand, Lead Time, Reorder Point, Recommended Qty, Order By Date, Confidence, Action
-- KPI cards: Total predictions, Avg confidence, Estimated value, Urgent orders
-- "Create PO" button converts prediction to purchase order
-- Demand vs stock timeline chart (Recharts)
+**Files:** `.github/workflows/ci.yml`
 
-### 4B. I2 — Auto PO Generation from Predictions
-Add a "Generate PO" mutation in `SupplierOrderPredictions.tsx` that:
-- Groups accepted predictions by supplier
-- Creates a `purchase_orders` row with `purchase_order_lines` from predictions
-- Updates prediction status to `converted_to_po` with linked `purchase_order_id`
-- Navigates to the new PO for review
+### 1C. ARCH-01: Real PDF/A-3 Generation
+Current `generate-pdf` returns JSON, not PDF bytes. Rewrite using `pdf-lib` to generate actual A4 PDF with invoice layout, embedded UBL XML (AF relationship), and XMP metadata. Add `AccountingCustomerParty` (BG-7) to the inline `generateUblXml()`. Delete `generate-pdfa` if it still exists.
 
-### 4C. I3 — Supplier Lead Time Tracking
-The `supplier_lead_times` table (created in 4A) stores historical lead times with computed `lead_time_days` and `on_time` columns. Add a component `SupplierLeadTimeHistory.tsx` embedded in the supplier evaluation page showing:
-- Average/median lead time per supplier
-- On-time delivery rate
-- Trend chart
-- Auto-populate from goods receipts: when a receipt is confirmed, insert a lead time record linking PO ordered_date to receipt_date
+**Files:** Rewrite `generate-pdf/index.ts`
 
-### 4D. I4 — ABC/XYZ Inventory Classification
-Create an edge function `inventory-classification` that:
-- Fetches all products with sales data for the tenant
-- Calculates annual revenue per product (ABC by value: A=top 80%, B=next 15%, C=bottom 5%)
-- Calculates demand variability coefficient of variation (XYZ: X=CV<0.5, Y=0.5-1.0, Z=>1.0)
-- Returns a 3x3 matrix with product counts and recommendations
+---
 
-Create `InventoryClassification.tsx` page with matrix heatmap, product table with class assignments, and strategy recommendations per class.
+## Phase 2: Compliance Workflows (4 items)
 
-### 4E. I5 — Framework/Blanket Agreement Management
-**DB migration**: Create `blanket_agreements` table (tenant_id, supplier_id, agreement_number, start/end dates, total_value, consumed_value, status) and `blanket_agreement_lines` (product_id, agreed_qty, agreed_price, consumed_qty).
+### 2A. QM-03: CAPA Workflow
+New `capa_actions` table + `CapaManagement.tsx` page. Status workflow: open → in_progress → implemented → verification_pending → verified → closed. Links to incidents. KPI dashboard.
 
-**UI page** `BlanketAgreements.tsx`: CRUD for agreements with line items, consumption tracking, and alerts when nearing expiry or quantity limits.
+### 2B. PRIV-03: DSAR Automation
+New `dsar_requests` table with 30-day deadline trigger + `DsarManagement.tsx`. Request types per ZZPL. Identity verification step. Integration with existing `tenant-data-export`.
 
-### 4F. I6 — Multi-currency Purchase Pricing (P3, lightweight)
-Add `currency` and `exchange_rate` fields to the purchase order form. Display converted amounts in tenant's base currency. No new tables needed — use existing `purchase_orders.currency` column if present, or add via migration.
+### 2C. EI-04: BG-7 CustomerParty in generate-pdf
+Already handled in 1C above (add BG-7 to the UBL XML in generate-pdf). The SEF functions already have it.
 
-### 4G. I7 — Consignment Inventory
-**DB migration**: Create `consignment_stock` table (tenant_id, supplier_id, product_id, warehouse_id, quantity, status). Add RLS.
+### 2D. AI-05: Model Cards & Bias Testing
+New `ai_model_cards` and `ai_bias_test_log` tables. Super-admin page `AiModelCards.tsx` with pre-populated cards for all 23+ AI functions. Quarterly review scheduling.
 
-**UI page** `ConsignmentInventory.tsx`: View supplier-owned stock, convert to owned stock on sale/consumption, track consignment movements.
+---
 
-### 4H. I8 — Supplier Portal (P3, deferred)
-This is a separate module requiring its own auth flow. Mark as deferred — can be implemented as a standalone feature in a later phase.
+## Phase 3: Documentation (2 items, no code)
+
+### 3A. CLOUD-03: Cloud Security Controls
+Create `docs/ISO-27017-27018-Cloud-Controls.md` — shared responsibility matrix, tenant isolation, PII controls, data location.
+
+### 3B. BC-03: Disaster Recovery Runbooks
+Create `docs/ISO-22301-Disaster-Recovery.md` — RTO/RPO targets, disaster scenarios, recovery procedures.
+
+---
+
+## Phase 4: Loyalty Module Overhaul (5 items)
+
+### 4A. LOY-01: Fizička Lica Migration
+Add `first_name`, `last_name`, `email`, `phone`, `date_of_birth`, `card_number`, `marketing_consent`, `referred_by` columns to `loyalty_members`. Make `partner_id` nullable. Auto-generate card numbers. Create `lookup_loyalty_member` and `accrue_loyalty_points_v2` RPCs. Rewrite `LoyaltyMembers.tsx` enrollment form.
+
+### 4B. LOY-02: Advanced Loyalty Features
+New tables: `loyalty_multiplier_rules`, `loyalty_tier_benefits`, `loyalty_campaigns`. Points expiry function. Referral bonus trigger. Enhanced `LoyaltyDashboard.tsx` with 12+ KPIs.
+
+### 4C. LOY-03: AI Loyalty Recommendations
+New `loyalty_member_purchase_profiles` table + `rebuild_loyalty_purchase_profile()` RPC. New `ai-loyalty-recommendations` edge function using Gemini. `LoyaltyRecommendations.tsx` widget.
+
+### 4D. LOY-04: QR Code + Printable Card
+Install `qrcode` package. Create `loyalty-qr.ts` utility + `LoyaltyCardPrint.tsx` component (85.6×54mm credit-card size). QR encodes card_number. Bulk print support.
+
+### 4E. LOY-05: POS Scanner Integration
+Full end-to-end flow in `PosTerminal.tsx`: QR scan → member lookup → sale → auto-accrue with multiplier rules → display result. Add `loyalty_member_id`, `loyalty_points_earned`, `loyalty_multiplier` columns to `pos_transactions`. Receipt loyalty section.
 
 ---
 
 ## Routing & Navigation
-- Register new routes: `/purchasing/order-predictions`, `/purchasing/blanket-agreements`, `/purchasing/consignment`, `/analytics/inventory-classification`
-- Add nav items under Purchasing and Analytics sections in `TenantLayout.tsx`
+- New routes: `/compliance/capa`, `/compliance/dsar`, `/super-admin/ai-model-cards`
+- Nav items in `TenantLayout.tsx` under Compliance section
 
 ## Summary
 
-| Item | Type | Files |
-|------|------|-------|
-| 4A | Migration + Edge Function + Page | New migration, `ai-ordering-prediction/index.ts`, `SupplierOrderPredictions.tsx` |
-| 4B | Frontend enhancement | `SupplierOrderPredictions.tsx` (PO creation logic) |
-| 4C | Component + GoodsReceipts hook | `SupplierLeadTimeHistory.tsx`, `GoodsReceipts.tsx` edit |
-| 4D | Edge Function + Page | `inventory-classification/index.ts`, `InventoryClassification.tsx` |
-| 4E | Migration + Page | New migration, `BlanketAgreements.tsx` |
-| 4F | Enhancement | `PurchaseOrders.tsx` edit, possible migration |
-| 4G | Migration + Page | New migration, `ConsignmentInventory.tsx` |
-| 4H | Deferred | — |
+| Phase | Items | Type |
+|-------|-------|------|
+| 1 (Infra) | SEC-08 rate limiter, SQ-02 CI/CD, ARCH-01 PDF/A-3 | Migration + edge functions + CI config |
+| 2 (Compliance) | QM-03 CAPA, PRIV-03 DSAR, EI-04 BG-7, AI-05 Model Cards | Migrations + pages + edge function edit |
+| 3 (Docs) | CLOUD-03, BC-03 | Markdown files only |
+| 4 (Loyalty) | LOY-01 through LOY-05 | Migrations + RPCs + edge function + pages + POS integration |
+
+I'll implement phase by phase, waiting for your go-ahead between each.
 
