@@ -137,6 +137,10 @@ export default function QuoteTemplates() {
   const addItem = () => setForm(f => ({ ...f, items: [...f.items, { ...emptyItem }] }));
   const removeItem = (idx: number) => setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
   const updateItem = (idx: number, field: keyof LineItem, value: any) => {
+    // CR7-07: Prevent negative quantity and price values
+    if ((field === "quantity" || field === "unit_price") && typeof value === "number" && value < 0) {
+      value = 0;
+    }
     setForm(f => ({
       ...f,
       items: f.items.map((it, i) => i === idx ? { ...it, [field]: value } : it),
@@ -240,7 +244,7 @@ export default function QuoteTemplates() {
                     </div>
                     <div className="col-span-2">
                       {idx === 0 && <Label className="text-xs">{t("quantity" as any) || "Kol."}</Label>}
-                      <Input type="number" value={item.quantity} onChange={e => updateItem(idx, "quantity", parseFloat(e.target.value) || 0)} />
+                      <Input type="number" min={0} value={item.quantity} onChange={e => updateItem(idx, "quantity", parseFloat(e.target.value) || 0)} />
                     </div>
                     <div className="col-span-2">
                       {idx === 0 && <Label className="text-xs">{t("unit" as any) || "JM"}</Label>}
@@ -248,7 +252,7 @@ export default function QuoteTemplates() {
                     </div>
                     <div className="col-span-2">
                       {idx === 0 && <Label className="text-xs">{t("price" as any) || "Cena"}</Label>}
-                      <Input type="number" value={item.unit_price} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value) || 0)} />
+                      <Input type="number" min={0} value={item.unit_price} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value) || 0)} />
                     </div>
                     <div className="col-span-1">
                       <Button size="icon-sm" variant="ghost" className="text-destructive" onClick={() => removeItem(idx)} disabled={form.items.length <= 1}>

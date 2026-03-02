@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
+import { ActionGuard } from "@/components/ActionGuard";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -143,14 +144,16 @@ export default function PosManagerOverride() {
                   <TableCell className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</TableCell>
                   <TableCell>
                     {o.status === "pending" && (
-                      <div className="flex gap-1">
-                        <Button size="icon-sm" variant="ghost" className="text-success" onClick={() => reviewMutation.mutate({ id: o.id, action: "approved" })}>
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon-sm" variant="ghost" className="text-destructive" onClick={() => reviewMutation.mutate({ id: o.id, action: "rejected" })}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <ActionGuard module="pos" action="approve">
+                        <div className="flex gap-1">
+                          <Button size="icon-sm" variant="ghost" className="text-success" onClick={() => reviewMutation.mutate({ id: o.id, action: "approved" })}>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon-sm" variant="ghost" className="text-destructive" onClick={() => reviewMutation.mutate({ id: o.id, action: "rejected" })}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </ActionGuard>
                     )}
                   </TableCell>
                 </TableRow>
