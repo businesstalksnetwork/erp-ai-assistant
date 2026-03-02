@@ -69,7 +69,7 @@ export default function WorkCenters() {
     { key: "code", label: t("code"), primary: true, render: (r) => <span className="font-mono">{r.code}</span> },
     { key: "name", label: t("name"), render: (r) => <span className="font-medium cursor-pointer text-primary hover:underline" onClick={() => openEdit(r)}>{r.name}</span> },
     { key: "capacity", label: t("capacityPerHour"), render: (r) => r.capacity_per_hour || "—" },
-    { key: "location", label: t("location" as any) || "Location", hideOnMobile: true, render: (r) => r.location || "—" },
+    { key: "location", label: t("location") || "Location", hideOnMobile: true, render: (r) => r.location || "—" },
     { key: "status", label: t("status"), render: (r) => <Badge variant={r.is_active ? "default" : "secondary"}>{r.is_active ? t("active") : t("inactive")}</Badge> },
     { key: "actions", label: "", render: (r) => <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button> },
   ];
@@ -92,7 +92,7 @@ export default function WorkCenters() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>{t("capacityPerHour")}</Label><Input type="number" value={form.capacity_per_hour} onChange={(e) => setForm({ ...form, capacity_per_hour: Number(e.target.value) })} /></div>
-              <div><Label>{t("location" as any) || "Location"}</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
+              <div><Label>{t("location") || "Location"}</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
             </div>
             <div><Label>{t("description")}</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
           </div>

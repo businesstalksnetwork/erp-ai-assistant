@@ -36,12 +36,12 @@ export function ProfileDeductionsCard({ employeeId }: Props) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <MinusCircle className="h-5 w-5" />
-          {t("profileDeductions" as any)}
+          {t("profileDeductions")}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {deductions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("profileNoDeductions" as any)}</p>
+          <p className="text-sm text-muted-foreground">{t("profileNoDeductions")}</p>
         ) : (
           <Table>
             <TableHeader>
@@ -50,7 +50,7 @@ export function ProfileDeductionsCard({ employeeId }: Props) {
                 <TableHead className="text-right">{t("totalAmount")}</TableHead>
                 <TableHead className="text-right">{t("paidAmountLabel")}</TableHead>
                 <TableHead>{t("startDate")}</TableHead>
-                <TableHead>{t("endDate" as any)}</TableHead>
+                <TableHead>{t("endDate")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
               </TableRow>
             </TableHeader>

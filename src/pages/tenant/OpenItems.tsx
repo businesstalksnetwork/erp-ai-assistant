@@ -139,7 +139,7 @@ export default function OpenItems() {
             data={filtered.map(i => ({ ...i, partner_name: (i as any).partners?.name || "—" }))}
             columns={[
               { key: "document_number", label: t("oiDocumentNumber") },
-              { key: "partner_name", label: t("partnerName" as any) },
+              { key: "partner_name", label: t("partnerName") },
               { key: "document_date", label: t("date") },
               { key: "due_date", label: t("dueDate") },
               { key: "original_amount", label: t("oiOriginalAmount") },
@@ -194,7 +194,7 @@ export default function OpenItems() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("oiDocumentNumber")}</TableHead>
-                  <TableHead>{t("partnerName" as any)}</TableHead>
+                  <TableHead>{t("partnerName")}</TableHead>
                   <TableHead>{t("date")}</TableHead>
                   <TableHead>{t("dueDate")}</TableHead>
                   <TableHead className="text-right">{t("oiOriginalAmount")}</TableHead>

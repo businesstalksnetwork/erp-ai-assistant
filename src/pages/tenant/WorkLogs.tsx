@@ -139,7 +139,7 @@ function WorkLogsList({ tenantId, employees, paymentTypes, t, user, qc, navigate
     { key: "date", label: t("date"), render: (l) => l.date },
     { key: "type", label: t("workLogType"), render: (l) => <Badge variant={typeColors[l.type] as any || "secondary"}>{typeLabel(l.type)}</Badge> },
     { key: "hours", label: t("hours"), align: "right", render: (l) => l.hours },
-    { key: "paymentType", label: t("paymentType" as any), hideOnMobile: true, render: (l) => { const pt = paymentTypes.find((p: any) => p.id === l.payment_type_id); return pt ? <Badge variant="outline">{pt.code} <span className="text-muted-foreground ml-1">×{pt.rate_multiplier}</span></Badge> : <span className="text-muted-foreground">—</span>; } },
+    { key: "paymentType", label: t("paymentType"), hideOnMobile: true, render: (l) => { const pt = paymentTypes.find((p: any) => p.id === l.payment_type_id); return pt ? <Badge variant="outline">{pt.code} <span className="text-muted-foreground ml-1">×{pt.rate_multiplier}</span></Badge> : <span className="text-muted-foreground">—</span>; } },
     { key: "note", label: t("notes"), hideOnMobile: true, render: (l) => <span className="max-w-[200px] truncate block">{l.note || "—"}</span> },
     { key: "actions", label: t("actions"), showInCard: false, render: (l) => (
       <MobileActionMenu actions={[
@@ -214,7 +214,7 @@ function WorkLogsList({ tenantId, employees, paymentTypes, t, user, qc, navigate
               <div className="grid gap-2"><Label>{t("vacationYear")}</Label><Input type="number" placeholder="e.g. 2026" value={form.vacation_year} onChange={e => setForm({ ...form, vacation_year: e.target.value })} /></div>
             </div>
             <div className="grid gap-2">
-              <Label>{t("paymentType" as any)}</Label>
+              <Label>{t("paymentType")}</Label>
               <Select value={form.payment_type_id} onValueChange={v => setForm({ ...form, payment_type_id: v === "__none" ? "" : v })}>
                 <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>

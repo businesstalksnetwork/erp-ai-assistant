@@ -49,10 +49,10 @@ export function EmployeeAssetsTab({ employeeId }: Props) {
   });
 
   const allAssets = [
-    ...responsibleAssets.map((a: any) => ({ ...a, source: t("assetsCrossResponsible" as any) })),
+    ...responsibleAssets.map((a: any) => ({ ...a, source: t("assetsCrossResponsible") })),
     ...assignments
       .filter((a: any) => a.assets && !responsibleAssets.some((r: any) => r.id === a.assets.id))
-      .map((a: any) => ({ ...a.assets, source: t("assetsCrossAssigned" as any), assigned_date: a.assigned_date })),
+      .map((a: any) => ({ ...a.assets, source: t("assetsCrossAssigned"), assigned_date: a.assigned_date })),
   ];
 
   const formatCurrency = (val: number) =>
@@ -61,20 +61,20 @@ export function EmployeeAssetsTab({ employeeId }: Props) {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold flex items-center gap-2">
-        <Package className="h-5 w-5" /> {t("assetsCrossEmployeeAssets" as any)} ({allAssets.length})
+        <Package className="h-5 w-5" /> {t("assetsCrossEmployeeAssets")} ({allAssets.length})
       </h3>
 
       {allAssets.length === 0 ? (
-        <p className="text-muted-foreground text-center py-8">{t("assetsCrossNoAssets" as any)}</p>
+        <p className="text-muted-foreground text-center py-8">{t("assetsCrossNoAssets")}</p>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("code" as any)}</TableHead>
-              <TableHead>{t("name" as any)}</TableHead>
+              <TableHead>{t("code")}</TableHead>
+              <TableHead>{t("name")}</TableHead>
               <TableHead>{t("status")}</TableHead>
-              <TableHead className="text-right">{t("assetsCurrentValue" as any)}</TableHead>
-              <TableHead>{t("assetsCrossSource" as any)}</TableHead>
+              <TableHead className="text-right">{t("assetsCurrentValue")}</TableHead>
+              <TableHead>{t("assetsCrossSource")}</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>

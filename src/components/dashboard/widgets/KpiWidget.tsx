@@ -318,7 +318,7 @@ export function KpiWidget({ metricKey, locationId }: Props) {
   const Icon = ICON_MAP[metricKey] || DollarSign;
   const border = BORDER_MAP[metricKey] || BORDER_MAP.default;
   const registryKey = widgetRegistry[`kpi_${metricKey}`]?.titleKey || metricKey;
-  const baseLabel = t(registryKey as any) || metricKey;
+  const baseLabel = t(registryKey) || metricKey;
   const label = locationName ? `${baseLabel} · ${locationName}` : baseLabel;
 
   if (isLoading) {
