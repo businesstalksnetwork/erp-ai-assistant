@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 // ── Security: prompt injection patterns ──
 const INJECTION_PATTERNS = [
@@ -1232,7 +1234,6 @@ Respond in ${language === "sr" ? "Serbian (Latin script)" : "English"}. Use mark
     return new Response(finalResponse.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
 
   } catch (e: any) {
-    console.error("ai-assistant error:", e);
-    return new Response(JSON.stringify({ error: e.message || "Internal error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return createErrorResponse(e, req, { logPrefix: "ai-assistant error" });
   }
 });
