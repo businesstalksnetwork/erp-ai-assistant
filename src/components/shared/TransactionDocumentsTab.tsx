@@ -42,24 +42,19 @@ export function TransactionDocumentsTab({ entityType, entityId, title }: Transac
 
   const deleteMutation = useMutation({
     mutationFn: async (docId: string) => {
-      const { error } = await supabase
-        .from("documents")
-        .update({ status: "deleted" })
-        .eq("id", docId);
+      const { error } = await supabase.from("documents").update({ status: "deleted" }).eq("id", docId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["entity-documents", entityType, entityId] });
-      toast({ title: t("documentDeleted" as any) || "Dokument obrisan" });
+      toast({ title: t("documentDeleted") || "Dokument obrisan" });
     },
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
   const handleDownload = async (doc: any) => {
     const { data } = await supabase.storage.from("documents").createSignedUrl(doc.file_path, 300);
-    if (data?.signedUrl) {
-      window.open(data.signedUrl, "_blank");
-    }
+    if (data?.signedUrl) { window.open(data.signedUrl, "_blank"); }
   };
 
   const formatFileSize = (bytes: number | null) => {
@@ -75,7 +70,7 @@ export function TransactionDocumentsTab({ entityType, entityId, title }: Transac
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            {title || t("attachedDocuments" as any) || "Priloženi dokumenti"}
+            {title || t("attachedDocuments") || "Priloženi dokumenti"}
             {documents.length > 0 && (
               <Badge variant="secondary" className="ml-1">{documents.length}</Badge>
             )}
@@ -87,7 +82,7 @@ export function TransactionDocumentsTab({ entityType, entityId, title }: Transac
         {isLoading && <p className="text-sm text-muted-foreground">{t("loading")}</p>}
         {!isLoading && documents.length === 0 && (
           <p className="text-sm text-muted-foreground py-4 text-center">
-            {t("noDocuments" as any) || "Nema priloženih dokumenata"}
+            {t("noDocuments") || "Nema priloženih dokumenata"}
           </p>
         )}
         <div className="space-y-2">
@@ -105,12 +100,7 @@ export function TransactionDocumentsTab({ entityType, entityId, title }: Transac
                 <Button size="icon-sm" variant="ghost" onClick={() => handleDownload(doc)}>
                   <Download className="h-3 w-3" />
                 </Button>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  className="text-destructive"
-                  onClick={() => deleteMutation.mutate(doc.id)}
-                >
+                <Button size="icon-sm" variant="ghost" className="text-destructive" onClick={() => deleteMutation.mutate(doc.id)}>
                   <Trash2 className="h-3 w-3" />
                 </Button>
               </div>

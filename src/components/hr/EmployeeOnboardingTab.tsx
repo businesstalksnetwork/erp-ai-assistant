@@ -63,11 +63,7 @@ export function EmployeeOnboardingTab({ employeeId, tenantId }: Props) {
       if (!checklist) throw new Error("Checklist not found");
       const items = (checklist as any).items as ChecklistItem[];
       const rows = items.map((_: ChecklistItem, idx: number) => ({
-        tenant_id: tenantId,
-        employee_id: employeeId,
-        checklist_id: checklistId,
-        item_index: idx,
-        completed: false,
+        tenant_id: tenantId, employee_id: employeeId, checklist_id: checklistId, item_index: idx, completed: false,
       }));
       const { error } = await (supabase.from("employee_onboarding_tasks" as any).insert(rows) as any);
       if (error) throw error;
@@ -85,21 +81,14 @@ export function EmployeeOnboardingTab({ employeeId, tenantId }: Props) {
     mutationFn: async ({ taskId, completed }: { taskId: string; completed: boolean }) => {
       const { error } = await (supabase
         .from("employee_onboarding_tasks" as any)
-        .update({
-          completed,
-          completed_at: completed ? new Date().toISOString() : null,
-          completed_by: completed ? user?.id : null,
-        })
+        .update({ completed, completed_at: completed ? new Date().toISOString() : null, completed_by: completed ? user?.id : null })
         .eq("id", taskId) as any);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["employee-onboarding-tasks", employeeId] });
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["employee-onboarding-tasks", employeeId] }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Group tasks by checklist
   const grouped = tasks.reduce((acc: Record<string, any[]>, task: any) => {
     const key = task.checklist_id;
     if (!acc[key]) acc[key] = [];
@@ -110,9 +99,9 @@ export function EmployeeOnboardingTab({ employeeId, tenantId }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">{t("onboardingChecklists" as any)}</h3>
+        <h3 className="text-lg font-semibold">{t("onboardingChecklists")}</h3>
         <Button size="sm" onClick={() => setAssignOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" />{t("assignChecklist" as any)}
+          <Plus className="h-4 w-4 mr-1" />{t("assignChecklist")}
         </Button>
       </div>
 
@@ -122,7 +111,7 @@ export function EmployeeOnboardingTab({ employeeId, tenantId }: Props) {
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             <ListChecks className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>{t("noOnboardingTasks" as any)}</p>
+            <p>{t("noOnboardingTasks")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -150,18 +139,12 @@ export function EmployeeOnboardingTab({ employeeId, tenantId }: Props) {
                       <div key={task.id} className="flex items-start gap-3 p-2 rounded hover:bg-muted/50">
                         <Checkbox
                           checked={task.completed}
-                          onCheckedChange={(checked) =>
-                            toggleMutation.mutate({ taskId: task.id, completed: !!checked })
-                          }
+                          onCheckedChange={(checked) => toggleMutation.mutate({ taskId: task.id, completed: !!checked })}
                           className="mt-0.5"
                         />
                         <div className="flex-1">
-                          <p className={`text-sm font-medium ${task.completed ? "line-through text-muted-foreground" : ""}`}>
-                            {item.title}
-                          </p>
-                          {item.description && (
-                            <p className="text-xs text-muted-foreground">{item.description}</p>
-                          )}
+                          <p className={`text-sm font-medium ${task.completed ? "line-through text-muted-foreground" : ""}`}>{item.title}</p>
+                          {item.description && <p className="text-xs text-muted-foreground">{item.description}</p>}
                         </div>
                       </div>
                     );
@@ -176,11 +159,11 @@ export function EmployeeOnboardingTab({ employeeId, tenantId }: Props) {
       <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("assignChecklist" as any)}</DialogTitle>
+            <DialogTitle>{t("assignChecklist")}</DialogTitle>
           </DialogHeader>
           <Select value={selectedChecklist} onValueChange={setSelectedChecklist}>
             <SelectTrigger>
-              <SelectValue placeholder={t("selectChecklist" as any)} />
+              <SelectValue placeholder={t("selectChecklist")} />
             </SelectTrigger>
             <SelectContent>
               {checklists.map((c: any) => (
@@ -190,11 +173,8 @@ export function EmployeeOnboardingTab({ employeeId, tenantId }: Props) {
           </Select>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAssignOpen(false)}>{t("cancel")}</Button>
-            <Button
-              onClick={() => assignMutation.mutate(selectedChecklist)}
-              disabled={!selectedChecklist || assignMutation.isPending}
-            >
-              {assignMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("assign" as any)}
+            <Button onClick={() => assignMutation.mutate(selectedChecklist)} disabled={!selectedChecklist || assignMutation.isPending}>
+              {assignMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("assign")}
             </Button>
           </DialogFooter>
         </DialogContent>
