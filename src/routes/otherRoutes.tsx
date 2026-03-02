@@ -89,6 +89,11 @@ const LoyaltyPrograms = React.lazy(() => import("@/pages/tenant/LoyaltyPrograms"
 const LoyaltyMembers = React.lazy(() => import("@/pages/tenant/LoyaltyMembers"));
 const LoyaltyRewards = React.lazy(() => import("@/pages/tenant/LoyaltyRewards"));
 
+// Compliance
+const CapaManagement = React.lazy(() => import("@/pages/tenant/CapaManagement"));
+const DsarManagement = React.lazy(() => import("@/pages/tenant/DsarManagement"));
+const AiModelCards = React.lazy(() => import("@/pages/tenant/AiModelCards"));
+
 // Analytics
 const AnalyticsDashboard = React.lazy(() => import("@/pages/tenant/AnalyticsDashboard"));
 const FinancialRatios = React.lazy(() => import("@/pages/tenant/FinancialRatios"));
@@ -244,6 +249,14 @@ export const loyaltyRoutes = (
     <Route path="loyalty/programs" element={<ProtectedRoute requiredModule="loyalty"><B><LoyaltyPrograms /></B></ProtectedRoute>} />
     <Route path="loyalty/members" element={<ProtectedRoute requiredModule="loyalty"><B><LoyaltyMembers /></B></ProtectedRoute>} />
     <Route path="loyalty/rewards" element={<ProtectedRoute requiredModule="loyalty"><B><LoyaltyRewards /></B></ProtectedRoute>} />
+  </>
+);
+
+export const complianceRoutes = (
+  <>
+    <Route path="compliance/capa" element={<ProtectedRoute><B><CapaManagement /></B></ProtectedRoute>} />
+    <Route path="compliance/dsar" element={<ProtectedRoute><B><DsarManagement /></B></ProtectedRoute>} />
+    <Route path="super-admin/ai-model-cards" element={<ProtectedRoute><B><AiModelCards /></B></ProtectedRoute>} />
   </>
 );
 
