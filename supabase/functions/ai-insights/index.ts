@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { createErrorResponse } from "../_shared/error-handler.ts";
 import { withSecurityHeaders } from "../_shared/security-headers.ts";
+import { checkRateLimit } from "../_shared/rate-limiter.ts";
 
 interface Insight {
   insight_type: string;
@@ -171,6 +172,13 @@ serve(async (req) => {
     }
 
     let body: any;
+
+    // Rate limit: 10 requests per minute per user
+    const rl = checkRateLimit(`ai-insights:${caller.id}`, 10, 60_000);
+    if (!rl.allowed) {
+      return createErrorResponse("Rate limit exceeded", req, { status: 429, logPrefix: "ai-insights rate-limit" });
+    }
+
     try {
       body = await req.json();
     } catch {

@@ -131,6 +131,21 @@ serve(async (req) => {
       }
     }
 
+    // CR7-06: Audit log for AI year-end check
+    try {
+      await supabase.from("ai_action_log").insert({
+        tenant_id: tenant_id,
+        user_id: user.id,
+        action_type: "year_end_check",
+        module: "accounting",
+        model_version: LOVABLE_API_KEY ? "gpt-4o-mini" : "rule-based",
+        user_decision: "auto",
+        reasoning: `Year-end check: ${passCount} passed, ${failCount} failed, readiness=${readiness}`,
+      });
+    } catch (e) {
+      console.warn("Failed to log AI action:", e);
+    }
+
     return new Response(JSON.stringify({
       readiness, checks, pass_count: passCount, fail_count: failCount,
       total_checks: checks.length, ai_summary: aiSummary,

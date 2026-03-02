@@ -14,15 +14,52 @@ export default function DataExport() {
   const { toast } = useToast();
   const [exporting, setExporting] = useState(false);
   const [lastExport, setLastExport] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
 
   const handleExport = async () => {
     if (!tenantId) return;
     setExporting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("tenant-data-export");
-      if (error) throw error;
+    setProgress("Starting export...");
 
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    try {
+      // Paginated export: loop until no next_cursor remains
+      let allData: Record<string, any[]> = {};
+      let cursor: string | undefined;
+      let page = 0;
+
+      do {
+        page++;
+        setProgress(`Fetching page ${page}...`);
+
+        const body: Record<string, any> = {};
+        if (cursor) {
+          body.cursor = JSON.parse(atob(cursor));
+        }
+
+        const { data, error } = await supabase.functions.invoke("tenant-data-export", { body });
+        if (error) throw error;
+
+        // Merge table data
+        const tables = data.tables || {};
+        for (const [table, rows] of Object.entries(tables)) {
+          if (!allData[table]) allData[table] = [];
+          allData[table].push(...(rows as any[]));
+        }
+
+        cursor = data.truncated ? data.next_cursor : undefined;
+      } while (cursor);
+
+      // Build final export payload
+      const exportPayload = {
+        export_version: "1.1",
+        exported_at: new Date().toISOString(),
+        tenant_id: tenantId,
+        tables: allData,
+        row_counts: Object.fromEntries(Object.entries(allData).map(([k, v]) => [k, v.length])),
+        total_pages: page,
+      };
+
+      const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -31,8 +68,10 @@ export default function DataExport() {
       URL.revokeObjectURL(url);
 
       setLastExport(new Date().toISOString());
-      toast({ title: t("success"), description: "Data export completed successfully." });
+      setProgress(null);
+      toast({ title: t("success"), description: `Data export completed (${page} page${page > 1 ? "s" : ""}).` });
     } catch (e: any) {
+      setProgress(null);
       toast({ title: t("error"), description: e.message, variant: "destructive" });
     } finally {
       setExporting(false);
@@ -95,6 +134,7 @@ export default function DataExport() {
           <CardTitle>{"Export All Data"}</CardTitle>
           <CardDescription>
             Downloads partners, invoices, products, journal entries, employees, contacts, and more as a single JSON file.
+            {progress && <span className="ml-2 text-primary font-medium">{progress}</span>}
           </CardDescription>
         </CardHeader>
         <CardContent>

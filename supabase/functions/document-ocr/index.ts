@@ -92,6 +92,21 @@ If no text is found, return {"text": "NO_TEXT_FOUND", "category": "ostalo"}.` },
     // Store OCR text and category in documents table
     await supabase.from("documents").update({ ocr_text: extractedText, ai_category: category }).eq("id", document_id).eq("tenant_id", tenant_id);
 
+    // CR7-06: Audit log for document OCR
+    try {
+      await supabase.from("ai_action_log").insert({
+        tenant_id: tenant_id,
+        user_id: user.id,
+        action_type: "document_ocr",
+        module: "documents",
+        model_version: "google/gemini-2.5-flash",
+        user_decision: "auto",
+        reasoning: `OCR processed document ${document_id}, classified as '${category}', extracted ${extractedText.length} chars`,
+      });
+    } catch (e) {
+      console.warn("Failed to log AI action:", e);
+    }
+
     return new Response(JSON.stringify({ text: extractedText, category }), { headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
   } catch (e) {
     return createErrorResponse(e, req, { logPrefix: "document-ocr" });

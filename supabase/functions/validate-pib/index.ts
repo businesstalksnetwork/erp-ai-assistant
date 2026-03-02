@@ -1,5 +1,7 @@
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { withSecurityHeaders } from "../_shared/security-headers.ts";
+import { checkRateLimit } from "../_shared/rate-limiter.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
 
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflightRequest(req);
@@ -7,6 +9,13 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   try {
+    // Rate limit: 30 requests per minute per IP
+    const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+    const rl = checkRateLimit(`validate-pib:${clientIp}`, 30, 60_000);
+    if (!rl.allowed) {
+      return createErrorResponse("Rate limit exceeded", req, { status: 429, logPrefix: "validate-pib rate-limit" });
+    }
+
     const { pib } = await req.json();
 
     // Validate PIB format

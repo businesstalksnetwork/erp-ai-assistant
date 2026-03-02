@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { createErrorResponse } from "../_shared/error-handler.ts";
 import { withSecurityHeaders } from "../_shared/security-headers.ts";
+import { checkRateLimit } from "../_shared/rate-limiter.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -18,6 +19,12 @@ serve(async (req) => {
     const { data: { user }, error: authErr } = await userClient.auth.getUser();
     if (authErr || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }) });
+    }
+
+    // Rate limit: 20 requests per minute per user
+    const rl = checkRateLimit(`company-lookup:${user.id}`, 20, 60_000);
+    if (!rl.allowed) {
+      return createErrorResponse("Rate limit exceeded", req, { status: 429, logPrefix: "company-lookup rate-limit" });
     }
 
     const { pib } = await req.json();
