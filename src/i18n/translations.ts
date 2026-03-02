@@ -624,6 +624,10 @@ export const translations = {
     editSupplierInvoice: "Edit Supplier Invoice",
     invoiceAmount: "Invoice Amount",
     received: "Received",
+    orderPredictions: "AI Order Predictions",
+    blanketAgreements: "Blanket Agreements",
+    consignmentInventory: "Consignment Inventory",
+    inventoryClassification: "ABC/XYZ Classification",
 
     // Returns
     returns: "Returns",
@@ -4191,6 +4195,10 @@ export const translations = {
     editSupplierInvoice: "Izmeni fakturu dobavljača",
     invoiceAmount: "Iznos fakture",
     received: "Primljeno",
+    orderPredictions: "AI Predikcije narudžbi",
+    blanketAgreements: "Okvirni ugovori",
+    consignmentInventory: "Konsignacijske zalihe",
+    inventoryClassification: "ABC/XYZ Klasifikacija",
 
     // Returns
     returns: "Povrati",

@@ -2932,6 +2932,130 @@ export type Database = {
         }
         Relationships: []
       }
+      blanket_agreement_lines: {
+        Row: {
+          agreed_price: number
+          agreed_qty: number
+          agreement_id: string
+          consumed_qty: number
+          created_at: string
+          id: string
+          product_id: string | null
+          product_name: string
+          tenant_id: string
+        }
+        Insert: {
+          agreed_price?: number
+          agreed_qty?: number
+          agreement_id: string
+          consumed_qty?: number
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          product_name: string
+          tenant_id: string
+        }
+        Update: {
+          agreed_price?: number
+          agreed_qty?: number
+          agreement_id?: string
+          consumed_qty?: number
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          product_name?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blanket_agreement_lines_agreement_id_fkey"
+            columns: ["agreement_id"]
+            isOneToOne: false
+            referencedRelation: "blanket_agreements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blanket_agreement_lines_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blanket_agreement_lines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blanket_agreements: {
+        Row: {
+          agreement_number: string
+          consumed_value: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          end_date: string
+          id: string
+          notes: string | null
+          start_date: string
+          status: string
+          supplier_id: string
+          tenant_id: string
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          agreement_number: string
+          consumed_value?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          end_date: string
+          id?: string
+          notes?: string | null
+          start_date: string
+          status?: string
+          supplier_id: string
+          tenant_id: string
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          agreement_number?: string
+          consumed_value?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          end_date?: string
+          id?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          supplier_id?: string
+          tenant_id?: string
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blanket_agreements_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blanket_agreements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bom_lines: {
         Row: {
           bom_template_id: string
@@ -3898,6 +4022,83 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consignment_stock: {
+        Row: {
+          consumed_date: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          product_id: string
+          quantity: number
+          received_date: string
+          status: string
+          supplier_id: string
+          tenant_id: string
+          unit_cost: number
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          consumed_date?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          product_id: string
+          quantity?: number
+          received_date?: string
+          status?: string
+          supplier_id: string
+          tenant_id: string
+          unit_cost?: number
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          consumed_date?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          product_id?: string
+          quantity?: number
+          received_date?: string
+          status?: string
+          supplier_id?: string
+          tenant_id?: string
+          unit_cost?: number
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consignment_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignment_stock_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignment_stock_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consignment_stock_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -18097,6 +18298,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          exchange_rate: number | null
           expected_date: string | null
           id: string
           legal_entity_id: string | null
@@ -18117,6 +18319,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          exchange_rate?: number | null
           expected_date?: string | null
           id?: string
           legal_entity_id?: string | null
@@ -18137,6 +18340,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          exchange_rate?: number | null
           expected_date?: string | null
           id?: string
           legal_entity_id?: string | null
@@ -21714,6 +21918,182 @@ export type Database = {
           },
           {
             foreignKeyName: "supplier_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_lead_times: {
+        Row: {
+          created_at: string
+          expected_lead_time_days: number | null
+          goods_receipt_id: string | null
+          id: string
+          lead_time_days: number | null
+          notes: string | null
+          on_time: boolean | null
+          ordered_date: string
+          product_id: string | null
+          purchase_order_id: string | null
+          received_date: string
+          supplier_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          expected_lead_time_days?: number | null
+          goods_receipt_id?: string | null
+          id?: string
+          lead_time_days?: number | null
+          notes?: string | null
+          on_time?: boolean | null
+          ordered_date: string
+          product_id?: string | null
+          purchase_order_id?: string | null
+          received_date: string
+          supplier_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          expected_lead_time_days?: number | null
+          goods_receipt_id?: string | null
+          id?: string
+          lead_time_days?: number | null
+          notes?: string | null
+          on_time?: boolean | null
+          ordered_date?: string
+          product_id?: string | null
+          purchase_order_id?: string | null
+          received_date?: string
+          supplier_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_lead_times_goods_receipt_id_fkey"
+            columns: ["goods_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "goods_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_lead_times_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_lead_times_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_lead_times_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_lead_times_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_order_predictions: {
+        Row: {
+          avg_daily_demand: number
+          confidence: number
+          created_at: string
+          current_stock: number
+          estimated_value: number
+          horizon_days: number
+          id: string
+          lead_time_days: number
+          order_by_date: string | null
+          product_id: string
+          purchase_order_id: string | null
+          recommended_qty: number
+          reorder_point: number
+          safety_stock: number
+          status: string
+          supplier_id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          avg_daily_demand?: number
+          confidence?: number
+          created_at?: string
+          current_stock?: number
+          estimated_value?: number
+          horizon_days?: number
+          id?: string
+          lead_time_days?: number
+          order_by_date?: string | null
+          product_id: string
+          purchase_order_id?: string | null
+          recommended_qty?: number
+          reorder_point?: number
+          safety_stock?: number
+          status?: string
+          supplier_id: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          avg_daily_demand?: number
+          confidence?: number
+          created_at?: string
+          current_stock?: number
+          estimated_value?: number
+          horizon_days?: number
+          id?: string
+          lead_time_days?: number
+          order_by_date?: string | null
+          product_id?: string
+          purchase_order_id?: string | null
+          recommended_qty?: number
+          reorder_point?: number
+          safety_stock?: number
+          status?: string
+          supplier_id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_order_predictions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_order_predictions_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_order_predictions_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_order_predictions_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

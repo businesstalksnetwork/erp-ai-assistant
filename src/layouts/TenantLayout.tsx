@@ -180,6 +180,7 @@ const analyticsNav: NavItem[] = [
   { key: "earlyWarningSystem", url: "/analytics/early-warning", icon: AlertTriangle },
   { key: "inventoryHealth", url: "/analytics/inventory-health", icon: Package, section: "operationsAnalytics" },
   { key: "demandForecasting", url: "/analytics/demand-forecast", icon: TrendingUp },
+  { key: "inventoryClassification", url: "/analytics/inventory-classification", icon: Grid3X3 },
   { key: "payrollBenchmark", url: "/analytics/payroll-benchmark", icon: Banknote },
   { key: "cashFlowForecast", url: "/analytics/cashflow-forecast", icon: DollarSign, section: "forecasting" },
   { key: "budgetVsActuals", url: "/analytics/budget", icon: Target },
@@ -217,6 +218,9 @@ const purchasingNav: NavItem[] = [
   { key: "goodsReceipts", url: "/purchasing/goods-receipts", icon: ClipboardCheck },
   { key: "supplierInvoices", url: "/purchasing/supplier-invoices", icon: FileInput },
   { key: "incomingEfakture", url: "/purchasing/incoming-efakture", icon: FileText },
+  { key: "orderPredictions", url: "/purchasing/order-predictions", icon: Brain },
+  { key: "blanketAgreements", url: "/purchasing/blanket-agreements", icon: FileText },
+  { key: "consignmentInventory", url: "/purchasing/consignment", icon: Package },
 ];
 
 const hrNav: NavItem[] = [
