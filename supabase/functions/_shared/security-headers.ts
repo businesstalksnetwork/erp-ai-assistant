@@ -10,6 +10,7 @@ export const securityHeaders: Record<string, string> = {
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Cache-Control": "no-store, no-cache, must-revalidate",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  "Content-Security-Policy": "default-src 'none'",
 };
 
 /** Merge security headers into an existing headers object */

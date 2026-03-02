@@ -10,10 +10,14 @@ serve(async (req) => {
   if (preflight) return preflight;
 
   try {
-    // CR10-08: Verify CRON_SECRET for scheduled invocations
+    // CR11-03: Fail-closed CRON_SECRET verification
     const cronSecret = Deno.env.get("CRON_SECRET");
+    if (!cronSecret) {
+      console.error("CRON_SECRET not configured");
+      return createErrorResponse("CRON_SECRET not configured", req, { status: 500, logPrefix: "ai-weekly-email" });
+    }
     const authHeader = req.headers.get("Authorization");
-    if (cronSecret && (!authHeader || authHeader !== `Bearer ${cronSecret}`)) {
+    if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
       return createErrorResponse("Unauthorized", req, { status: 401, logPrefix: "ai-weekly-email" });
     }
 

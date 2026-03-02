@@ -46,27 +46,27 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
     financialReportsRes,
   ] = await Promise.all([
     // 1.2: All journal entries with lines for balance check
-    supabase.from("journal_entries").select("id, entry_date, description, journal_entry_lines(amount, type)").eq("tenant_id", tenantId),
+    supabase.from("journal_entries").select("id, entry_date, description, journal_entry_lines(amount, type)").eq("tenant_id", tenantId).limit(5000),
     // 1.3: Journal entries without supporting docs
-    supabase.from("journal_entries").select("id, entry_date, description").eq("tenant_id", tenantId).is("supporting_document_url", null),
+    supabase.from("journal_entries").select("id, entry_date, description").eq("tenant_id", tenantId).is("supporting_document_url", null).limit(5000),
     // 2.1: Late VAT returns
-    supabase.from("vat_returns").select("*").eq("tenant_id", tenantId).lt("due_date", today).eq("status", "pending"),
+    supabase.from("vat_returns").select("*").eq("tenant_id", tenantId).lt("due_date", today).eq("status", "pending").limit(5000),
     // 2.2: VAT discrepancies
-    supabase.from("vat_returns").select("*").eq("tenant_id", tenantId).lt("due_date", today),
+    supabase.from("vat_returns").select("*").eq("tenant_id", tenantId).lt("due_date", today).limit(5000),
     // 2.3: Invoices without VAT ID
-    supabase.from("invoices").select("id, invoice_number, client_name").eq("tenant_id", tenantId).is("client_vat_id", null),
+    supabase.from("invoices").select("id, invoice_number, client_name").eq("tenant_id", tenantId).is("client_vat_id", null).limit(5000),
     // 3.1: Overdue invoices
-    supabase.from("invoices").select("id, invoice_number, client_name, due_date").eq("tenant_id", tenantId).lt("due_date", today).eq("status", "unpaid"),
+    supabase.from("invoices").select("id, invoice_number, client_name, due_date").eq("tenant_id", tenantId).lt("due_date", today).eq("status", "unpaid").limit(5000),
     // 3.2: Invoices without payment method
-    supabase.from("invoices").select("id, invoice_number, client_name").eq("tenant_id", tenantId).is("payment_method", null),
+    supabase.from("invoices").select("id, invoice_number, client_name").eq("tenant_id", tenantId).is("payment_method", null).limit(5000),
     // 4.1: All employees (we'll batch-check payroll below)
-    supabase.from("employees").select("id, full_name").eq("tenant_id", tenantId),
+    supabase.from("employees").select("id, full_name").eq("tenant_id", tenantId).limit(5000),
     // 4.2: Employees without contract
-    supabase.from("employees").select("id, full_name").eq("tenant_id", tenantId).is("employment_contract_url", null),
+    supabase.from("employees").select("id, full_name").eq("tenant_id", tenantId).is("employment_contract_url", null).limit(5000),
     // 5.1: All assets (we'll batch-check depreciation below)
-    supabase.from("assets").select("id, name, purchase_date").eq("tenant_id", tenantId),
+    supabase.from("assets").select("id, name, purchase_date").eq("tenant_id", tenantId).limit(5000),
     // 6.1: Annual financial reports
-    supabase.from("financial_reports").select("*").eq("tenant_id", tenantId).eq("year", currentYear - 1),
+    supabase.from("financial_reports").select("*").eq("tenant_id", tenantId).eq("year", currentYear - 1).limit(5000),
   ]);
 
   // 1.2: Unbalanced journal entries

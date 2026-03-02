@@ -42,7 +42,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: membership } = await sb.from("tenant_members").select("tenant_id, role").eq("user_id", user.id).eq("status", "active").limit(1).single();
+    // CR11-09: Accept optional tenant_id from request body
+    let requestedTenantId: string | null = null;
+    try {
+      if (req.method === "POST") {
+        const body = await req.json().catch(() => ({}));
+        requestedTenantId = body.tenant_id || null;
+      } else {
+        const url = new URL(req.url);
+        requestedTenantId = url.searchParams.get("tenant_id");
+      }
+    } catch { /* ignore */ }
+
+    let membershipQuery = sb.from("tenant_members").select("tenant_id, role").eq("user_id", user.id).eq("status", "active");
+    if (requestedTenantId) {
+      membershipQuery = membershipQuery.eq("tenant_id", requestedTenantId);
+    }
+    const { data: membership } = await membershipQuery.limit(1).single();
     if (!membership) {
       return new Response(JSON.stringify({ error: "No tenant membership" }), {
         status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
