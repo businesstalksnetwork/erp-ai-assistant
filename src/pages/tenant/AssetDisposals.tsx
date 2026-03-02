@@ -83,16 +83,16 @@ export default function AssetDisposals() {
 
       const lines: any[] = [];
       let sortOrder = 0;
-      if (accum > 0) lines.push({ accountCode: "0121", debit: accum, credit: 0, description: `${t("assetsAccumDep" as any)} - ${asset.name}`, sortOrder: sortOrder++ });
-      if (form.disposal_type === "sold" && salePrice > 0) lines.push({ accountCode: "2431", debit: salePrice, credit: 0, description: `${t("assetsDisposalProceeds" as any)} - ${asset.name}`, sortOrder: sortOrder++ });
-      lines.push({ accountCode: "0120", debit: 0, credit: cost, description: `${t("assetsRemoveAsset" as any)} - ${asset.name}`, sortOrder: sortOrder++ });
-      if (gainLoss > 0) lines.push({ accountCode: "6072", debit: 0, credit: gainLoss, description: `${t("assetsGainOnDisposal" as any)}`, sortOrder: sortOrder++ });
-      else if (gainLoss < 0) lines.push({ accountCode: "5073", debit: Math.abs(gainLoss), credit: 0, description: `${t("assetsLossOnDisposal" as any)}`, sortOrder: sortOrder++ });
+      if (accum > 0) lines.push({ accountCode: "0121", debit: accum, credit: 0, description: `${t("assetsAccumDep")} - ${asset.name}`, sortOrder: sortOrder++ });
+      if (form.disposal_type === "sold" && salePrice > 0) lines.push({ accountCode: "2431", debit: salePrice, credit: 0, description: `${t("assetsDisposalProceeds")} - ${asset.name}`, sortOrder: sortOrder++ });
+      lines.push({ accountCode: "0120", debit: 0, credit: cost, description: `${t("assetsRemoveAsset")} - ${asset.name}`, sortOrder: sortOrder++ });
+      if (gainLoss > 0) lines.push({ accountCode: "6072", debit: 0, credit: gainLoss, description: `${t("assetsGainOnDisposal")}`, sortOrder: sortOrder++ });
+      else if (gainLoss < 0) lines.push({ accountCode: "5073", debit: Math.abs(gainLoss), credit: 0, description: `${t("assetsLossOnDisposal")}`, sortOrder: sortOrder++ });
 
       const journalId = await postWithRuleOrFallback({
         tenantId, userId: user.id, entryDate: form.disposal_date,
         modelCode: "ASSET_DISPOSAL", amount: cost,
-        description: `${t("assetsDisposal" as any)} (${form.disposal_type}) - ${asset.name}`,
+        description: `${t("assetsDisposal")} (${form.disposal_type}) - ${asset.name}`,
         reference: `DISP-${asset.asset_code}`, context: {}, fallbackLines: lines,
       });
 
@@ -109,7 +109,7 @@ export default function AssetDisposals() {
       qc.invalidateQueries({ queryKey: ["asset-disposals", tenantId] });
       qc.invalidateQueries({ queryKey: ["disposal-eligible-assets", tenantId] });
       qc.invalidateQueries({ queryKey: ["assets-stats", tenantId] });
-      toast({ title: t("assetsDisposalPosted" as any) });
+      toast({ title: t("assetsDisposalPosted") });
       setDialogOpen(false);
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
@@ -119,14 +119,14 @@ export default function AssetDisposals() {
     new Intl.NumberFormat("sr-Latn-RS", { style: "decimal", minimumFractionDigits: 2 }).format(val || 0);
 
   const columns: ResponsiveColumn<any>[] = [
-    { key: "code", label: t("code" as any), primary: true, sortable: true, sortValue: (d) => d.assets?.asset_code || "", render: (d) => <span className="font-mono text-sm">{d.assets?.asset_code}</span> },
-    { key: "name", label: t("name" as any), sortable: true, sortValue: (d) => d.assets?.name || "", render: (d) => <span className="font-medium">{d.assets?.name}</span> },
-    { key: "type", label: t("assetsDisposalType" as any), render: (d) => <Badge variant="outline">{t(`assets${d.disposal_type?.charAt(0).toUpperCase()}${d.disposal_type?.slice(1)}` as any) || d.disposal_type}</Badge> },
-    { key: "date", label: t("date" as any), sortable: true, sortValue: (d) => d.disposal_date, render: (d) => d.disposal_date },
-    { key: "book", label: t("bookValue" as any), align: "right" as const, sortable: true, sortValue: (d) => Number(d.net_book_value_at_disposal), render: (d) => <span className="font-mono">{formatCurrency(d.net_book_value_at_disposal)}</span> },
-    { key: "sale", label: t("salePrice" as any), align: "right" as const, hideOnMobile: true, render: (d) => <span className="font-mono">{formatCurrency(d.disposal_amount)}</span> },
+    { key: "code", label: t("code"), primary: true, sortable: true, sortValue: (d) => d.assets?.asset_code || "", render: (d) => <span className="font-mono text-sm">{d.assets?.asset_code}</span> },
+    { key: "name", label: t("name"), sortable: true, sortValue: (d) => d.assets?.name || "", render: (d) => <span className="font-medium">{d.assets?.name}</span> },
+    { key: "type", label: t("assetsDisposalType"), render: (d) => <Badge variant="outline">{t(`assets${d.disposal_type?.charAt(0).toUpperCase()}${d.disposal_type?.slice(1)}`) || d.disposal_type}</Badge> },
+    { key: "date", label: t("date"), sortable: true, sortValue: (d) => d.disposal_date, render: (d) => d.disposal_date },
+    { key: "book", label: t("bookValue"), align: "right" as const, sortable: true, sortValue: (d) => Number(d.net_book_value_at_disposal), render: (d) => <span className="font-mono">{formatCurrency(d.net_book_value_at_disposal)}</span> },
+    { key: "sale", label: t("salePrice"), align: "right" as const, hideOnMobile: true, render: (d) => <span className="font-mono">{formatCurrency(d.disposal_amount)}</span> },
     {
-      key: "gl", label: t("assetsGainLoss" as any), align: "right" as const, sortable: true, sortValue: (d) => Number(d.gain_loss),
+      key: "gl", label: t("assetsGainLoss"), align: "right" as const, sortable: true, sortValue: (d) => Number(d.gain_loss),
       render: (d) => <span className={`font-mono ${Number(d.gain_loss) >= 0 ? "text-emerald-600" : "text-destructive"}`}>{formatCurrency(d.gain_loss)}</span>,
     },
     { key: "status", label: t("status"), render: (d) => <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">{d.status}</Badge> },
@@ -139,10 +139,10 @@ export default function AssetDisposals() {
   return (
     <div className="space-y-6 p-1">
       <PageHeader
-        title={t("assetsDisposals" as any)}
+        title={t("assetsDisposals")}
         actions={
           <Button onClick={() => { setForm({ asset_id: "", disposal_type: "scrapped", disposal_date: new Date().toISOString().split("T")[0], sale_price: 0, reason: "" }); setDialogOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1" /> {t("assetsNewDisposal" as any)}
+            <Plus className="h-4 w-4 mr-1" /> {t("assetsNewDisposal")}
           </Button>
         }
       />
@@ -158,10 +158,10 @@ export default function AssetDisposals() {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t("assetsNewDisposal" as any)}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("assetsNewDisposal")}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>{t("assetsSelectAsset" as any)}</Label>
+              <Label>{t("assetsSelectAsset")}</Label>
               <Select value={form.asset_id} onValueChange={(v) => setForm({ ...form, asset_id: v })}>
                 <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                 <SelectContent>
@@ -173,37 +173,37 @@ export default function AssetDisposals() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>{t("assetsDisposalType" as any)}</Label>
+                <Label>{t("assetsDisposalType")}</Label>
                 <Select value={form.disposal_type} onValueChange={(v) => setForm({ ...form, disposal_type: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="scrapped">{t("scrapped" as any)}</SelectItem>
-                    <SelectItem value="sold">{t("sold" as any)}</SelectItem>
-                    <SelectItem value="transferred">{t("transferred" as any)}</SelectItem>
-                    <SelectItem value="written_off">{t("assetsWrittenOff" as any)}</SelectItem>
+                    <SelectItem value="scrapped">{t("scrapped")}</SelectItem>
+                    <SelectItem value="sold">{t("sold")}</SelectItem>
+                    <SelectItem value="transferred">{t("transferred")}</SelectItem>
+                    <SelectItem value="written_off">{t("assetsWrittenOff")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label>{t("date" as any)}</Label>
+                <Label>{t("date")}</Label>
                 <Input type="date" value={form.disposal_date} onChange={(e) => setForm({ ...form, disposal_date: e.target.value })} />
               </div>
             </div>
             {form.disposal_type === "sold" && (
               <div className="grid gap-2">
-                <Label>{t("salePrice" as any)}</Label>
+                <Label>{t("salePrice")}</Label>
                 <Input type="number" step="0.01" min={0} value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: Number(e.target.value) })} />
               </div>
             )}
             <div className="grid gap-2">
-              <Label>{t("assetsDisposalReason" as any)}</Label>
+              <Label>{t("assetsDisposalReason")}</Label>
               <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} rows={3} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("cancel")}</Button>
             <Button variant="destructive" onClick={() => disposeMutation.mutate()} disabled={disposeMutation.isPending || !form.asset_id}>
-              <Trash2 className="h-4 w-4 mr-1" /> {t("assetsConfirmDisposal" as any)}
+              <Trash2 className="h-4 w-4 mr-1" /> {t("assetsConfirmDisposal")}
             </Button>
           </DialogFooter>
         </DialogContent>

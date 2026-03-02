@@ -130,7 +130,7 @@ export default function CashRegister() {
           <div className="flex gap-1">
             {["all", "manual", "pos"].map(s => (
               <Button key={s} size="sm" variant={sourceFilter === s ? "default" : "outline"} onClick={() => setSourceFilter(s)}>
-                {s === "all" ? t("allSources" as any) : s === "manual" ? t("manualEntrySource" as any) : t("posSource" as any)}
+                {s === "all" ? t("allSources") : s === "manual" ? t("manualEntrySource") : t("posSource")}
               </Button>
             ))}
           </div>

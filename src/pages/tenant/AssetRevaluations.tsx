@@ -97,24 +97,21 @@ export default function AssetRevaluations() {
       const isRevaluation = dialogType === "revaluation";
       const absAmount = Math.abs(diff);
 
-      // Post journal entry
       let fallbackLines: any[];
       if (isRevaluation) {
-        // MRS 16: Revaluation surplus to equity (3300) or reversal of prior impairment to P&L
         fallbackLines = diff > 0
           ? [
-            { accountCode: "0120", debit: absAmount, credit: 0, description: `${t("assetsRevaluation" as any)} - ${asset.name}`, sortOrder: 0 },
-            { accountCode: "3300", debit: 0, credit: absAmount, description: `${t("assetsRevalSurplus" as any)}`, sortOrder: 1 },
+            { accountCode: "0120", debit: absAmount, credit: 0, description: `${t("assetsRevaluation")} - ${asset.name}`, sortOrder: 0 },
+            { accountCode: "3300", debit: 0, credit: absAmount, description: `${t("assetsRevalSurplus")}`, sortOrder: 1 },
           ]
           : [
-            { accountCode: "3300", debit: absAmount, credit: 0, description: `${t("assetsRevalDecrease" as any)}`, sortOrder: 0 },
-            { accountCode: "0120", debit: 0, credit: absAmount, description: `${t("assetsRevaluation" as any)} - ${asset.name}`, sortOrder: 1 },
+            { accountCode: "3300", debit: absAmount, credit: 0, description: `${t("assetsRevalDecrease")}`, sortOrder: 0 },
+            { accountCode: "0120", debit: 0, credit: absAmount, description: `${t("assetsRevaluation")} - ${asset.name}`, sortOrder: 1 },
           ];
       } else {
-        // MRS 36: Impairment loss to P&L (5800)
         fallbackLines = [
-          { accountCode: "5800", debit: absAmount, credit: 0, description: `${t("assetsImpairmentLoss" as any)} - ${asset.name}`, sortOrder: 0 },
-          { accountCode: "0120", debit: 0, credit: absAmount, description: `${t("assetsImpairment" as any)} - ${asset.name}`, sortOrder: 1 },
+          { accountCode: "5800", debit: absAmount, credit: 0, description: `${t("assetsImpairmentLoss")} - ${asset.name}`, sortOrder: 0 },
+          { accountCode: "0120", debit: 0, credit: absAmount, description: `${t("assetsImpairment")} - ${asset.name}`, sortOrder: 1 },
         ];
       }
 
@@ -122,47 +119,34 @@ export default function AssetRevaluations() {
         tenantId, userId: user.id, entryDate: form.entry_date,
         modelCode: isRevaluation ? "ASSET_REVALUATION" : "ASSET_IMPAIRMENT",
         amount: absAmount,
-        description: `${isRevaluation ? t("assetsRevaluation" as any) : t("assetsImpairment" as any)} - ${asset.name}`,
+        description: `${isRevaluation ? t("assetsRevaluation") : t("assetsImpairment")} - ${asset.name}`,
         reference: `${isRevaluation ? "REVAL" : "IMP"}-${asset.asset_code}`,
         context: {},
         fallbackLines,
       });
 
-      // Insert record
       if (isRevaluation) {
         await supabase.from("fixed_asset_revaluations").insert({
-          tenant_id: tenantId,
-          asset_id: asset.id,
-          revaluation_date: form.entry_date,
-          old_value: oldValue,
-          new_value: form.new_value,
-          revaluation_surplus: diff,
-          reason: form.reason || null,
-          journal_entry_id: journalId,
-          created_by: user.id,
+          tenant_id: tenantId, asset_id: asset.id, revaluation_date: form.entry_date,
+          old_value: oldValue, new_value: form.new_value, revaluation_surplus: diff,
+          reason: form.reason || null, journal_entry_id: journalId, created_by: user.id,
         });
       } else {
         await supabase.from("fixed_asset_impairments").insert({
-          tenant_id: tenantId,
-          asset_id: asset.id,
-          impairment_date: form.entry_date,
-          carrying_amount: oldValue,
-          recoverable_amount: form.new_value,
-          impairment_loss: absAmount,
-          reason: form.reason || null,
-          journal_entry_id: journalId,
-          created_by: user.id,
+          tenant_id: tenantId, asset_id: asset.id, impairment_date: form.entry_date,
+          carrying_amount: oldValue, recoverable_amount: form.new_value,
+          impairment_loss: absAmount, reason: form.reason || null,
+          journal_entry_id: journalId, created_by: user.id,
         });
       }
 
-      // Update asset current_value
       await supabase.from("assets").update({ current_value: form.new_value }).eq("id", asset.id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["asset-revaluations", tenantId] });
       qc.invalidateQueries({ queryKey: ["asset-impairments", tenantId] });
       qc.invalidateQueries({ queryKey: ["reval-assets", tenantId] });
-      toast({ title: dialogType === "revaluation" ? t("assetsRevalPosted" as any) : t("assetsImpairmentPosted" as any) });
+      toast({ title: dialogType === "revaluation" ? t("assetsRevalPosted") : t("assetsImpairmentPosted") });
       setDialogOpen(false);
     },
     onError: (e: Error) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
@@ -174,23 +158,23 @@ export default function AssetRevaluations() {
   return (
     <div className="space-y-6 p-1">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("assetsRevalImpairment" as any)}</h1>
+        <h1 className="text-2xl font-bold">{t("assetsRevalImpairment")}</h1>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as EntryType)}>
         <div className="flex items-center justify-between">
           <TabsList>
-            <TabsTrigger value="revaluation"><TrendingUp className="h-4 w-4 mr-1" /> {t("assetsRevaluation" as any)}</TabsTrigger>
-            <TabsTrigger value="impairment"><TrendingDown className="h-4 w-4 mr-1" /> {t("assetsImpairment" as any)}</TabsTrigger>
+            <TabsTrigger value="revaluation"><TrendingUp className="h-4 w-4 mr-1" /> {t("assetsRevaluation")}</TabsTrigger>
+            <TabsTrigger value="impairment"><TrendingDown className="h-4 w-4 mr-1" /> {t("assetsImpairment")}</TabsTrigger>
           </TabsList>
           <Button onClick={() => openDialog(tab)}>
-            <Plus className="h-4 w-4 mr-1" /> {tab === "revaluation" ? t("assetsNewReval" as any) : t("assetsNewImpairment" as any)}
+            <Plus className="h-4 w-4 mr-1" /> {tab === "revaluation" ? t("assetsNewReval") : t("assetsNewImpairment")}
           </Button>
         </div>
 
         <TabsContent value="revaluation">
           <Card>
-            <CardHeader><CardTitle>{t("assetsRevalHistory" as any)}</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("assetsRevalHistory")}</CardTitle></CardHeader>
             <CardContent>
               {revaluations.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">{t("noResults")}</p>
@@ -198,12 +182,12 @@ export default function AssetRevaluations() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{t("code" as any)}</TableHead>
-                      <TableHead>{t("name" as any)}</TableHead>
-                      <TableHead>{t("date" as any)}</TableHead>
-                      <TableHead className="text-right">{t("assetsOldValue" as any)}</TableHead>
-                      <TableHead className="text-right">{t("assetsNewValue" as any)}</TableHead>
-                      <TableHead className="text-right">{t("assetsRevalSurplus" as any)}</TableHead>
+                      <TableHead>{t("code")}</TableHead>
+                      <TableHead>{t("name")}</TableHead>
+                      <TableHead>{t("date")}</TableHead>
+                      <TableHead className="text-right">{t("assetsOldValue")}</TableHead>
+                      <TableHead className="text-right">{t("assetsNewValue")}</TableHead>
+                      <TableHead className="text-right">{t("assetsRevalSurplus")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -228,7 +212,7 @@ export default function AssetRevaluations() {
 
         <TabsContent value="impairment">
           <Card>
-            <CardHeader><CardTitle>{t("assetsImpairmentHistory" as any)}</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{t("assetsImpairmentHistory")}</CardTitle></CardHeader>
             <CardContent>
               {impairments.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">{t("noResults")}</p>
@@ -236,12 +220,12 @@ export default function AssetRevaluations() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{t("code" as any)}</TableHead>
-                      <TableHead>{t("name" as any)}</TableHead>
-                      <TableHead>{t("date" as any)}</TableHead>
-                      <TableHead className="text-right">{t("assetsOldValue" as any)}</TableHead>
-                      <TableHead className="text-right">{t("assetsNewValue" as any)}</TableHead>
-                      <TableHead className="text-right">{t("assetsImpairmentAmount" as any)}</TableHead>
+                      <TableHead>{t("code")}</TableHead>
+                      <TableHead>{t("name")}</TableHead>
+                      <TableHead>{t("date")}</TableHead>
+                      <TableHead className="text-right">{t("assetsOldValue")}</TableHead>
+                      <TableHead className="text-right">{t("assetsNewValue")}</TableHead>
+                      <TableHead className="text-right">{t("assetsImpairmentAmount")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -267,12 +251,12 @@ export default function AssetRevaluations() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {dialogType === "revaluation" ? t("assetsNewReval" as any) : t("assetsNewImpairment" as any)}
+              {dialogType === "revaluation" ? t("assetsNewReval") : t("assetsNewImpairment")}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>{t("assetsSelectAsset" as any)}</Label>
+              <Label>{t("assetsSelectAsset")}</Label>
               <Select value={form.asset_id} onValueChange={(v) => {
                 const asset = assets.find((a: any) => a.id === v);
                 setForm({ ...form, asset_id: v, new_value: Number(asset?.current_value || asset?.acquisition_cost || 0) });
@@ -287,16 +271,16 @@ export default function AssetRevaluations() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>{t("date" as any)}</Label>
+                <Label>{t("date")}</Label>
                 <Input type="date" value={form.entry_date} onChange={(e) => setForm({ ...form, entry_date: e.target.value })} />
               </div>
               <div className="grid gap-2">
-                <Label>{t("assetsNewValue" as any)}</Label>
+                <Label>{t("assetsNewValue")}</Label>
                 <Input type="number" step="0.01" min={0} value={form.new_value} onChange={(e) => setForm({ ...form, new_value: Number(e.target.value) })} />
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>{t("reason" as any)}</Label>
+              <Label>{t("reason")}</Label>
               <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} rows={3} />
             </div>
           </div>

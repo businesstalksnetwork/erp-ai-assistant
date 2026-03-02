@@ -171,7 +171,7 @@ export default function InventoryStock() {
       <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ tab: v })}>
         <TabsList>
           <TabsTrigger value="stock">{t("stockOverview")}</TabsTrigger>
-          <TabsTrigger value="health">{t("inventoryHealth" as any)}</TabsTrigger>
+          <TabsTrigger value="health">{t("inventoryHealth")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="stock">

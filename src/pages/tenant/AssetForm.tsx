@@ -33,7 +33,6 @@ const schema = z.object({
   residual_value: z.coerce.number().min(0).default(0),
   description: z.string().optional(),
   notes: z.string().optional(),
-  // Cross-module fields
   supplier_id: z.string().nullable().optional(),
   responsible_employee_id: z.string().nullable().optional(),
   warehouse_id: z.string().nullable().optional(),
@@ -116,7 +115,6 @@ export default function AssetForm() {
     }
   }, [existing]);
 
-  // Pre-fill from URL params (e.g. from Goods Receipt)
   useEffect(() => {
     if (isEdit) return;
     const fields = ["purchase_order_id", "goods_receipt_id", "warehouse_id", "supplier_id", "supplier_invoice_id", "product_id"];
@@ -170,7 +168,7 @@ export default function AssetForm() {
       }
     },
     onSuccess: () => {
-      toast.success(t("saved" as any));
+      toast.success(t("saved"));
       qc.invalidateQueries({ queryKey: ["assets-registry"] });
       qc.invalidateQueries({ queryKey: ["assets-stats"] });
       navigate("/assets/registry");
@@ -185,36 +183,28 @@ export default function AssetForm() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-2xl font-bold">
-          {isEdit ? `${t("edit" as any)} — ${existing?.asset_code || ""}` : t("assetsNewAsset" as any)}
+          {isEdit ? `${t("edit")} — ${existing?.asset_code || ""}` : t("assetsNewAsset")}
         </h1>
       </div>
 
       {isEdit ? (
         <Tabs defaultValue="form">
           <TabsList className="flex-wrap">
-            <TabsTrigger value="form">{t("assetsBasicInfo" as any)}</TabsTrigger>
-            <TabsTrigger value="dms">{t("assetsCrossDmsTitle" as any)}</TabsTrigger>
-            <TabsTrigger value="drive">{t("assetsCrossDriveTitle" as any)}</TabsTrigger>
-            <TabsTrigger value="journal">{t("assetsCrossJournalTitle" as any)}</TabsTrigger>
+            <TabsTrigger value="form">{t("assetsBasicInfo")}</TabsTrigger>
+            <TabsTrigger value="dms">{t("assetsCrossDmsTitle")}</TabsTrigger>
+            <TabsTrigger value="drive">{t("assetsCrossDriveTitle")}</TabsTrigger>
+            <TabsTrigger value="journal">{t("assetsCrossJournalTitle")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="form">
             <AssetFormFields form={form} categories={categories} saveMutation={saveMutation} navigate={navigate} t={t} />
           </TabsContent>
-
           <TabsContent value="dms">
             <AssetDmsTab assetId={id!} assetCode={existing?.asset_code || ""} assetName={existing?.name || ""} />
           </TabsContent>
-
           <TabsContent value="drive">
-            <AssetDriveTab
-              assetId={id!}
-              assetCode={existing?.asset_code || ""}
-              driveFolderId={driveFolderId}
-              onFolderCreated={(fid) => setDriveFolderId(fid)}
-            />
+            <AssetDriveTab assetId={id!} assetCode={existing?.asset_code || ""} driveFolderId={driveFolderId} onFolderCreated={(fid) => setDriveFolderId(fid)} />
           </TabsContent>
-
           <TabsContent value="journal">
             <AssetJournalTab assetId={id!} assetCode={existing?.asset_code || ""} />
           </TabsContent>
@@ -233,25 +223,25 @@ function AssetFormFields({ form, categories, saveMutation, navigate, t }: {
     <Form {...form}>
       <form onSubmit={form.handleSubmit((v: any) => saveMutation.mutate(v))} className="space-y-6">
         <Card>
-          <CardHeader><CardTitle>{t("assetsBasicInfo" as any)}</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("assetsBasicInfo")}</CardTitle></CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <FormField control={form.control} name="name" render={({ field }) => (
               <FormItem className="md:col-span-2">
-                <FormLabel>{t("name" as any)}</FormLabel>
+                <FormLabel>{t("name")}</FormLabel>
                 <FormControl><Input {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="asset_type" render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("type" as any)}</FormLabel>
+                <FormLabel>{t("type")}</FormLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                   <SelectContent>
-                    <SelectItem value="fixed_asset">{t("assetsFixedAsset" as any)}</SelectItem>
-                    <SelectItem value="intangible">{t("assetsIntangible" as any)}</SelectItem>
-                    <SelectItem value="material_good">{t("assetsMaterialGood" as any)}</SelectItem>
-                    <SelectItem value="vehicle">{t("assetsVehicle" as any)}</SelectItem>
+                    <SelectItem value="fixed_asset">{t("assetsFixedAsset")}</SelectItem>
+                    <SelectItem value="intangible">{t("assetsIntangible")}</SelectItem>
+                    <SelectItem value="material_good">{t("assetsMaterialGood")}</SelectItem>
+                    <SelectItem value="vehicle">{t("assetsVehicle")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -259,7 +249,7 @@ function AssetFormFields({ form, categories, saveMutation, navigate, t }: {
             )} />
             <FormField control={form.control} name="category_id" render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("assetsCategory" as any)}</FormLabel>
+                <FormLabel>{t("assetsCategory")}</FormLabel>
                 <Select value={field.value || ""} onValueChange={field.onChange}>
                   <FormControl><SelectTrigger><SelectValue placeholder="—" /></SelectTrigger></FormControl>
                   <SelectContent>
@@ -287,19 +277,19 @@ function AssetFormFields({ form, categories, saveMutation, navigate, t }: {
             )} />
             <FormField control={form.control} name="serial_number" render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("assetsSerialNumber" as any)}</FormLabel>
+                <FormLabel>{t("assetsSerialNumber")}</FormLabel>
                 <FormControl><Input {...field} /></FormControl>
               </FormItem>
             )} />
             <FormField control={form.control} name="inventory_number" render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("assetsInventoryNumber" as any)}</FormLabel>
+                <FormLabel>{t("assetsInventoryNumber")}</FormLabel>
                 <FormControl><Input {...field} /></FormControl>
               </FormItem>
             )} />
             <FormField control={form.control} name="acquisition_date" render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("assetsAcquisitionDate" as any)}</FormLabel>
+                <FormLabel>{t("assetsAcquisitionDate")}</FormLabel>
                 <FormControl><Input type="date" {...field} /></FormControl>
               </FormItem>
             )} />
@@ -307,23 +297,23 @@ function AssetFormFields({ form, categories, saveMutation, navigate, t }: {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>{t("assetsFinancialInfo" as any)}</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("assetsFinancialInfo")}</CardTitle></CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-3">
             <FormField control={form.control} name="acquisition_cost" render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("assetsAcquisitionCost" as any)}</FormLabel>
+                <FormLabel>{t("assetsAcquisitionCost")}</FormLabel>
                 <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
               </FormItem>
             )} />
             <FormField control={form.control} name="current_value" render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("assetsCurrentValue" as any)}</FormLabel>
+                <FormLabel>{t("assetsCurrentValue")}</FormLabel>
                 <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
               </FormItem>
             )} />
             <FormField control={form.control} name="residual_value" render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("assetsResidualValue" as any)}</FormLabel>
+                <FormLabel>{t("assetsResidualValue")}</FormLabel>
                 <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
               </FormItem>
             )} />

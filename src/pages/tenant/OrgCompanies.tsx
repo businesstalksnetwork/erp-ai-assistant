@@ -15,28 +15,14 @@ import { toast } from "sonner";
 import { useState, useMemo } from "react";
 
 interface OrgCompany {
-  id: string;
-  tenant_id: string;
-  legal_name: string;
-  display_name: string | null;
-  pib: string | null;
-  maticni_broj: string | null;
-  is_internal: boolean;
-  status: string;
-  parent_id: string | null;
-  legal_entity_id: string | null;
-  created_at: string;
+  id: string; tenant_id: string; legal_name: string; display_name: string | null;
+  pib: string | null; maticni_broj: string | null; is_internal: boolean; status: string;
+  parent_id: string | null; legal_entity_id: string | null; created_at: string;
 }
 
 interface CompanyForm {
-  legal_name: string;
-  display_name: string;
-  pib: string;
-  maticni_broj: string;
-  is_internal: boolean;
-  status: string;
-  parent_id: string;
-  legal_entity_id: string;
+  legal_name: string; display_name: string; pib: string; maticni_broj: string;
+  is_internal: boolean; status: string; parent_id: string; legal_entity_id: string;
 }
 
 const emptyForm: CompanyForm = {
@@ -55,11 +41,7 @@ export default function OrgCompanies() {
   const { data: companies = [], isLoading } = useQuery({
     queryKey: ["org-companies", tenantId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("tenant_id", tenantId!)
-        .order("legal_name");
+      const { data } = await supabase.from("companies").select("*").eq("tenant_id", tenantId!).order("legal_name");
       return (data || []) as OrgCompany[];
     },
     enabled: !!tenantId,
@@ -77,15 +59,9 @@ export default function OrgCompanies() {
   const mutation = useMutation({
     mutationFn: async (f: CompanyForm) => {
       const payload = {
-        tenant_id: tenantId!,
-        legal_name: f.legal_name,
-        display_name: f.display_name || null,
-        pib: f.pib || null,
-        maticni_broj: f.maticni_broj || null,
-        is_internal: f.is_internal,
-        status: f.status,
-        parent_id: f.parent_id || null,
-        legal_entity_id: f.legal_entity_id || null,
+        tenant_id: tenantId!, legal_name: f.legal_name, display_name: f.display_name || null,
+        pib: f.pib || null, maticni_broj: f.maticni_broj || null, is_internal: f.is_internal,
+        status: f.status, parent_id: f.parent_id || null, legal_entity_id: f.legal_entity_id || null,
       };
       if (editId) {
         const { error } = await supabase.from("companies").update(payload).eq("id", editId);
@@ -99,21 +75,11 @@ export default function OrgCompanies() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Build tree
   const tree = useMemo(() => {
     const map = new Map<string | null, OrgCompany[]>();
-    for (const c of companies) {
-      const pid = c.parent_id || null;
-      if (!map.has(pid)) map.set(pid, []);
-      map.get(pid)!.push(c);
-    }
+    for (const c of companies) { const pid = c.parent_id || null; if (!map.has(pid)) map.set(pid, []); map.get(pid)!.push(c); }
     const result: (OrgCompany & { depth: number })[] = [];
-    const walk = (parentId: string | null, depth: number) => {
-      for (const c of map.get(parentId) || []) {
-        result.push({ ...c, depth });
-        walk(c.id, depth + 1);
-      }
-    };
+    const walk = (parentId: string | null, depth: number) => { for (const c of map.get(parentId) || []) { result.push({ ...c, depth }); walk(c.id, depth + 1); } };
     walk(null, 0);
     return result;
   }, [companies]);
@@ -121,22 +87,16 @@ export default function OrgCompanies() {
   const openAdd = () => { setEditId(null); setForm(emptyForm); setOpen(true); };
   const openEdit = (c: OrgCompany) => {
     setEditId(c.id);
-    setForm({
-      legal_name: c.legal_name, display_name: c.display_name || "",
-      pib: c.pib || "", maticni_broj: c.maticni_broj || "",
-      is_internal: c.is_internal ?? true, status: c.status,
-      parent_id: c.parent_id || "", legal_entity_id: c.legal_entity_id || "",
-    });
+    setForm({ legal_name: c.legal_name, display_name: c.display_name || "", pib: c.pib || "", maticni_broj: c.maticni_broj || "", is_internal: c.is_internal ?? true, status: c.status, parent_id: c.parent_id || "", legal_entity_id: c.legal_entity_id || "" });
     setOpen(true);
   };
-
   const getParentName = (id: string | null) => companies.find(c => c.id === id)?.legal_name || "—";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("orgCompanies" as any)}</h1>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addCompany" as any)}</Button>
+        <h1 className="text-2xl font-bold">{t("orgCompanies")}</h1>
+        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-2" />{t("addCompany")}</Button>
       </div>
       <Card>
         <CardContent className="p-0">
@@ -144,9 +104,9 @@ export default function OrgCompanies() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t("name")}</TableHead>
-                <TableHead>{t("pib" as any)}</TableHead>
-                <TableHead>{t("parentCompany" as any)}</TableHead>
-                <TableHead>{t("legalEntity" as any)}</TableHead>
+                <TableHead>{t("pib")}</TableHead>
+                <TableHead>{t("parentCompany")}</TableHead>
+                <TableHead>{t("legalEntity")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
                 <TableHead>{t("actions")}</TableHead>
               </TableRow>
@@ -179,20 +139,20 @@ export default function OrgCompanies() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>{editId ? t("editCompany" as any) : t("addCompany" as any)}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editId ? t("editCompany") : t("addCompany")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
             <div className="grid gap-2"><Label>{t("name")} *</Label><Input value={form.legal_name} onChange={e => setForm({ ...form, legal_name: e.target.value })} /></div>
-            <div className="grid gap-2"><Label>{t("displayName" as any)}</Label><Input value={form.display_name} onChange={e => setForm({ ...form, display_name: e.target.value })} /></div>
+            <div className="grid gap-2"><Label>{t("displayName")}</Label><Input value={form.display_name} onChange={e => setForm({ ...form, display_name: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2"><Label>{t("pib" as any)}</Label><Input value={form.pib} onChange={e => setForm({ ...form, pib: e.target.value })} /></div>
-              <div className="grid gap-2"><Label>{t("maticniBroj" as any)}</Label><Input value={form.maticni_broj} onChange={e => setForm({ ...form, maticni_broj: e.target.value })} /></div>
+              <div className="grid gap-2"><Label>{t("pib")}</Label><Input value={form.pib} onChange={e => setForm({ ...form, pib: e.target.value })} /></div>
+              <div className="grid gap-2"><Label>{t("maticniBroj")}</Label><Input value={form.maticni_broj} onChange={e => setForm({ ...form, maticni_broj: e.target.value })} /></div>
             </div>
             <div className="grid gap-2">
-              <Label>{t("parentCompany" as any)}</Label>
+              <Label>{t("parentCompany")}</Label>
               <Select value={form.parent_id || "__none__"} onValueChange={v => setForm({ ...form, parent_id: v === "__none__" ? "" : v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">— {t("none" as any)} —</SelectItem>
+                  <SelectItem value="__none__">— {t("none")} —</SelectItem>
                   {companies.filter(c => c.id !== editId).map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.legal_name}</SelectItem>
                   ))}
@@ -200,11 +160,11 @@ export default function OrgCompanies() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>{t("legalEntity" as any)}</Label>
+              <Label>{t("legalEntity")}</Label>
               <Select value={form.legal_entity_id || "__none__"} onValueChange={v => setForm({ ...form, legal_entity_id: v === "__none__" ? "" : v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">— {t("none" as any)} —</SelectItem>
+                  <SelectItem value="__none__">— {t("none")} —</SelectItem>
                   {legalEntities.map(e => (
                     <SelectItem key={e.id} value={e.id}>{e.name} ({e.pib})</SelectItem>
                   ))}
