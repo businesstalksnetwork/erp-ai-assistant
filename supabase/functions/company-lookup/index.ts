@@ -22,7 +22,7 @@ serve(async (req) => {
     }
 
     // Rate limit: 20 requests per minute per user
-    const rl = checkRateLimit(`company-lookup:${user.id}`, 20, 60_000);
+    const rl = await checkRateLimit(`company-lookup:${user.id}`, "crud");
     if (!rl.allowed) {
       return createErrorResponse("Rate limit exceeded", req, { status: 429, logPrefix: "company-lookup rate-limit" });
     }

@@ -25,7 +25,7 @@ serve(async (req) => {
     if (!tenant_id) return createErrorResponse("tenant_id required", req, { status: 400 });
 
     // Rate limit: 10 req/min per tenant
-    const rl = checkRateLimit(`ordering-${tenant_id}`, 10, 60_000);
+    const rl = await checkRateLimit(`ordering-${tenant_id}`, "ai");
     if (!rl.allowed) return createErrorResponse("Rate limited", req, { status: 429 });
 
     // 1. Get products linked to supplier via PO lines

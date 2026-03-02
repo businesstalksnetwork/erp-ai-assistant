@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   try {
     // Rate limit: 30 requests per minute per IP
     const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
-    const rl = checkRateLimit(`validate-pib:${clientIp}`, 30, 60_000);
+    const rl = await checkRateLimit(`validate-pib:${clientIp}`, "sef");
     if (!rl.allowed) {
       return createErrorResponse("Rate limit exceeded", req, { status: 429, logPrefix: "validate-pib rate-limit" });
     }
