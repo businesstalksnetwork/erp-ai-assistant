@@ -81,9 +81,17 @@ export default function PosDailyReport() {
   const totalSales = sales.reduce((s: number, tx: any) => s + Number(tx.total || 0), 0);
   const totalRefunds = refunds.reduce((s: number, tx: any) => s + Number(tx.total || 0), 0);
   const netSales = totalSales - totalRefunds;
-  const cashTotal = sales.filter((tx: any) => tx.payment_method === "cash").reduce((s: number, tx: any) => s + Number(tx.total || 0), 0);
-  const cashRefunds = refunds.filter((tx: any) => tx.payment_method === "cash").reduce((s: number, tx: any) => s + Number(tx.total || 0), 0);
-  const cardTotal = sales.filter((tx: any) => tx.payment_method === "card").reduce((s: number, tx: any) => s + Number(tx.total || 0), 0);
+  // CR12-05: Split payment aware bucketing
+  const sumByMethod = (txList: any[], method: string) => txList.reduce((s: number, tx: any) => {
+    const pd = tx.payment_details;
+    if (Array.isArray(pd) && pd.length > 1) {
+      return s + pd.filter((p: any) => p.method === method).reduce((ps: number, p: any) => ps + Number(p.amount || 0), 0);
+    }
+    return tx.payment_method === method ? s + Number(tx.total || 0) : s;
+  }, 0);
+  const cashTotal = sumByMethod(sales, "cash");
+  const cashRefunds = sumByMethod(refunds, "cash");
+  const cardTotal = sumByMethod(sales, "card");
   const otherTotal = totalSales - cashTotal - cardTotal;
   const expectedCash = cashTotal - cashRefunds;
   const cashVariance = actualCashCount !== null ? actualCashCount - (openingFloat + expectedCash) : null;

@@ -104,8 +104,14 @@ Deno.serve(async (req) => {
 
     // CRON MODE: no tenant_id — poll all tenants with active SEF connections
     if (!tenant_id) {
+      // CR12-06: Fail-closed CRON_SECRET guard
+      const envCronSecret = Deno.env.get("CRON_SECRET");
+      if (!envCronSecret) {
+        return new Response(JSON.stringify({ error: "CRON_SECRET not configured" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       const cronSecret = req.headers.get("x-cron-secret");
-      if (cronSecret !== Deno.env.get("CRON_SECRET")) {
+      if (cronSecret !== envCronSecret) {
         return new Response(JSON.stringify({ error: "Unauthorized" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }

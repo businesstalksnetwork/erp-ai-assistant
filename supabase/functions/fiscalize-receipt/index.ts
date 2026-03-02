@@ -25,6 +25,14 @@ serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    // CR12-08: Rate limit
+    const { checkRateLimit, rateLimitHeaders } = await import("../_shared/rate-limiter.ts");
+    const clientIp = req.headers.get("x-forwarded-for") || "unknown";
+    const rl = await checkRateLimit(`fiscalize-receipt:${clientIp}`, "sef");
+    if (!rl.allowed) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: withSecurityHeaders({ ...corsHeaders, ...rateLimitHeaders(rl.retryAfterMs!), "Content-Type": "application/json" }) });
+    }
+
     // JWT validation
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {

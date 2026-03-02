@@ -28,6 +28,14 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // CR12-08: Rate limit
+    const { checkRateLimit, rateLimitHeaders } = await import("../_shared/rate-limiter.ts");
+    const clientIp = req.headers.get("x-forwarded-for") || "unknown";
+    const rl = await checkRateLimit(`send-admin-bulk-email:${clientIp}`, "export");
+    if (!rl.allowed) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: withSecurityHeaders({ ...corsHeaders, ...rateLimitHeaders(rl.retryAfterMs!), "Content-Type": "application/json" }) });
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!

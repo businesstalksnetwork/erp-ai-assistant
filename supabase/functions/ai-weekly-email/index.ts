@@ -136,7 +136,7 @@ serve(async (req) => {
         aiInsights: insightsThis.count || 0,
       },
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
 
   } catch (e: any) {

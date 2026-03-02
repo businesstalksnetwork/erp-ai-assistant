@@ -6,11 +6,12 @@
 export const securityHeaders: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
-  "X-XSS-Protection": "1; mode=block",
+  // CR12-23: Removed deprecated X-XSS-Protection header (modern browsers ignore it; CSP provides protection)
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Cache-Control": "no-store, no-cache, must-revalidate",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
   "Content-Security-Policy": "default-src 'none'",
+  "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
 };
 
 /** Merge security headers into an existing headers object */

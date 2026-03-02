@@ -167,11 +167,13 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
   const employees = employeesRes.data || [];
   if (employees.length > 0) {
     const employeeIds = employees.map((e: any) => e.id);
+    // CR12-21: Add .limit(10000) to secondary IN-queries
     const { data: payrollRecords } = await supabase
       .from("payroll_records")
       .select("employee_id")
       .in("employee_id", employeeIds)
-      .gte("payment_date", firstDayOfYear);
+      .gte("payment_date", firstDayOfYear)
+      .limit(10000);
 
     const employeesWithPayroll = new Set((payrollRecords || []).map((r: any) => r.employee_id));
     for (const emp of employees) {
@@ -204,11 +206,13 @@ async function runComplianceChecks(supabase: any, tenantId: string): Promise<Com
   const assets = assetsRes.data || [];
   if (assets.length > 0) {
     const assetIds = assets.map((a: any) => a.id);
+    // CR12-21: Add .limit(10000) to secondary IN-queries
     const { data: depRecords } = await supabase
       .from("depreciation_records")
       .select("asset_id")
       .in("asset_id", assetIds)
-      .gte("depreciation_date", firstDayOfYear);
+      .gte("depreciation_date", firstDayOfYear)
+      .limit(10000);
 
     const assetsWithDep = new Set((depRecords || []).map((r: any) => r.asset_id));
     for (const asset of assets) {
