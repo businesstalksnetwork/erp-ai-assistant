@@ -134,6 +134,17 @@
 [data-radix-collapsible-content] {
   transition: none !important;
   animation: none !important;
+  --radix-collapsible-content-height: auto !important;
+  --radix-collapsible-content-width: auto !important;
+}
+[data-radix-collapsible-content][data-state="open"] {
+  height: auto !important;
+  overflow: visible !important;
+}
+[data-radix-collapsible-content][data-state="closed"] {
+  height: 0 !important;
+  overflow: hidden !important;
+  display: none !important;
 }
 
 @layer base {
