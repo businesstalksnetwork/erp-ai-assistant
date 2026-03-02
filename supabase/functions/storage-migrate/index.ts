@@ -35,18 +35,14 @@ interface MigrationResult {
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflightRequest(req);
+  if (preflight) return preflight;
 
   try {
     // Get auth token
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
-        status: 401,
-        headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }),
-      });
+      return createErrorResponse("Missing auth header", req, { status: 401, logPrefix: "storage-migrate auth" });
     }
 
     // Initialize Supabase client with service role for migration
@@ -60,19 +56,13 @@ Deno.serve(async (req) => {
     // Verify admin user
     const { data: { user }, error: userError } = await supabaseAnon.auth.getUser();
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }),
-      });
+      return createErrorResponse(userError || "Invalid token", req, { status: 401, logPrefix: "storage-migrate auth" });
     }
 
     // Check if user is admin
     const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
     if (!isAdmin) {
-      return new Response(JSON.stringify({ error: 'Admin access required' }), {
-        status: 403,
-        headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }),
-      });
+      return createErrorResponse("Admin access required", req, { status: 403, logPrefix: "storage-migrate authz" });
     }
 
     const { dryRun = true, userId = null } = await req.json();

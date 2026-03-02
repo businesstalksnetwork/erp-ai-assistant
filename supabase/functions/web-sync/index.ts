@@ -17,18 +17,18 @@ serve(async (req) => {
     // Validate auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      return createErrorResponse("Missing auth", req, { status: 401, logPrefix: "web-sync auth" });
     }
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userErr } = await supabase.auth.getUser(token);
     if (userErr || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      return createErrorResponse(userErr || "Invalid token", req, { status: 401, logPrefix: "web-sync auth" });
     }
 
     const { tenant_id, connection_id, sync_type = "full" } = await req.json();
 
     if (!tenant_id || !connection_id) {
-      return new Response(JSON.stringify({ error: "tenant_id and connection_id required" }), { status: 400, headers: corsHeaders });
+      return createErrorResponse("Missing required params", req, { status: 400, logPrefix: "web-sync validation" });
     }
 
     // Verify tenant membership
@@ -36,8 +36,7 @@ serve(async (req) => {
       .from("tenant_members").select("id")
       .eq("user_id", user.id).eq("tenant_id", tenant_id).eq("status", "active").maybeSingle();
     if (!membership) {
-      return new Response(JSON.stringify({ error: "Forbidden: not a member of this tenant" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return createErrorResponse("Not a tenant member", req, { status: 403, logPrefix: "web-sync authz" });
     }
 
     // Create sync log

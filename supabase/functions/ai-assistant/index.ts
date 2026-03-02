@@ -921,17 +921,17 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return createErrorResponse("Missing auth header", req, { status: 401, logPrefix: "ai-assistant auth" });
     }
     const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
     const { data: { user: caller }, error: authErr } = await userClient.auth.getUser();
     if (authErr || !caller) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return createErrorResponse(authErr || "Invalid token", req, { status: 401, logPrefix: "ai-assistant auth" });
     }
 
     const { messages, tenant_id, language } = await req.json();
     if (!tenant_id) {
-      return new Response(JSON.stringify({ error: "tenant_id is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return createErrorResponse("Missing tenant_id", req, { status: 400, logPrefix: "ai-assistant validation" });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -946,13 +946,13 @@ serve(async (req) => {
     if (lastUserMsg && detectPromptInjection(lastUserMsg.content || "")) {
       console.warn(`[SECURITY] Prompt injection attempt from user ${caller.id}`);
       await logAiAction(supabase, tenant_id, caller.id, "prompt_injection_blocked", "security", `Blocked: ${(lastUserMsg.content || "").substring(0, 100)}`);
-      return new Response(JSON.stringify({ error: "Your message was flagged by our security system. Please rephrase." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return createErrorResponse("Prompt injection blocked", req, { status: 400, logPrefix: "ai-assistant security" });
     }
 
     // ── Security: rate limiting ──
     const allowed = await checkRateLimit(supabase, caller.id, tenant_id);
     if (!allowed) {
-      return new Response(JSON.stringify({ error: "Rate limit exceeded. Please wait a moment before sending another message." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return createErrorResponse("Rate limit exceeded", req, { status: 429, logPrefix: "ai-assistant rate-limit" });
     }
 
     // ── Tenant membership check + role fetch ──
@@ -966,7 +966,7 @@ serve(async (req) => {
         .from("user_roles").select("id")
         .eq("user_id", caller.id).eq("role", "super_admin").maybeSingle();
       if (!isSuperAdmin) {
-        return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return createErrorResponse("Not a tenant member", req, { status: 403, logPrefix: "ai-assistant authz" });
       }
       memberRole = "admin";
     } else {
@@ -1090,11 +1090,11 @@ Respond in ${language === "sr" ? "Serbian (Latin script)" : "English"}. Use mark
       });
 
       if (!response.ok) {
-        if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (response.status === 402) return new Response(JSON.stringify({ error: "Payment required." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (response.status === 429) return createErrorResponse("Upstream rate limit", req, { status: 429, logPrefix: "ai-assistant gateway" });
+        if (response.status === 402) return createErrorResponse("Payment required", req, { status: 402, logPrefix: "ai-assistant gateway" });
         const text = await response.text();
         console.error("AI gateway error:", response.status, text);
-        return new Response(JSON.stringify({ error: "AI service unavailable" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return createErrorResponse("AI gateway error", req, { status: 500, logPrefix: "ai-assistant gateway" });
       }
 
       const aiData = await response.json();
@@ -1228,7 +1228,7 @@ Respond in ${language === "sr" ? "Serbian (Latin script)" : "English"}. Use mark
     });
 
     if (!finalResponse.ok || !finalResponse.body) {
-      return new Response(JSON.stringify({ error: "Failed to generate final response" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return createErrorResponse("Final response failed", req, { status: 500, logPrefix: "ai-assistant final" });
     }
 
     return new Response(finalResponse.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
