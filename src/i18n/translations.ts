@@ -3587,6 +3587,77 @@ export const translations = {
     aiModelCards: "AI Model Cards",
     complianceWorkflows: "Workflows",
     compliance: "Compliance",
+
+    // CR10-23: i18n keys for new pages
+    // DSAR
+    dsarTitle: "DSAR Management (ZZPL / PRIV-03)",
+    dsarTotalRequests: "Total Requests",
+    dsarDaysLeft: "Days Left",
+
+    // Incident Management
+    incidentManagement: "Incident Management",
+    incidentSubtitle: "ISO 20000 — Track, resolve, and analyze incidents",
+    reportIncident: "Report Incident",
+    openIncidents: "Open",
+    inProgressIncidents: "In Progress",
+    resolvedIncidents: "Resolved",
+    closedIncidents: "Closed",
+    startIncident: "Start",
+    resolveIncident: "Resolve",
+    closeIncident: "Close",
+
+    // Data Export
+    dataExport: "Data Export",
+    dataExportSubtitle: "ISO 22301 — Export all tenant data for business continuity and portability.",
+    exportFormat: "Export Format",
+    lastExport: "Last Export",
+    exportAllData: "Export All Data",
+    exportAllDataDesc: "Downloads partners, invoices, products, journal entries, employees, contacts, and more as a single JSON file.",
+    exportingData: "Exporting...",
+    downloadExport: "Download Export",
+    startingExport: "Starting export...",
+
+    // CAPA
+    capaTitle: "CAPA Management (ISO 9001 §10.2)",
+    newCapa: "New CAPA",
+    correctiveAction: "Corrective Action",
+    preventiveAction: "Preventive Action",
+    rootCauseAnalysis: "Root Cause Analysis",
+    effectiveness: "Effectiveness",
+
+    // AI Model Cards
+    aiModelCardsTitle: "AI Model Cards (ISO 42001)",
+    aiModelName: "Model Name",
+    aiFunctionName: "Function Name",
+    aiPurpose: "Purpose",
+    biasRisk: "Bias Risk",
+    aiLastReview: "Last Review",
+    aiNextReview: "Next Review",
+
+    // Gift Cards
+    giftCardsTitle: "Gift Card Management",
+    giftCardCode: "Card Code",
+    giftInitialBalance: "Initial Balance",
+
+    // Market Basket
+    marketBasketTitle: "Market Basket Analysis",
+    mbConfidence: "Confidence",
+    mbSupport: "Support",
+    mbLift: "Lift",
+
+    // Loyalty Analytics
+    loyaltyAnalyticsTitle: "Loyalty Analytics",
+    rfmSegmentation: "RFM Segmentation",
+    customerLifetimeValue: "Customer Lifetime Value",
+    churnRisk: "Churn Risk",
+
+    // POS Promotions
+    posPromotionsTitle: "POS Promotions Engine",
+    createPromotion: "Create Promotion",
+    promotionName: "Promotion Name",
+    promoDiscountType: "Discount Type",
+    promoValidFrom: "Valid From",
+    promoValidTo: "Valid To",
   },
   sr: {
     // Auth
@@ -7126,6 +7197,68 @@ export const translations = {
     aiModelCards: "AI kartice modela",
     complianceWorkflows: "Tokovi rada",
     compliance: "Usklađenost",
+
+    // CR10-23: i18n keys for new pages
+    dsarTitle: "Upravljanje DSAR zahtevima (ZZPL / PRIV-03)",
+    dsarTotalRequests: "Ukupno zahteva",
+    dsarDaysLeft: "Preostalo dana",
+
+    incidentManagement: "Upravljanje incidentima",
+    incidentSubtitle: "ISO 20000 — Praćenje, rešavanje i analiza incidenata",
+    reportIncident: "Prijavi incident",
+    openIncidents: "Otvoreni",
+    inProgressIncidents: "U toku",
+    resolvedIncidents: "Rešeni",
+    closedIncidents: "Zatvoreni",
+    startIncident: "Započni",
+    resolveIncident: "Reši",
+    closeIncident: "Zatvori",
+
+    dataExport: "Izvoz podataka",
+    dataExportSubtitle: "ISO 22301 — Izvoz svih podataka zakupca za kontinuitet poslovanja i prenosivost.",
+    exportFormat: "Format izvoza",
+    lastExport: "Poslednji izvoz",
+    exportAllData: "Izvezi sve podatke",
+    exportAllDataDesc: "Preuzima partnere, fakture, proizvode, knjiženja, zaposlene, kontakte i ostalo kao jedan JSON fajl.",
+    exportingData: "Izvoz u toku...",
+    downloadExport: "Preuzmi izvoz",
+    startingExport: "Pokretanje izvoza...",
+
+    capaTitle: "CAPA upravljanje (ISO 9001 §10.2)",
+    newCapa: "Nova CAPA",
+    correctiveAction: "Korektivna akcija",
+    preventiveAction: "Preventivna akcija",
+    rootCauseAnalysis: "Analiza uzroka",
+    effectiveness: "Efektivnost",
+
+    aiModelCardsTitle: "AI kartice modela (ISO 42001)",
+    aiModelName: "Naziv modela",
+    aiFunctionName: "Naziv funkcije",
+    aiPurpose: "Svrha",
+    biasRisk: "Rizik pristrasnosti",
+    aiLastReview: "Poslednji pregled",
+    aiNextReview: "Sledeći pregled",
+
+    giftCardsTitle: "Upravljanje poklon karticama",
+    giftCardCode: "Kod kartice",
+    giftInitialBalance: "Početni saldo",
+
+    marketBasketTitle: "Analiza tržišne korpe",
+    mbConfidence: "Pouzdanost",
+    mbSupport: "Podrška",
+    mbLift: "Lift",
+
+    loyaltyAnalyticsTitle: "Analitika lojalnosti",
+    rfmSegmentation: "RFM segmentacija",
+    customerLifetimeValue: "Životna vrednost kupca",
+    churnRisk: "Rizik od odliva",
+
+    posPromotionsTitle: "POS sistem promocija",
+    createPromotion: "Kreiraj promociju",
+    promotionName: "Naziv promocije",
+    promoDiscountType: "Tip popusta",
+    promoValidFrom: "Važi od",
+    promoValidTo: "Važi do",
   },
 } as const;
 
