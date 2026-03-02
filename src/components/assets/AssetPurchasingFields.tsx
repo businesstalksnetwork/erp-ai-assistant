@@ -96,21 +96,21 @@ export function AssetPurchasingFields({ form }: Props) {
   return (
     <>
       <Card>
-        <CardHeader><CardTitle>{t("assetsCrossSupplier" as any)}</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("assetsCrossSupplier")}</CardTitle></CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          {renderSelect("supplier_id", t("supplier" as any), suppliers.map((s: any) => ({ id: s.id, label: s.name })))}
-          {renderSelect("responsible_employee_id", t("assetsCrossEmployee" as any), employees.map((e: any) => ({ id: e.id, label: e.full_name })))}
-          {renderSelect("warehouse_id", t("warehouse" as any), warehouses.map((w: any) => ({ id: w.id, label: w.name })))}
-          {renderSelect("product_id", t("product" as any), products.map((p: any) => ({ id: p.id, label: `${p.sku ? p.sku + ' — ' : ''}${p.name}` })))}
+          {renderSelect("supplier_id", t("supplier"), suppliers.map((s: any) => ({ id: s.id, label: s.name })))}
+          {renderSelect("responsible_employee_id", t("assetsCrossEmployee"), employees.map((e: any) => ({ id: e.id, label: e.full_name })))}
+          {renderSelect("warehouse_id", t("warehouse"), warehouses.map((w: any) => ({ id: w.id, label: w.name })))}
+          {renderSelect("product_id", t("product"), products.map((p: any) => ({ id: p.id, label: `${p.sku ? p.sku + ' — ' : ''}${p.name}` })))}
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>{t("assetsCrossPurchasing" as any)}</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("assetsCrossPurchasing")}</CardTitle></CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
-          {renderSelect("purchase_order_id", t("purchaseOrder" as any), purchaseOrders.map((po: any) => ({ id: po.id, label: po.order_number })))}
-          {renderSelect("goods_receipt_id", t("goodsReceipt" as any), goodsReceipts.map((gr: any) => ({ id: gr.id, label: gr.receipt_number })))}
-          {renderSelect("supplier_invoice_id", t("supplierInvoice" as any), supplierInvoices.map((si: any) => ({ id: si.id, label: si.invoice_number })))}
+          {renderSelect("purchase_order_id", t("purchaseOrder"), purchaseOrders.map((po: any) => ({ id: po.id, label: po.order_number })))}
+          {renderSelect("goods_receipt_id", t("goodsReceipt"), goodsReceipts.map((gr: any) => ({ id: gr.id, label: gr.receipt_number })))}
+          {renderSelect("supplier_invoice_id", t("supplierInvoice"), supplierInvoices.map((si: any) => ({ id: si.id, label: si.invoice_number })))}
         </CardContent>
       </Card>
     </>

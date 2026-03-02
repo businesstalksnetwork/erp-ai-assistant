@@ -98,7 +98,7 @@ export default function QuoteTemplates() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quote_templates"] });
-      toast({ title: t("deleted" as any) || "Obrisano" });
+      toast({ title: t("deleted") || "Obrisano" });
     },
   });
 
@@ -152,8 +152,8 @@ export default function QuoteTemplates() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t("quoteTemplates" as any) || "Šabloni ponuda"}
-        actions={<Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />{t("addNew" as any) || "Dodaj"}</Button>}
+        title={t("quoteTemplates") || "Šabloni ponuda"}
+        actions={<Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />{t("addNew") || "Dodaj"}</Button>}
       />
 
       <Card>
@@ -162,10 +162,10 @@ export default function QuoteTemplates() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t("name")}</TableHead>
-                <TableHead>{t("description" as any) || "Opis"}</TableHead>
-                <TableHead className="text-right">{t("items" as any) || "Stavke"}</TableHead>
-                <TableHead className="text-right">{t("validityDays" as any) || "Važi dana"}</TableHead>
-                <TableHead>{t("currency" as any) || "Valuta"}</TableHead>
+                <TableHead>{t("description") || "Opis"}</TableHead>
+                <TableHead className="text-right">{t("items") || "Stavke"}</TableHead>
+                <TableHead className="text-right">{t("validityDays") || "Važi dana"}</TableHead>
+                <TableHead>{t("currency") || "Valuta"}</TableHead>
                 <TableHead>{t("status")}</TableHead>
                 <TableHead />
               </TableRow>
@@ -174,7 +174,7 @@ export default function QuoteTemplates() {
               {isLoading ? (
                 <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">{t("loading")}</TableCell></TableRow>
               ) : templates.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">{t("noResults" as any) || "Nema šablona"}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">{t("noResults") || "Nema šablona"}</TableCell></TableRow>
               ) : templates.map((tmpl: any) => (
                 <TableRow key={tmpl.id}>
                   <TableCell className="font-medium">{tmpl.name}</TableCell>
@@ -184,7 +184,7 @@ export default function QuoteTemplates() {
                   <TableCell>{tmpl.currency}</TableCell>
                   <TableCell>
                     <Badge variant={tmpl.is_active ? "default" : "outline"}>
-                      {tmpl.is_active ? t("active" as any) || "Aktivan" : t("inactive" as any) || "Neaktivan"}
+                      {tmpl.is_active ? t("active") || "Aktivan" : t("inactive") || "Neaktivan"}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -204,7 +204,7 @@ export default function QuoteTemplates() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editId ? t("edit" as any) || "Izmeni" : t("addNew" as any) || "Novi"} {t("quoteTemplate" as any) || "šablon ponude"}</DialogTitle>
+            <DialogTitle>{editId ? t("edit") || "Izmeni" : t("addNew") || "Novi"} {t("quoteTemplate") || "šablon ponude"}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -215,43 +215,43 @@ export default function QuoteTemplates() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <Label>{t("validityDays" as any) || "Važi dana"}</Label>
+                  <Label>{t("validityDays") || "Važi dana"}</Label>
                   <Input type="number" value={form.validity_days} onChange={e => setForm(f => ({ ...f, validity_days: parseInt(e.target.value) || 30 }))} />
                 </div>
                 <div>
-                  <Label>{t("currency" as any) || "Valuta"}</Label>
+                  <Label>{t("currency") || "Valuta"}</Label>
                   <Input value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} />
                 </div>
               </div>
             </div>
 
             <div>
-              <Label>{t("description" as any) || "Opis"}</Label>
+              <Label>{t("description") || "Opis"}</Label>
               <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label>{t("lineItems" as any) || "Stavke"}</Label>
-                <Button size="sm" variant="outline" onClick={addItem}><Plus className="h-3 w-3 mr-1" />{t("addItem" as any) || "Dodaj stavku"}</Button>
+                <Label>{t("lineItems") || "Stavke"}</Label>
+                <Button size="sm" variant="outline" onClick={addItem}><Plus className="h-3 w-3 mr-1" />{t("addItem") || "Dodaj stavku"}</Button>
               </div>
               <div className="space-y-2">
                 {form.items.map((item, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 items-end">
                     <div className="col-span-5">
-                      {idx === 0 && <Label className="text-xs">{t("description" as any) || "Opis"}</Label>}
+                      {idx === 0 && <Label className="text-xs">{t("description") || "Opis"}</Label>}
                       <Input value={item.description} onChange={e => updateItem(idx, "description", e.target.value)} placeholder="Opis stavke" />
                     </div>
                     <div className="col-span-2">
-                      {idx === 0 && <Label className="text-xs">{t("quantity" as any) || "Kol."}</Label>}
+                      {idx === 0 && <Label className="text-xs">{t("quantity") || "Kol."}</Label>}
                       <Input type="number" min={0} value={item.quantity} onChange={e => updateItem(idx, "quantity", parseFloat(e.target.value) || 0)} />
                     </div>
                     <div className="col-span-2">
-                      {idx === 0 && <Label className="text-xs">{t("unit" as any) || "JM"}</Label>}
+                      {idx === 0 && <Label className="text-xs">{t("unit") || "JM"}</Label>}
                       <Input value={item.unit} onChange={e => updateItem(idx, "unit", e.target.value)} />
                     </div>
                     <div className="col-span-2">
-                      {idx === 0 && <Label className="text-xs">{t("price" as any) || "Cena"}</Label>}
+                      {idx === 0 && <Label className="text-xs">{t("price") || "Cena"}</Label>}
                       <Input type="number" min={0} value={item.unit_price} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value) || 0)} />
                     </div>
                     <div className="col-span-1">
@@ -268,7 +268,7 @@ export default function QuoteTemplates() {
             </div>
 
             <div>
-              <Label>{t("terms" as any) || "Uslovi"}</Label>
+              <Label>{t("terms") || "Uslovi"}</Label>
               <Textarea value={form.terms_text} onChange={e => setForm(f => ({ ...f, terms_text: e.target.value }))} rows={3} placeholder="Uslovi plaćanja, rokovi isporuke..." />
             </div>
           </div>

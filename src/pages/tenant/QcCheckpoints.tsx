@@ -92,7 +92,7 @@ export default function QcCheckpoints() {
 
   const statusBadge = (s: string) => {
     const v: Record<string, "default" | "secondary" | "destructive" | "outline"> = { pending: "secondary", in_progress: "outline", passed: "default", failed: "destructive", waived: "outline" };
-    const label: Record<string, string> = { pending: t("qcPending"), passed: t("qcPassed"), failed: t("qcFailed"), waived: t("qcWaived"), in_progress: t("inProgress" as any) || "In Progress" };
+    const label: Record<string, string> = { pending: t("qcPending"), passed: t("qcPassed"), failed: t("qcFailed"), waived: t("qcWaived"), in_progress: t("inProgress") || "In Progress" };
     return <Badge variant={v[s] || "secondary"}>{label[s] || s}</Badge>;
   };
 
@@ -109,7 +109,7 @@ export default function QcCheckpoints() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t("productionOrders" as any) || "Order"}</TableHead>
+                <TableHead>{t("productionOrders") || "Order"}</TableHead>
                 <TableHead>{t("stageName")}</TableHead>
                 <TableHead>#</TableHead>
                 <TableHead>{t("passCriteria")}</TableHead>
@@ -148,7 +148,7 @@ export default function QcCheckpoints() {
         <DialogContent>
           <DialogHeader><DialogTitle>{t("add")} {t("qcCheckpoints")}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <div><Label>{t("productionOrders" as any) || "Order"} *</Label>
+            <div><Label>{t("productionOrders") || "Order"} *</Label>
               <Select value={form.production_order_id} onValueChange={(v) => setForm({ ...form, production_order_id: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{orders.map((o: any) => <SelectItem key={o.id} value={o.id}>{o.order_number}</SelectItem>)}</SelectContent>
@@ -172,7 +172,7 @@ export default function QcCheckpoints() {
         <DialogContent>
           <DialogHeader><DialogTitle>{t("inspector")} — {inspectDialog?.stage_name}</DialogTitle></DialogHeader>
           <div className="grid gap-4">
-            <div><Label>{t("result" as any) || "Result"}</Label>
+            <div><Label>{t("result") || "Result"}</Label>
               <Select value={inspectResult} onValueChange={(v) => setInspectResult(v as any)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>

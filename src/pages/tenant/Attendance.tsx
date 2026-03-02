@@ -92,10 +92,10 @@ export default function Attendance() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="daily">{t("daily" as any) || "Dnevno"}</TabsTrigger>
+          <TabsTrigger value="daily">{t("daily") || "Dnevno"}</TabsTrigger>
           <TabsTrigger value="summary">
             <BarChart3 className="h-4 w-4 mr-1" />
-            {t("monthlySummary" as any) || "Mesečni pregled"}
+            {t("monthlySummary") || "Mesečni pregled"}
           </TabsTrigger>
         </TabsList>
 

@@ -107,9 +107,9 @@ export default function Departments() {
               <TableRow>
                 <TableHead>{t("code")}</TableHead>
                 <TableHead>{t("name")}</TableHead>
-                <TableHead>{t("parentDepartment" as any)}</TableHead>
-                <TableHead>{t("company" as any)}</TableHead>
-                <TableHead>{t("manager" as any)}</TableHead>
+                <TableHead>{t("parentDepartment")}</TableHead>
+                <TableHead>{t("company")}</TableHead>
+                <TableHead>{t("manager")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
                 <TableHead>{t("actions")}</TableHead>
               </TableRow>
@@ -149,11 +149,11 @@ export default function Departments() {
               <div className="grid gap-2"><Label>{t("name")} *</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
             </div>
             <div className="grid gap-2">
-              <Label>{t("parentDepartment" as any)}</Label>
+              <Label>{t("parentDepartment")}</Label>
               <Select value={form.parent_id || "__none__"} onValueChange={v => setForm({ ...form, parent_id: v === "__none__" ? "" : v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">— {t("none" as any)} —</SelectItem>
+                   <SelectItem value="__none__">— {t("none")} —</SelectItem>
                   {departments.filter(d => d.id !== editId).map(d => (
                     <SelectItem key={d.id} value={d.id}>{d.code} — {d.name}</SelectItem>
                   ))}
@@ -161,11 +161,11 @@ export default function Departments() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>{t("company" as any)}</Label>
+              <Label>{t("company")}</Label>
               <Select value={form.company_id || "__none__"} onValueChange={v => setForm({ ...form, company_id: v === "__none__" ? "" : v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">— {t("none" as any)} —</SelectItem>
+                   <SelectItem value="__none__">— {t("none")} —</SelectItem>
                   {companies.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.legal_name}</SelectItem>
                   ))}
@@ -173,11 +173,11 @@ export default function Departments() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>{t("manager" as any)}</Label>
+              <Label>{t("manager")}</Label>
               <Select value={form.manager_employee_id || "__none__"} onValueChange={v => setForm({ ...form, manager_employee_id: v === "__none__" ? "" : v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">— {t("none" as any)} —</SelectItem>
+                  <SelectItem value="__none__">— {t("none")} —</SelectItem>
                   {employees.map(e => (
                     <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>
                   ))}
