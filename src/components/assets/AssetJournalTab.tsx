@@ -18,7 +18,6 @@ export function AssetJournalTab({ assetId, assetCode }: Props) {
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["asset-journal-entries", assetId],
     queryFn: async () => {
-      // Find journal entries that reference this asset via reference field or description
       const { data } = await supabase
         .from("journal_entries")
         .select("id, entry_number, entry_date, description, reference, status, total_debit")
@@ -36,7 +35,7 @@ export function AssetJournalTab({ assetId, assetCode }: Props) {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold flex items-center gap-2">
-        <BookOpen className="h-5 w-5" /> {t("assetsCrossJournalTitle" as any)}
+        <BookOpen className="h-5 w-5" /> {t("assetsCrossJournalTitle")}
       </h3>
 
       {isLoading ? (
@@ -44,16 +43,16 @@ export function AssetJournalTab({ assetId, assetCode }: Props) {
           <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
         </div>
       ) : entries.length === 0 ? (
-        <p className="text-muted-foreground text-center py-8">{t("assetsCrossJournalEmpty" as any)}</p>
+        <p className="text-muted-foreground text-center py-8">{t("assetsCrossJournalEmpty")}</p>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("entryNumber" as any)}</TableHead>
-              <TableHead>{t("date" as any)}</TableHead>
-              <TableHead>{t("description" as any)}</TableHead>
-              <TableHead>{t("reference" as any)}</TableHead>
-              <TableHead className="text-right">{t("amount" as any)}</TableHead>
+              <TableHead>{t("entryNumber")}</TableHead>
+              <TableHead>{t("date")}</TableHead>
+              <TableHead>{t("description")}</TableHead>
+              <TableHead>{t("reference")}</TableHead>
+              <TableHead className="text-right">{t("amount")}</TableHead>
               <TableHead>{t("status")}</TableHead>
             </TableRow>
           </TableHeader>

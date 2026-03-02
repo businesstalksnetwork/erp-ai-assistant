@@ -47,7 +47,7 @@ export function ProfileLeaveCard({ employeeId, annualLeaveDays }: Props) {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5" />
-              {t("profileLeaveBalance" as any)} ({currentYear})
+              {t("profileLeaveBalance")} ({currentYear})
             </CardTitle>
             <Button size="sm" onClick={() => setDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-1" /> Zatraži odsustvo
@@ -58,15 +58,15 @@ export function ProfileLeaveCard({ employeeId, annualLeaveDays }: Props) {
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
             <div>
               <p className="text-2xl font-bold">{entitled}</p>
-              <p className="text-xs text-muted-foreground">{t("profileEntitled" as any)}</p>
+              <p className="text-xs text-muted-foreground">{t("profileEntitled")}</p>
             </div>
             <div>
               <p className="text-2xl font-bold">{carriedOver}</p>
-              <p className="text-xs text-muted-foreground">{t("profileCarriedOver" as any)}</p>
+              <p className="text-xs text-muted-foreground">{t("profileCarriedOver")}</p>
             </div>
             <div>
               <p className="text-2xl font-bold">{used}</p>
-              <p className="text-xs text-muted-foreground">{t("profileUsed" as any)}</p>
+              <p className="text-xs text-muted-foreground">{t("profileUsed")}</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{pending}</p>
@@ -74,7 +74,7 @@ export function ProfileLeaveCard({ employeeId, annualLeaveDays }: Props) {
             </div>
             <div>
               <p className="text-2xl font-bold text-primary">{remaining}</p>
-              <p className="text-xs text-muted-foreground">{t("profileRemaining" as any)}</p>
+              <p className="text-xs text-muted-foreground">{t("profileRemaining")}</p>
             </div>
           </div>
         </CardContent>

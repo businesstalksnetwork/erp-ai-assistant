@@ -42,22 +42,22 @@ export function ProfileAttendanceCard({ employeeId }: Props) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Clock className="h-5 w-5" />
-          {t("profileAttendanceSummary" as any)} — {format(now, "MMMM yyyy")}
+          {t("profileAttendanceSummary")} — {format(now, "MMMM yyyy")}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-2xl font-bold">{presentDays}</p>
-            <p className="text-xs text-muted-foreground">{t("profilePresentDays" as any)}</p>
+            <p className="text-xs text-muted-foreground">{t("profilePresentDays")}</p>
           </div>
           <div>
             <p className="text-2xl font-bold">{absentDays}</p>
-            <p className="text-xs text-muted-foreground">{t("profileAbsentDays" as any)}</p>
+            <p className="text-xs text-muted-foreground">{t("profileAbsentDays")}</p>
           </div>
           <div>
             <p className="text-2xl font-bold">{totalHours.toFixed(1)}h</p>
-            <p className="text-xs text-muted-foreground">{t("profileTotalHours" as any)}</p>
+            <p className="text-xs text-muted-foreground">{t("profileTotalHours")}</p>
           </div>
         </div>
       </CardContent>

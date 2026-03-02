@@ -24,7 +24,6 @@ export function AssetDriveTab({ assetId, assetCode, driveFolderId, onFolderCreat
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Get or create the tenant's default drive
   const getOrCreateDrive = async (): Promise<string> => {
     const { data: existingDrive } = await supabase
       .from("drives")
@@ -48,7 +47,6 @@ export function AssetDriveTab({ assetId, assetCode, driveFolderId, onFolderCreat
     mutationFn: async () => {
       const driveId = await getOrCreateDrive();
 
-      // Find or create /Imovina/ root folder
       let { data: rootFolder } = await supabase
         .from("drive_folders")
         .select("id")
@@ -69,7 +67,6 @@ export function AssetDriveTab({ assetId, assetCode, driveFolderId, onFolderCreat
         rootFolder = created;
       }
 
-      // Create asset subfolder
       const { data: assetFolder, error: folderErr } = await supabase
         .from("drive_folders")
         .insert({ tenant_id: tenantId!, drive_id: driveId, name: assetCode, parent_folder_id: rootFolder!.id, created_by: user?.id || null })
@@ -77,14 +74,13 @@ export function AssetDriveTab({ assetId, assetCode, driveFolderId, onFolderCreat
         .single();
       if (folderErr) throw folderErr;
 
-      // Link folder to asset
       await supabase.from("assets").update({ drive_folder_id: assetFolder!.id } as any).eq("id", assetId);
       onFolderCreated(assetFolder!.id);
       return assetFolder!.id;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["asset-drive-files"] });
-      toast.success(t("assetsCrossDriveFolderCreated" as any));
+      toast.success(t("assetsCrossDriveFolderCreated"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -108,7 +104,6 @@ export function AssetDriveTab({ assetId, assetCode, driveFolderId, onFolderCreat
     mutationFn: async (file: File) => {
       if (!driveFolderId) throw new Error("No folder");
 
-      // Get drive_id from the folder
       const { data: folder } = await supabase
         .from("drive_folders")
         .select("drive_id")
@@ -132,7 +127,7 @@ export function AssetDriveTab({ assetId, assetCode, driveFolderId, onFolderCreat
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["asset-drive-files"] });
-      toast.success(t("saved" as any));
+      toast.success(t("saved"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -153,18 +148,18 @@ export function AssetDriveTab({ assetId, assetCode, driveFolderId, onFolderCreat
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold flex items-center gap-2">
-          <HardDrive className="h-5 w-5" /> {t("assetsCrossDriveTitle" as any)}
+          <HardDrive className="h-5 w-5" /> {t("assetsCrossDriveTitle")}
         </h3>
         <div className="flex gap-2">
           {!driveFolderId ? (
             <Button size="sm" onClick={() => createFolder.mutate()} disabled={createFolder.isPending}>
-              <FolderOpen className="h-4 w-4 mr-1" /> {t("assetsCrossDriveCreateFolder" as any)}
+              <FolderOpen className="h-4 w-4 mr-1" /> {t("assetsCrossDriveCreateFolder")}
             </Button>
           ) : (
             <>
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
               <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadFile.isPending}>
-                <Upload className="h-4 w-4 mr-1" /> {t("assetsCrossDriveUpload" as any)}
+                <Upload className="h-4 w-4 mr-1" /> {t("assetsCrossDriveUpload")}
               </Button>
             </>
           )}
@@ -172,21 +167,21 @@ export function AssetDriveTab({ assetId, assetCode, driveFolderId, onFolderCreat
       </div>
 
       {!driveFolderId ? (
-        <p className="text-muted-foreground text-center py-8">{t("assetsCrossDriveNoFolder" as any)}</p>
+        <p className="text-muted-foreground text-center py-8">{t("assetsCrossDriveNoFolder")}</p>
       ) : isLoading ? (
         <div className="flex justify-center py-8">
           <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
         </div>
       ) : files.length === 0 ? (
-        <p className="text-muted-foreground text-center py-8">{t("assetsCrossDriveEmpty" as any)}</p>
+        <p className="text-muted-foreground text-center py-8">{t("assetsCrossDriveEmpty")}</p>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("name" as any)}</TableHead>
-              <TableHead>{t("type" as any)}</TableHead>
-              <TableHead>{t("assetsCrossDriveSize" as any)}</TableHead>
-              <TableHead>{t("date" as any)}</TableHead>
+              <TableHead>{t("name")}</TableHead>
+              <TableHead>{t("type")}</TableHead>
+              <TableHead>{t("assetsCrossDriveSize")}</TableHead>
+              <TableHead>{t("date")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
