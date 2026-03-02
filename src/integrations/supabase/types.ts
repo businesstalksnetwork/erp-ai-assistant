@@ -9315,6 +9315,142 @@ export type Database = {
           },
         ]
       }
+      gift_card_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string
+          created_by: string | null
+          gift_card_id: string
+          id: string
+          notes: string | null
+          pos_transaction_id: string | null
+          tenant_id: string
+          transaction_type: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          created_at?: string
+          created_by?: string | null
+          gift_card_id: string
+          id?: string
+          notes?: string | null
+          pos_transaction_id?: string | null
+          tenant_id: string
+          transaction_type: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          created_by?: string | null
+          gift_card_id?: string
+          id?: string
+          notes?: string | null
+          pos_transaction_id?: string | null
+          tenant_id?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_card_transactions_gift_card_id_fkey"
+            columns: ["gift_card_id"]
+            isOneToOne: false
+            referencedRelation: "gift_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_card_transactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gift_cards: {
+        Row: {
+          activated_at: string | null
+          card_number: string
+          created_at: string
+          currency: string
+          current_balance: number
+          expires_at: string | null
+          id: string
+          initial_balance: number
+          issued_to_name: string | null
+          issued_to_partner_id: string | null
+          last_used_at: string | null
+          notes: string | null
+          pos_transaction_id: string | null
+          purchased_by_partner_id: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          card_number: string
+          created_at?: string
+          currency?: string
+          current_balance?: number
+          expires_at?: string | null
+          id?: string
+          initial_balance?: number
+          issued_to_name?: string | null
+          issued_to_partner_id?: string | null
+          last_used_at?: string | null
+          notes?: string | null
+          pos_transaction_id?: string | null
+          purchased_by_partner_id?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          card_number?: string
+          created_at?: string
+          currency?: string
+          current_balance?: number
+          expires_at?: string | null
+          id?: string
+          initial_balance?: number
+          issued_to_name?: string | null
+          issued_to_partner_id?: string | null
+          last_used_at?: string | null
+          notes?: string | null
+          pos_transaction_id?: string | null
+          purchased_by_partner_id?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_cards_issued_to_partner_id_fkey"
+            columns: ["issued_to_partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_cards_purchased_by_partner_id_fkey"
+            columns: ["purchased_by_partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_cards_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goods_receipt_lines: {
         Row: {
           created_at: string
@@ -17796,6 +17932,98 @@ export type Database = {
           },
           {
             foreignKeyName: "proforma_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotions: {
+        Row: {
+          applies_to: string
+          bundle_price: number | null
+          bundle_product_ids: string[] | null
+          buy_quantity: number | null
+          category_ids: string[] | null
+          coupon_code: string | null
+          created_at: string
+          current_uses: number | null
+          description: string | null
+          discount_value: number
+          end_date: string | null
+          get_quantity: number | null
+          id: string
+          is_active: boolean
+          location_ids: string[] | null
+          max_uses: number | null
+          min_cart_value: number | null
+          name: string
+          priority: number | null
+          product_ids: string[] | null
+          promotion_type: string
+          required_tier: string | null
+          start_date: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          applies_to?: string
+          bundle_price?: number | null
+          bundle_product_ids?: string[] | null
+          buy_quantity?: number | null
+          category_ids?: string[] | null
+          coupon_code?: string | null
+          created_at?: string
+          current_uses?: number | null
+          description?: string | null
+          discount_value?: number
+          end_date?: string | null
+          get_quantity?: number | null
+          id?: string
+          is_active?: boolean
+          location_ids?: string[] | null
+          max_uses?: number | null
+          min_cart_value?: number | null
+          name: string
+          priority?: number | null
+          product_ids?: string[] | null
+          promotion_type?: string
+          required_tier?: string | null
+          start_date?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          applies_to?: string
+          bundle_price?: number | null
+          bundle_product_ids?: string[] | null
+          buy_quantity?: number | null
+          category_ids?: string[] | null
+          coupon_code?: string | null
+          created_at?: string
+          current_uses?: number | null
+          description?: string | null
+          discount_value?: number
+          end_date?: string | null
+          get_quantity?: number | null
+          id?: string
+          is_active?: boolean
+          location_ids?: string[] | null
+          max_uses?: number | null
+          min_cart_value?: number | null
+          name?: string
+          priority?: number | null
+          product_ids?: string[] | null
+          promotion_type?: string
+          required_tier?: string | null
+          start_date?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotions_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

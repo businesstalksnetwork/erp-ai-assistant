@@ -325,6 +325,10 @@ const posNav: NavItem[] = [
   { key: "posSessions", url: "/pos/sessions", icon: CreditCard, section: "administration" },
   { key: "fiscalDevices", url: "/pos/fiscal-devices", icon: Receipt },
   { key: "dailyReport", url: "/pos/daily-report", icon: FileText },
+  { key: "promotions" as any, url: "/pos/promotions", icon: Tag },
+  { key: "giftCards" as any, url: "/pos/gift-cards", icon: Gift },
+  { key: "marketBasket" as any, url: "/pos/market-basket", icon: BarChart3 },
+  { key: "loyaltyAnalytics" as any, url: "/pos/loyalty-analytics", icon: TrendingUp },
 ];
 
 // Cleaned up: removed items relocated to parent modules
