@@ -183,7 +183,7 @@ export function GlobalSearch() {
     { label: t("holidays"), path: "/hr/holidays", icon: Calendar, group: "hr", module: "hr" },
     { label: t("attendance"), path: "/hr/attendance", icon: Clock, group: "hr", module: "hr" },
     { label: t("leaveRequests"), path: "/hr/leave-requests", icon: CalendarOff, group: "hr", module: "hr" },
-    { label: t("leavePolicies" as any) || "Politike odsustva", path: "/hr/leave-policies", icon: Shield, group: "hr", module: "hr" },
+    { label: t("leavePolicies") || "Politike odsustva", path: "/hr/leave-policies", icon: Shield, group: "hr", module: "hr" },
     { label: t("deductionsModule"), path: "/hr/deductions", icon: Coins, group: "hr", module: "hr" },
     { label: t("allowance"), path: "/hr/allowances", icon: Banknote, group: "hr", module: "hr" },
     { label: t("salaryHistory"), path: "/hr/salaries", icon: Banknote, group: "hr", module: "hr" },
@@ -207,9 +207,9 @@ export function GlobalSearch() {
     { label: t("dailyReport"), path: "/pos/daily-report", icon: FileText, group: "pos", module: "pos" },
 
     // Assets
-    { label: t("assetsModule" as any), path: "/assets", icon: Building2, group: "assets", module: "assets" },
-    { label: t("assetsRegistry" as any), path: "/assets/registry", icon: List, group: "assets", module: "assets" },
-    { label: t("assetsCategories" as any), path: "/assets/categories", icon: FolderTree, group: "assets", module: "assets" },
+    { label: t("assetsModule"), path: "/assets", icon: Building2, group: "assets", module: "assets" },
+    { label: t("assetsRegistry"), path: "/assets/registry", icon: List, group: "assets", module: "assets" },
+    { label: t("assetsCategories"), path: "/assets/categories", icon: FolderTree, group: "assets", module: "assets" },
     { label: "Asset Locations", path: "/assets/locations", icon: MapPin, group: "assets", module: "assets" },
     { label: "Asset Reports", path: "/assets/reports", icon: BarChart3, group: "assets", module: "assets" },
     { label: "Depreciation", path: "/assets/depreciation", icon: TrendingUp, group: "assets", module: "assets" },
@@ -247,10 +247,10 @@ export function GlobalSearch() {
     { label: t("returns"), path: "/returns", icon: RotateCcw, group: "returns", module: "returns" },
 
     // Service
-    { label: t("serviceOrders" as any) || "Servisni nalozi", path: "/service/orders", icon: Wrench, group: "service", module: "service" },
-    { label: t("newServiceOrder" as any) || "Novi servisni nalog", path: "/service/orders/new", icon: FileInput, group: "service", module: "service" },
-    { label: t("myWorkOrders" as any) || "Moji radni nalozi", path: "/service/my-work-orders", icon: ClipboardCheck, group: "service", module: "service" },
-    { label: t("deviceRegistry" as any) || "Registar uređaja", path: "/service/devices", icon: HardDrive, group: "service", module: "service" },
+    { label: t("serviceOrders") || "Servisni nalozi", path: "/service/orders", icon: Wrench, group: "service", module: "service" },
+    { label: t("newServiceOrder") || "Novi servisni nalog", path: "/service/orders/new", icon: FileInput, group: "service", module: "service" },
+    { label: t("myWorkOrders") || "Moji radni nalozi", path: "/service/my-work-orders", icon: ClipboardCheck, group: "service", module: "service" },
+    { label: t("deviceRegistry") || "Registar uređaja", path: "/service/devices", icon: HardDrive, group: "service", module: "service" },
 
     // AI
     { label: "AI Briefing", path: "/ai/briefing", icon: Brain, group: "analytics", module: "analytics" },
@@ -315,7 +315,7 @@ export function GlobalSearch() {
       <CommandList>
         <CommandEmpty>{t("noResults")}</CommandEmpty>
         {groups.map((group) => (
-          <CommandGroup key={group} heading={t(group as any) || group}>
+          <CommandGroup key={group} heading={t(group) || group}>
             {filtered
               .filter((i) => i.group === group)
               .map((item) => (
