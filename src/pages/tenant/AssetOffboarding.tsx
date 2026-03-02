@@ -22,12 +22,10 @@ export default function AssetOffboarding() {
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  // Employees with active asset assignments
   const { data: employeesWithAssets = [], isLoading } = useQuery({
     queryKey: ["offboarding-employees", tenantId],
     queryFn: async () => {
       if (!tenantId) return [];
-      // Get all active assignments grouped by employee
       const { data: assignments } = await supabase.from("asset_assignments")
         .select("*, assets(name, asset_code, inventory_number), employees(id, first_name, last_name, employee_id, status)")
         .eq("tenant_id", tenantId)
@@ -36,8 +34,6 @@ export default function AssetOffboarding() {
         .order("assigned_date", { ascending: false });
       
       if (!assignments) return [];
-
-      // Group by employee
       const empMap = new Map<string, { employee: any; assignments: any[] }>();
       for (const a of assignments) {
         if (!a.employee_id || !a.employees) continue;
@@ -64,14 +60,10 @@ export default function AssetOffboarding() {
   const offboardMutation = useMutation({
     mutationFn: async (empData: { employee: any; assignments: any[] }) => {
       if (!tenantId || !user) throw new Error("Missing context");
-
       for (const assignment of empData.assignments) {
-        // 1. Return the assignment
         await supabase.from("asset_assignments")
           .update({ status: "returned", returned_date: new Date().toISOString().split("T")[0] })
           .eq("id", assignment.id);
-
-        // 2. Generate return revers
         const { data: reversNum } = await supabase.rpc("generate_revers_number", { p_tenant_id: tenantId });
         await supabase.from("asset_reverses").insert({
           tenant_id: tenantId,
@@ -87,14 +79,11 @@ export default function AssetOffboarding() {
           signed_at: new Date().toISOString(),
           signed_by_name: empData.employee.first_name + " " + empData.employee.last_name,
         });
-
-        // 3. Update asset status back to active
         const { data: otherActive } = await supabase.from("asset_assignments")
           .select("id")
           .eq("asset_id", assignment.asset_id)
           .eq("status", "active")
           .neq("id", assignment.id);
-        
         if (!otherActive || otherActive.length === 0) {
           await supabase.from("assets").update({ status: "active" }).eq("id", assignment.asset_id);
         }
@@ -104,7 +93,7 @@ export default function AssetOffboarding() {
       qc.invalidateQueries({ queryKey: ["offboarding-employees", tenantId] });
       qc.invalidateQueries({ queryKey: ["asset-assignments", tenantId] });
       qc.invalidateQueries({ queryKey: ["asset-reverses", tenantId] });
-      toast({ title: t("offboardingComplete" as any) });
+      toast({ title: t("offboardingComplete") });
       setConfirmOpen(false);
       setSelectedEmployee(null);
     },
@@ -115,8 +104,8 @@ export default function AssetOffboarding() {
     <div className="space-y-6 p-1">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-2xl font-bold">{t("offboardingTitle" as any)}</h1>
-          <p className="text-muted-foreground text-sm">{t("offboardingDesc" as any)}</p>
+          <h1 className="text-2xl font-bold">{t("offboardingTitle")}</h1>
+          <p className="text-muted-foreground text-sm">{t("offboardingDesc")}</p>
         </div>
       </div>
 
@@ -129,22 +118,22 @@ export default function AssetOffboarding() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UserX className="h-5 w-5" />
-            {t("offboardingEmployees" as any)}
+            {t("offboardingEmployees")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="flex justify-center py-8"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>
           ) : filtered.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">{t("offboardingNoAssets" as any)}</p>
+            <p className="text-muted-foreground text-center py-8">{t("offboardingNoAssets")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("employee" as any)}</TableHead>
-                  <TableHead>{t("employeeId" as any)}</TableHead>
-                  <TableHead>{t("offboardingAssetsCount" as any)}</TableHead>
-                  <TableHead>{t("offboardingAssetsList" as any)}</TableHead>
+                  <TableHead>{t("employee")}</TableHead>
+                  <TableHead>{t("employeeId")}</TableHead>
+                  <TableHead>{t("offboardingAssetsCount")}</TableHead>
+                  <TableHead>{t("offboardingAssetsList")}</TableHead>
                   <TableHead>{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -174,7 +163,7 @@ export default function AssetOffboarding() {
                         size="sm"
                         onClick={() => { setSelectedEmployee(e); setConfirmOpen(true); }}
                       >
-                        <RotateCcw className="h-4 w-4 mr-1" /> {t("offboardingReturnAll" as any)}
+                        <RotateCcw className="h-4 w-4 mr-1" /> {t("offboardingReturnAll")}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -185,23 +174,22 @@ export default function AssetOffboarding() {
         </CardContent>
       </Card>
 
-      {/* Confirm Offboarding Dialog */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              {t("offboardingConfirm" as any)}
+              {t("offboardingConfirm")}
             </DialogTitle>
           </DialogHeader>
           {selectedEmployee && (
             <div className="space-y-4 py-2">
-              <p className="text-muted-foreground">{t("offboardingConfirmDesc" as any)}</p>
+              <p className="text-muted-foreground">{t("offboardingConfirmDesc")}</p>
               <div className="font-semibold">
                 {selectedEmployee.employee.first_name} {selectedEmployee.employee.last_name} ({selectedEmployee.employee.employee_id})
               </div>
               <div className="space-y-2">
-                <p className="text-sm font-medium">{t("offboardingAssetsToReturn" as any)}:</p>
+                <p className="text-sm font-medium">{t("offboardingAssetsToReturn")}:</p>
                 {selectedEmployee.assignments.map((a: any) => (
                   <div key={a.id} className="flex items-center gap-2 text-sm p-2 bg-muted rounded">
                     <FileSignature className="h-4 w-4 text-primary" />
@@ -220,7 +208,7 @@ export default function AssetOffboarding() {
               disabled={offboardMutation.isPending}
             >
               <RotateCcw className="h-4 w-4 mr-1" />
-              {t("offboardingExecute" as any)} ({selectedEmployee?.assignments.length} {t("offboardingItems" as any)})
+              {t("offboardingExecute")} ({selectedEmployee?.assignments.length} {t("offboardingItems")})
             </Button>
           </DialogFooter>
         </DialogContent>
