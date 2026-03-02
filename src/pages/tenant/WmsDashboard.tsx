@@ -70,7 +70,7 @@ export default function WmsDashboard() {
       <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ tab: v })}>
         <TabsList>
           <TabsTrigger value="overview">{t("dashboard")}</TabsTrigger>
-          <TabsTrigger value="labor">{t("laborProductivity" as any)}</TabsTrigger>
+          <TabsTrigger value="labor">{t("laborProductivity")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">

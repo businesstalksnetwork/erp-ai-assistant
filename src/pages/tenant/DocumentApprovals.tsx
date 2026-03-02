@@ -112,7 +112,7 @@ export default function DocumentApprovals() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["document_workflows"] });
       setInitDialogOpen(false);
-      toast({ title: t("workflowInitiated" as any) || "Radni tok pokrenut" });
+      toast({ title: t("workflowInitiated") || "Radni tok pokrenut" });
     },
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
@@ -144,7 +144,7 @@ export default function DocumentApprovals() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["document_workflows"] });
       queryClient.invalidateQueries({ queryKey: ["doc_approval_steps"] });
-      toast({ title: t("actionCompleted" as any) || "Akcija završena" });
+      toast({ title: t("actionCompleted") || "Akcija završena" });
     },
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
@@ -155,13 +155,13 @@ export default function DocumentApprovals() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Shield className="h-6 w-6" />
-            {t("documentApprovals" as any) || "Odobravanje dokumenata"}
+            {t("documentApprovals") || "Odobravanje dokumenata"}
           </h1>
-          <p className="text-muted-foreground text-sm">{t("documentApprovalsDesc" as any) || "Upravljajte tokovima odobravanja dokumenata"}</p>
+          <p className="text-muted-foreground text-sm">{t("documentApprovalsDesc") || "Upravljajte tokovima odobravanja dokumenata"}</p>
         </div>
         <Button onClick={() => setInitDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          {t("initiateApproval" as any) || "Pokreni odobravanje"}
+          {t("initiateApproval") || "Pokreni odobravanje"}
         </Button>
       </div>
 
@@ -201,7 +201,7 @@ export default function DocumentApprovals() {
                           onClick={() => approveMutation.mutate({ workflowId: dw.id, action: "approve" })}
                         >
                           <CheckCircle className="h-3 w-3" />
-                          {t("approve" as any) || "Odobri"}
+                          {t("approve") || "Odobri"}
                         </Button>
                         <Button
                           size="sm"
@@ -210,7 +210,7 @@ export default function DocumentApprovals() {
                           onClick={() => approveMutation.mutate({ workflowId: dw.id, action: "reject" })}
                         >
                           <XCircle className="h-3 w-3" />
-                          {t("reject" as any) || "Odbij"}
+                          {t("reject") || "Odbij"}
                         </Button>
                       </div>
                     )}
@@ -234,7 +234,7 @@ export default function DocumentApprovals() {
         })}
 
         {!isLoading && docWorkflows.length === 0 && (
-          <p className="text-center text-muted-foreground py-8">{t("noWorkflows" as any) || "Nema aktivnih tokova odobravanja"}</p>
+          <p className="text-center text-muted-foreground py-8">{t("noWorkflows") || "Nema aktivnih tokova odobravanja"}</p>
         )}
       </div>
 
@@ -242,11 +242,11 @@ export default function DocumentApprovals() {
       <Dialog open={initDialogOpen} onOpenChange={setInitDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("initiateApproval" as any) || "Pokreni odobravanje"}</DialogTitle>
+            <DialogTitle>{t("initiateApproval") || "Pokreni odobravanje"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Select value={selectedDocId} onValueChange={setSelectedDocId}>
-              <SelectTrigger><SelectValue placeholder={t("selectDocument" as any) || "Izaberite dokument"} /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("selectDocument") || "Izaberite dokument"} /></SelectTrigger>
               <SelectContent>
                 {pendingDocs.map((doc: any) => (
                   <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
@@ -254,10 +254,10 @@ export default function DocumentApprovals() {
               </SelectContent>
             </Select>
             <Select value={selectedWorkflowId} onValueChange={setSelectedWorkflowId}>
-              <SelectTrigger><SelectValue placeholder={t("selectWorkflow" as any) || "Izaberite tok"} /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("selectWorkflow") || "Izaberite tok"} /></SelectTrigger>
               <SelectContent>
                 {workflows.map((wf: any) => (
-                  <SelectItem key={wf.id} value={wf.id}>{wf.name} ({wf.min_approvers} {t("approvers" as any) || "odobravača"})</SelectItem>
+                  <SelectItem key={wf.id} value={wf.id}>{wf.name} ({wf.min_approvers} {t("approvers") || "odobravača"})</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -265,7 +265,7 @@ export default function DocumentApprovals() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setInitDialogOpen(false)}>{t("cancel")}</Button>
             <Button disabled={!selectedDocId || !selectedWorkflowId || initiateMutation.isPending} onClick={() => initiateMutation.mutate()}>
-              {t("start" as any) || "Pokreni"}
+              {t("start") || "Pokreni"}
             </Button>
           </DialogFooter>
         </DialogContent>
