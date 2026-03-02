@@ -1,95 +1,94 @@
 
 
-## Adopt `createErrorResponse()` and `withSecurityHeaders()` Across All Edge Functions
+# V5.3 PRD Implementation Plan
 
-### Problem (CR8-03 + CR8-04)
+## Review Summary
 
-Two shared modules exist but are imported by **zero** edge functions:
-- `_shared/error-handler.ts` — `createErrorResponse()` and `createJsonResponse()` sanitize error messages (no stack traces/internals leaked to clients)
-- `_shared/security-headers.ts` — `withSecurityHeaders()` adds `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, etc.
+The PRD identifies **20 open CRs** (3 HIGH, 10 MEDIUM, 7 LOW) and **6 modules** needing upgrades to reach 5.0. The security hardening (CR8-03/04) is largely done — remaining work is finishing the last ~16 raw error responses in 6 files, plus the feature roadmap.
 
-All 100+ functions currently use raw `error.message` or `String(e)` in catch blocks, exposing internal details to clients.
+---
 
-### Scope
+## Phase 1: Finish Security Hardening (Immediate)
 
-Every edge function that has:
-1. A `catch` block returning `JSON.stringify({ error: error.message })` or `String(e)` → replace with `createErrorResponse(error, req)`
-2. Success JSON responses → wrap headers with `withSecurityHeaders()`
+**Goal:** Close all remaining HIGH-severity CRs and mop up raw error responses.
 
-### Fix Pattern
+### 1A. CR9-01 — ai-assistant raw errors (HIGH)
+Replace 10 inline error responses at lines 924, 929, 934, 949, 955, 969, 1093, 1094, 1097, 1231 with `createErrorResponse()`. For the prompt-injection message (L949), use a safe generic message. For upstream proxied status codes (429/402), pass the status through `createErrorResponse`.
 
-For each function, add two imports and apply them:
+### 1B. CR8-09 — health-check pings wrong AI endpoint (HIGH)
+Change `https://api.openai.com/v1/models` to `https://ai.gateway.lovable.dev/v1/models` on line 57. Also replace `String(e)` in catch blocks (L31, L47, L68) with `"check failed"` to avoid leaking internals.
 
-```typescript
-// ADD these imports:
-import { createErrorResponse, createJsonResponse } from "../_shared/error-handler.ts";
-import { withSecurityHeaders } from "../_shared/security-headers.ts";
+### 1C. CR9-05 + CR8-12 — Remove duplicate generate-pdfa (LOW)
+Delete `supabase/functions/generate-pdfa/` entirely. It's unused (0 frontend references) and identical to `generate-pdf`.
 
-// REPLACE catch blocks:
-// BEFORE:
-} catch (e) {
-  console.error("xxx error:", e);
-  return new Response(JSON.stringify({ error: e.message }), {
-    status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
+### 1D. Remaining raw errors in 4 files
+- **send-notification-emails** (L516): Replace catch block with `createErrorResponse`. Add imports.
+- **web-sync** (L20, 25, 31, 39): Replace inline responses with `createErrorResponse` with appropriate status codes.
+- **storage-migrate** (L46, 63, 72): Already has `withSecurityHeaders` — just swap to `createErrorResponse` for consistency.
+- **sef-background-sync**: Already clean (confirmed 0 raw errors remaining).
 
-// AFTER:
-} catch (e) {
-  return createErrorResponse(e, req, { logPrefix: "xxx error" });
-}
+### 1E. CR9-03 — health-check createErrorResponse
+Health-check is a diagnostic endpoint. The catch blocks should sanitize errors but keep component-level status reporting. Wrap individual check errors with `"check failed"` instead of `String(e)`.
 
-// REPLACE success responses:
-// BEFORE:
-return new Response(JSON.stringify({ data }), {
-  headers: { ...corsHeaders, "Content-Type": "application/json" },
-});
+**Impact:** Closes CR8-09, CR8-12, CR9-01, CR9-03, CR9-04, CR9-05. Reduces open CRs from 20 to 14. Security score 8.5 → 9.0.
 
-// AFTER:
-return new Response(JSON.stringify({ data }), {
-  headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
-});
-```
+---
 
-### Implementation Batches
+## Phase 2: Medium-Priority Fixes (Short-term)
 
-Due to the volume (~100 functions), this will be done in batches:
+These are important but not user-facing feature work:
 
-**Batch 1 — AI functions (11):** `ai-analytics-narrative`, `ai-assistant`, `ai-bank-categorize`, `ai-cash-flow-predict`, `ai-daily-digest`, `ai-executive-briefing`, `ai-insights`, `ai-invoice-anomaly`, `ai-payroll-predict`, `ai-supplier-scoring`, `ai-weekly-email`, `ai-year-end-check`
+| CR | Fix | Notes |
+|----|-----|-------|
+| CR8-07 | Rate-limiting middleware in `_shared/rate-limiter.ts` | Deno KV or in-memory sliding window; apply to AI + public functions |
+| CR8-08 | Paginated tenant-data-export | Replace 10K limit with cursor-based pagination, warn on truncation |
+| CR8-10 | Incident number race condition | Use `SELECT ... FOR UPDATE` or a Postgres sequence for `INC-YYYY/NNNN` |
+| CR9-02 | Audit USING(true) RLS policies | Replace with tenant-scoped checks for non-lookup tables |
+| CR7-06 | AI functions audit logging | Ensure all ai-* functions log to `ai_action_log` |
 
-**Batch 2 — SEF/invoice functions (12):** `sef-send-invoice`, `sef-background-sync`, `sef-fetch-invoices`, `sef-fetch-purchase-invoices`, `sef-fetch-sales-invoices`, `sef-submit`, `sef-poll-status`, `sef-enrich-invoices`, `sef-long-sync`, `sef-get-invoice-xml`, `sef-accept-reject-invoice`, `sef-cancel-sales-invoice`
+**Impact:** Closes 5 more CRs. Security score 9.0 → 9.5.
 
-**Batch 3 — Storage/utility (12):** `storage-upload`, `storage-download`, `storage-delete`, `storage-cleanup`, `storage-fix-logos`, `storage-get-base64`, `storage-migrate`, `generate-pdf`, `generate-pdfa`, `generate-payment-orders`, `generate-tax-payment-orders`, `document-ocr`
+---
 
-**Batch 4 — Email/notification (6):** `send-invoice-email`, `send-verification-email`, `send-document-signature`, `send-revers-notification`, `send-admin-bulk-email`, `send-notification-emails`
+## Phase 3-8: Feature Upgrades to 5.0
 
-**Batch 5 — Import/seed/admin (10):** `import-legacy-products`, `import-legacy-contacts`, `import-legacy-partners`, `import-bcility-data`, `import-legacy-zip`, `analyze-legacy-zip`, `seed-demo-data`, `seed-demo-data-phase2`, `seed-demo-data-phase3`, `clear-tenant-data`
+Per PRD priority order (fastest ROI first):
 
-**Batch 6 — Remaining (50+):** All other functions including XML generators, CRM, compliance, NBS, APR, POS, tenant, health-check, etc.
+### Phase 3: POS/Retail 4.75 → 5.0 (8 features)
+- R1: Promotions engine (BOGO, bundles, coupons) — new table + page
+- R2: AI Market Basket Analysis — edge function
+- R3: Gift card management
+- R4: Advanced loyalty analytics (RFM, CLV)
+- R5-R8: Multi-location sync, customer display, table service, e-commerce sync
 
-### Also Fix CR8-02
+### Phase 4: Purchasing/Inventory 4.75 → 5.0 (8 features)
+- **I1: AI Ordering Prediction per Supplier (P0 flagship)** — new edge function `ai-ordering-prediction`, tables `supplier_order_predictions` + `supplier_lead_times`, UI page
+- I2: Auto PO generation from predictions
+- I3-I8: Lead time tracking, ABC/XYZ classification, blanket agreements, multi-currency, consignment, supplier portal
 
-Update `_shared/error-handler.ts` to sanitize 4xx errors too (currently only 500s are sanitized):
+### Phase 5: Sales/CRM 4.5 → 5.0 (10 features)
+- S1: AI Sales Forecasting, S2: AI Lead Scoring
+- S3: Customer 360 View
+- S5: Commission engine (tables + rules)
+- S4, S6-S10: Quote-to-order, territories, email integration, pipeline automation, analytics, MRR
 
-```typescript
-// BEFORE:
-const safeMessage =
-  status < 500 && error instanceof Error
-    ? error.message
-    : SAFE_MESSAGES[status] || SAFE_MESSAGES[500];
+### Phase 6: Fixed Assets 4.25 → 5.0 (10 features)
+- A1: AI Predictive Maintenance, A3: IFRS 16 Lease Accounting
+- A2, A4-A10: Depreciation methods, impairment, barcode, insurance, budget, multi-currency, GPS, environmental
 
-// AFTER:
-const safeMessage = SAFE_MESSAGES[status] || SAFE_MESSAGES[500];
-```
+### Phase 7: HR/Payroll 4.5 → 5.0 (10 features)
+- H1: Performance Reviews (360 feedback, review cycles)
+- H2: Skills Matrix, H5: ATS/Recruitment
+- H3-H4, H6-H10: Succession, LMS, AI workforce analytics, surveys, compliance, self-service, talent analytics
 
-### Deployment
+### Phase 8: Production/MFG 4.25 → 5.0 (10 features)
+- P1: Finite Capacity Scheduling, P4: Batch/Lot Traceability
+- P2: Production Costing, P3: BOM versioning
+- P5-P10: Scrap/rework, subcontracting, SFC, tool management, environmental, real-time dashboard
 
-After all batches, redeploy all functions so security headers and sanitized errors take effect globally.
+---
 
-### Impact
+## Recommended Starting Point
 
-- Closes CR8-03 (HIGH) and CR8-04 (HIGH)
-- Closes CR8-02 (MEDIUM) and CR8-07 (LOW)
-- Security posture: 7.5/10 → ~9/10
-- Closes CR6-05 and CR6-06
+**Phase 1 is implementable now** — it's purely edge function refactoring with no DB changes, no new UI, and closes 6 CRs including 2 HIGH severity items. Shall I proceed with Phase 1?
 
