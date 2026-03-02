@@ -1,46 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { escapeXml, formatAmount, formatPrice, getTaxCategoryId, validateUblInvoice } from "../_shared/ubl-xml-builder.ts";
+import type { UblInvoiceData, UblParty, UblLine } from "../_shared/ubl-xml-builder.ts";
 
 // --- UBL 2.1 XML Builder for Serbian eFaktura ---
+// Core utilities imported from _shared/ubl-xml-builder.ts
 
-function escapeXml(str: string | null | undefined): string {
-  if (!str) return "";
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-function formatAmount(n: number): string {
-  return n.toFixed(2);
-}
-
-function formatPrice(n: number): string {
-  // SEF allows up to 4 decimals for cbc:PriceAmount
-  const s = n.toFixed(4);
-  // Trim trailing zeros but keep at least 2 decimals
-  return s.replace(/0{1,2}$/, '');
-}
-
-/** Map tax_rate_value to UBL TaxCategory ID per Serbian eFaktura spec.
- *  2026 change (Sl. glasnik RS 109/2025): S split into S10/S20, AE split into AE10/AE20.
- *  Effective for tax periods starting after March 31, 2026.
- *  Before that date, use legacy codes S and AE. */
-function getTaxCategoryId(taxRateValue: number, isReverseCharge = false, invoiceDate?: string): string {
-  if (taxRateValue === 0) return "O"; // Zero-rated / exempt
-
-  // Date-dependent logic: legacy codes before 2026-04-01
-  const useLegacyCodes = invoiceDate ? invoiceDate < "2026-04-01" : false;
-
-  if (isReverseCharge) {
-    if (useLegacyCodes) return "AE";
-    return taxRateValue === 10 ? "AE10" : "AE20";
-  }
-  if (useLegacyCodes) return "S";
-  return taxRateValue === 10 ? "S10" : "S20";
-}
+// formatAmount, formatPrice, escapeXml, getTaxCategoryId now from shared module
 
 interface InvoiceLine {
   id: string;

@@ -4399,6 +4399,80 @@ export type Database = {
           },
         ]
       }
+      data_breach_incidents: {
+        Row: {
+          affected_data_types: string[] | null
+          affected_record_count: number | null
+          assigned_to: string | null
+          created_at: string
+          description: string | null
+          detected_at: string
+          id: string
+          notification_deadline: string | null
+          regulatory_notified: boolean | null
+          remediation_steps: string | null
+          reported_at: string | null
+          reported_by: string | null
+          resolved_at: string | null
+          root_cause: string | null
+          severity: string
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          affected_data_types?: string[] | null
+          affected_record_count?: number | null
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          id?: string
+          notification_deadline?: string | null
+          regulatory_notified?: boolean | null
+          remediation_steps?: string | null
+          reported_at?: string | null
+          reported_by?: string | null
+          resolved_at?: string | null
+          root_cause?: string | null
+          severity?: string
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          affected_data_types?: string[] | null
+          affected_record_count?: number | null
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          id?: string
+          notification_deadline?: string | null
+          regulatory_notified?: boolean | null
+          remediation_steps?: string | null
+          reported_at?: string | null
+          reported_by?: string | null
+          resolved_at?: string | null
+          root_cause?: string | null
+          severity?: string
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_breach_incidents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       data_retention_log: {
         Row: {
           action_taken: string
@@ -24518,6 +24592,10 @@ export type Database = {
           revenue: number
         }[]
       }
+      decrypt_pii: {
+        Args: { encrypted_text: string; encryption_key: string }
+        Returns: string
+      }
       detect_partner_dormancy: {
         Args: { p_tenant_id: string }
         Returns: undefined
@@ -24532,6 +24610,10 @@ export type Database = {
           p_source_module: string
           p_tenant_id: string
         }
+        Returns: string
+      }
+      encrypt_pii: {
+        Args: { encryption_key: string; plain_text: string }
         Returns: string
       }
       execute_readonly_query:
