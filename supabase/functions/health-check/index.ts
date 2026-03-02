@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
   // 3. AI Gateway check (OpenAI-compatible endpoint)
   try {
     const aiStart = Date.now();
-    const aiKey = Deno.env.get("OPENAI_API_KEY");
+    const aiKey = Deno.env.get("LOVABLE_API_KEY") || Deno.env.get("OPENAI_API_KEY");
     if (!aiKey) {
       checks.ai_gateway = { status: "unconfigured", latency_ms: 0 };
     } else {

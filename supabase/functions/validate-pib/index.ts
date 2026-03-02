@@ -103,10 +103,10 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Error in validate-pib function:', error);
-    // On any error, allow registration
+    // CR10-30: Don't fail open — return valid: false on unexpected errors
     return new Response(
-      JSON.stringify({ valid: true, companyName: null, warning: 'Validacija nedostupna' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ valid: false, companyName: null, error: 'Validacija nedostupna' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });

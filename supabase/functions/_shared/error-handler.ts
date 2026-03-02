@@ -5,6 +5,7 @@
  */
 
 import { getCorsHeaders } from "./cors.ts";
+import { withSecurityHeaders } from "./security-headers.ts";
 
 interface ErrorResponseOptions {
   status?: number;
@@ -40,27 +41,26 @@ export function createErrorResponse(
   console.error(`${logPrefix}:`, error);
 
   // Client gets sanitized message only
-  // SEC-05: Always use safe messages — never leak raw error details to clients
   const safeMessage = SAFE_MESSAGES[status] || SAFE_MESSAGES[500];
 
   return new Response(
     JSON.stringify({ error: safeMessage }),
     {
       status,
-      headers: { ...headers, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...headers, "Content-Type": "application/json" }),
     },
   );
 }
 
-/** Create a typed JSON success response with CORS + security headers */
+/** Create a typed JSON success response with CORS + security headers (CR10-16) */
 export function createJsonResponse(
   data: unknown,
   req: Request,
   status = 200,
 ): Response {
-  const headers = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req);
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...headers, "Content-Type": "application/json" },
+    headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
   });
 }

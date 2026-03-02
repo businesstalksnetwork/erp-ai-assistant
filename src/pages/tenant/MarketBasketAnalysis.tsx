@@ -20,16 +20,11 @@ export default function MarketBasketAnalysis() {
     queryKey: ["market_basket", tenantId],
     queryFn: async () => {
       if (!tenantId) return null;
-      setLoading(true);
-      try {
-        const { data, error } = await supabase.functions.invoke("ai-market-basket", {
-          body: { tenant_id: tenantId, language: "sr" },
-        });
-        if (error) throw error;
-        return data;
-      } finally {
-        setLoading(false);
-      }
+      const { data, error } = await supabase.functions.invoke("ai-market-basket", {
+        body: { tenant_id: tenantId, language: "sr" },
+      });
+      if (error) throw error;
+      return data;
     },
     enabled: false,
   });

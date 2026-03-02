@@ -1,17 +1,51 @@
+/**
+ * AI Loyalty Recommendations — heuristic-based member engagement suggestions.
+ * SEC: JWT auth + tenant membership check + rate limiting + shared CORS.
+ */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse, createJsonResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
+import { checkRateLimit, rateLimitHeaders } from "../_shared/rate-limiter.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const preflight = handleCorsPreflightRequest(req);
+  if (preflight) return preflight;
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    if (req.method !== "POST") {
+      return createErrorResponse("Method not allowed", req, { status: 405 });
+    }
+
+    // Auth: verify JWT
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) return createErrorResponse("Unauthorized", req, { status: 401 });
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
+    const anonClient = createClient(supabaseUrl, anonKey);
+
+    const { data: { user }, error: authErr } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (authErr || !user) return createErrorResponse("Unauthorized", req, { status: 401 });
 
     const { tenant_id } = await req.json();
-    if (!tenant_id) throw new Error("tenant_id required");
+    if (!tenant_id) return createErrorResponse("tenant_id required", req, { status: 400 });
+
+    // Tenant membership check
+    const { data: membership } = await supabase
+      .from("tenant_members")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("tenant_id", tenant_id)
+      .eq("status", "active")
+      .maybeSingle();
+    if (!membership) return createErrorResponse("Forbidden", req, { status: 403 });
+
+    // Rate limit
+    const rl = await checkRateLimit(`loyalty-recs:${user.id}`, "ai");
+    if (!rl.allowed) return createErrorResponse("Rate limited", req, { status: 429 });
 
     // Fetch members with their transaction history summary
     const { data: members } = await supabase
@@ -23,7 +57,7 @@ Deno.serve(async (req) => {
       .limit(50);
 
     if (!members || members.length === 0) {
-      return new Response(JSON.stringify({ recommendations: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return createJsonResponse({ recommendations: [] }, req);
     }
 
     // Get recent transactions per member
@@ -55,74 +89,55 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Generate recommendations using heuristics (no AI API needed)
+    // Generate recommendations using heuristics
     const recommendations: any[] = [];
 
     for (const mp of memberProfiles) {
-      // At-risk: no activity in 30+ days
       if (mp.days_since_last > 30 && mp.days_since_last < 999) {
         recommendations.push({
-          member_name: mp.name,
-          card_number: mp.card_number,
+          member_name: mp.name, card_number: mp.card_number,
           recommendation: `${mp.name} hasn't made a purchase in ${mp.days_since_last} days. Consider sending a personalized offer or bonus points incentive to re-engage.`,
           action_type: "re_engagement",
           priority: mp.days_since_last > 60 ? "high" : "medium",
         });
       }
 
-      // Tier upgrade opportunity
       if (mp.tier === "bronze" && mp.lifetime >= 3000) {
         recommendations.push({
-          member_name: mp.name,
-          card_number: mp.card_number,
+          member_name: mp.name, card_number: mp.card_number,
           recommendation: `${mp.name} is close to Silver tier (${mp.lifetime}/5000 pts). A targeted promotion could push them over.`,
-          action_type: "tier_upgrade",
-          priority: "medium",
+          action_type: "tier_upgrade", priority: "medium",
         });
       } else if (mp.tier === "silver" && mp.lifetime >= 15000) {
         recommendations.push({
-          member_name: mp.name,
-          card_number: mp.card_number,
+          member_name: mp.name, card_number: mp.card_number,
           recommendation: `${mp.name} is approaching Gold tier (${mp.lifetime}/20000 pts). Consider a double-points campaign.`,
-          action_type: "tier_upgrade",
-          priority: "medium",
+          action_type: "tier_upgrade", priority: "medium",
         });
       }
 
-      // High-value member recognition
       if (mp.lifetime >= 50000 && mp.points > 5000) {
         recommendations.push({
-          member_name: mp.name,
-          card_number: mp.card_number,
+          member_name: mp.name, card_number: mp.card_number,
           recommendation: `${mp.name} is a top Platinum member with ${mp.points.toLocaleString()} unredeemed points. Consider exclusive VIP offers.`,
-          action_type: "vip_recognition",
-          priority: "low",
+          action_type: "vip_recognition", priority: "low",
         });
       }
 
-      // New member onboarding
       if (mp.enrolled_days < 14 && mp.earn_count === 0) {
         recommendations.push({
-          member_name: mp.name,
-          card_number: mp.card_number,
+          member_name: mp.name, card_number: mp.card_number,
           recommendation: `${mp.name} enrolled recently but hasn't earned any points yet. Send a welcome offer with bonus points on first purchase.`,
-          action_type: "onboarding",
-          priority: "high",
+          action_type: "onboarding", priority: "high",
         });
       }
     }
 
-    // Sort by priority
     const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
     recommendations.sort((a, b) => (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2));
 
-    return new Response(JSON.stringify({ recommendations: recommendations.slice(0, 20) }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createJsonResponse({ recommendations: recommendations.slice(0, 20) }, req);
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createErrorResponse(error, req, { logPrefix: "ai-loyalty-recommendations" });
   }
 });

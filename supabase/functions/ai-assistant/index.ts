@@ -34,26 +34,7 @@ function detectPromptInjection(text: string): boolean {
 }
 
 // ── Security: rate limiting ──
-async function checkRateLimit(supabase: any, userId: string, tenantId: string): Promise<boolean> {
-  const windowStart = new Date();
-  windowStart.setMinutes(windowStart.getMinutes() - 1);
-
-  const { count } = await supabase
-    .from("ai_rate_limits")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("tenant_id", tenantId)
-    .gte("window_start", windowStart.toISOString());
-
-  // Allow 20 requests per minute
-  if ((count || 0) >= 20) return false;
-
-  await supabase.from("ai_rate_limits").insert({
-    user_id: userId, tenant_id: tenantId, window_start: new Date().toISOString(),
-  });
-
-  return true;
-}
+// Local checkRateLimit removed — using shared rate-limiter (CR10-04)
 
 // ── Security: token tracking ──
 async function trackTokens(supabase: any, tenantId: string, userId: string, fnName: string, model: string, usage: any) {
@@ -956,11 +937,7 @@ serve(async (req) => {
       return createErrorResponse("Prompt injection blocked", req, { status: 400, logPrefix: "ai-assistant security" });
     }
 
-    // ── Security: rate limiting ──
-    const allowed = await checkRateLimit(supabase, caller.id, tenant_id);
-    if (!allowed) {
-      return createErrorResponse("Rate limit exceeded", req, { status: 429, logPrefix: "ai-assistant rate-limit" });
-    }
+    // Local rate-limit removed (CR10-04): shared rate-limiter already called above at line 939
 
     // ── Tenant membership check + role fetch ──
     const { data: membership } = await supabase

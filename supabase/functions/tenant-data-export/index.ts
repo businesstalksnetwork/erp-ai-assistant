@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: membership } = await sb.from("tenant_users").select("tenant_id, role").eq("user_id", user.id).limit(1).single();
+    const { data: membership } = await sb.from("tenant_members").select("tenant_id, role").eq("user_id", user.id).eq("status", "active").limit(1).single();
     if (!membership) {
       return new Response(JSON.stringify({ error: "No tenant membership" }), {
         status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),

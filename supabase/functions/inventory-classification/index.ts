@@ -23,6 +23,16 @@ serve(async (req) => {
     const { tenant_id } = await req.json();
     if (!tenant_id) return createErrorResponse("tenant_id required", req, { status: 400 });
 
+    // CR10-05: Verify user belongs to requested tenant
+    const { data: membership } = await supabase
+      .from("tenant_members")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("tenant_id", tenant_id)
+      .eq("status", "active")
+      .maybeSingle();
+    if (!membership) return createErrorResponse("Forbidden", req, { status: 403 });
+
     const rl = await checkRateLimit(`classification-${tenant_id}`, "ai");
     if (!rl.allowed) return createErrorResponse("Rate limited", req, { status: 429 });
 

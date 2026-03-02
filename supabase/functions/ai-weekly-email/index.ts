@@ -10,6 +10,13 @@ serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    // CR10-08: Verify CRON_SECRET for scheduled invocations
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    const authHeader = req.headers.get("Authorization");
+    if (cronSecret && (!authHeader || authHeader !== `Bearer ${cronSecret}`)) {
+      return createErrorResponse("Unauthorized", req, { status: 401, logPrefix: "ai-weekly-email" });
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
