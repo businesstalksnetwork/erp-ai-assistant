@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 interface VerifyEmailRequest {
   token: string;
@@ -114,9 +115,9 @@ serve(async (req) => {
       JSON.stringify({ 
         success: false,
         error: "server_error",
-        message: error.message 
+        message: "Internal server error" 
       }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 500, headers: withSecurityHeaders({ "Content-Type": "application/json", ...corsHeaders }) }
     );
   }
 });

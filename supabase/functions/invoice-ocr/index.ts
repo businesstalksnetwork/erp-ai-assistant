@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 serve(async (req) => {
   const preflight = handleCorsPreflightRequest(req);
@@ -129,10 +131,9 @@ Respond ONLY with the JSON object. If a field can't be extracted, use null.`,
     });
 
     return new Response(JSON.stringify({ extracted }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
   } catch (error) {
-    console.error("Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return createErrorResponse(error, req, { logPrefix: "invoice-ocr" });
   }
 });

@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 /**
  * SEF Webhook handler — receives push notifications from Serbian eFaktura system
@@ -100,12 +102,9 @@ Deno.serve(async (req) => {
     console.log(`SEF webhook: updated invoice ${invoice.id} status to ${mappedStatus}`);
 
     return new Response(JSON.stringify({ status: "ok", invoiceId: invoice.id, newStatus: mappedStatus }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
   } catch (error) {
-    console.error("SEF webhook error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createErrorResponse(error, req, { logPrefix: "sef-webhook" });
   }
 });

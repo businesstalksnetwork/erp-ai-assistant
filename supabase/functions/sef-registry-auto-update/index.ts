@@ -1,5 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 const CSV_URL = 'https://efaktura.gov.rs/extfile/sr/list/spisak_firmi.csv';
 
@@ -199,24 +201,10 @@ Deno.serve(async (req) => {
           parseErrors,
         },
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }) }
     );
 
   } catch (error) {
-    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.error('=== SEF Registry Auto-Update FAILED ===');
-    console.error(`Duration: ${duration}s`);
-    console.error('Error:', error);
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        timestamp: new Date().toISOString(),
-        duration: `${duration}s`,
-        error: errorMessage 
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return createErrorResponse(error, req, { logPrefix: "sef-registry-auto-update" });
   }
 });

@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflightRequest(req);
@@ -120,13 +122,10 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ generated, total: templates.length, errors }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createErrorResponse(error, req, { logPrefix: "recurring-invoice-generate" });
   }
 });
 

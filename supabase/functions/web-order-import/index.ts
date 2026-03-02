@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 function base64Encode(buf: ArrayBuffer): string {
   return btoa(String.fromCharCode(...new Uint8Array(buf)));
@@ -16,6 +18,7 @@ async function verifyHmac(secret: string, bodyBytes: Uint8Array, signature: stri
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -202,12 +205,9 @@ serve(async (req) => {
     } catch (_) { /* Non-critical */ }
 
     return new Response(JSON.stringify({ success: true, order_id: salesOrder?.id, order_number: orderNumber }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
   } catch (err) {
-    console.error("web-order-import error:", err);
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createErrorResponse(err, req, { logPrefix: "web-order-import" });
   }
 });

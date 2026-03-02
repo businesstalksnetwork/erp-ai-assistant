@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 interface Alert {
   title: string;
@@ -293,14 +295,10 @@ serve(async (req) => {
       results,
       checked_at: new Date().toISOString(),
     }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
     });
 
   } catch (e: any) {
-    console.error("proactive-ai-agent error:", e);
-    return new Response(JSON.stringify({ error: e.message || "Internal error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createErrorResponse(e, req, { logPrefix: "proactive-ai-agent" });
   }
 });

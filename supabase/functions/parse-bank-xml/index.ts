@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 interface ParsedTransaction {
   line_date: string;
@@ -480,13 +482,9 @@ Deno.serve(async (req) => {
       statement_number: result.statement_number,
       bank_account_id: bankAccountId,
       statement_id: statementId,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }), { headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
 
   } catch (error: any) {
-    console.error("parse-bank-xml error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createErrorResponse(error, req, { logPrefix: "parse-bank-xml" });
   }
 });
