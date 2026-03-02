@@ -1,0 +1,1 @@
+DELETE FROM rate_limit_log WHERE key LIKE 'ai-insights%';
