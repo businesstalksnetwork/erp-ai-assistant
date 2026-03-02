@@ -9549,6 +9549,71 @@ export type Database = {
           },
         ]
       }
+      incidents: {
+        Row: {
+          assigned_to: string | null
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          impact: string | null
+          incident_number: string
+          reported_by: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          root_cause: string | null
+          severity: string
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          impact?: string | null
+          incident_number: string
+          reported_by?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          root_cause?: string | null
+          severity?: string
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          impact?: string | null
+          incident_number?: string
+          reported_by?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          root_cause?: string | null
+          severity?: string
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       income_recipient_types: {
         Row: {
           code: string
@@ -21016,6 +21081,113 @@ export type Database = {
           },
           {
             foreignKeyName: "severance_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sla_definitions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          measurement_period: string
+          metric_type: string
+          name: string
+          penalty_description: string | null
+          service_name: string
+          target_value: number
+          tenant_id: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          measurement_period?: string
+          metric_type?: string
+          name: string
+          penalty_description?: string | null
+          service_name: string
+          target_value?: number
+          tenant_id: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          measurement_period?: string
+          metric_type?: string
+          name?: string
+          penalty_description?: string | null
+          service_name?: string
+          target_value?: number
+          tenant_id?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_definitions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sla_measurements: {
+        Row: {
+          actual_value: number
+          created_at: string
+          id: string
+          measured_by: string | null
+          notes: string | null
+          period_end: string
+          period_start: string
+          sla_id: string
+          target_met: boolean
+          tenant_id: string
+        }
+        Insert: {
+          actual_value: number
+          created_at?: string
+          id?: string
+          measured_by?: string | null
+          notes?: string | null
+          period_end: string
+          period_start: string
+          sla_id: string
+          target_met?: boolean
+          tenant_id: string
+        }
+        Update: {
+          actual_value?: number
+          created_at?: string
+          id?: string
+          measured_by?: string | null
+          notes?: string | null
+          period_end?: string
+          period_start?: string
+          sla_id?: string
+          target_met?: boolean
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_measurements_sla_id_fkey"
+            columns: ["sla_id"]
+            isOneToOne: false
+            referencedRelation: "sla_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sla_measurements_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

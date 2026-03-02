@@ -63,13 +63,13 @@ After reviewing all 1258 lines of the PRD, here's the breakdown into 5 implement
 
 ---
 
-## Phase ISO-5: ITSM & Quality Model (ITSM-01, ITSM-02, SQ-02)
+## Phase ISO-5: ITSM & Quality Model (ITSM-01, ITSM-02, SQ-02) ✅
 
-| Item | What | Scope |
-|------|------|-------|
-| ITSM-01 | `sla_definitions` + `sla_measurements` tables + SLA management page | Migration + page |
-| ITSM-02 | `incidents` table + Incident Management page | Migration + page |
-| SQ-02 | WCAG 2.1 AA accessibility pass (aria-labels, contrast, keyboard nav) | Component edits |
+| Item | What | Status |
+|------|------|--------|
+| ITSM-01 | `sla_definitions` + `sla_measurements` tables + SLA management page | ✅ Done |
+| ITSM-02 | `incidents` table + Incident Management page | ✅ Done |
+| SQ-02 | WCAG 2.1 AA accessibility pass (aria-labels, contrast, keyboard nav) | ✅ Done |
 
 ---
 

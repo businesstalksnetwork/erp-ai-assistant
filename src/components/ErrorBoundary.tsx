@@ -17,17 +17,17 @@ interface State {
 function ErrorFallbackUI({ error, onRetry }: { error: Error | null; onRetry: () => void }) {
   const { t } = useLanguage();
   return (
-    <div className="flex flex-col items-center justify-center min-h-[300px] gap-4 p-8">
-      <AlertTriangle className="h-12 w-12 text-destructive" />
+    <div role="alert" aria-live="assertive" className="flex flex-col items-center justify-center min-h-[300px] gap-4 p-8">
+      <AlertTriangle className="h-12 w-12 text-destructive" aria-hidden="true" />
       <h2 className="text-xl font-semibold text-foreground">{t("somethingWentWrong")}</h2>
       <p className="text-muted-foreground text-sm text-center max-w-md">
         {error?.message || t("unexpectedError")}
       </p>
       <div className="flex gap-2">
-        <Button variant="outline" onClick={onRetry}>
+        <Button variant="outline" onClick={onRetry} aria-label={t("tryAgain")}>
           {t("tryAgain")}
         </Button>
-        <Button onClick={() => window.location.assign("/dashboard")}>
+        <Button onClick={() => window.location.assign("/dashboard")} aria-label={t("dashboard")}>
           {t("dashboard")}
         </Button>
       </div>
