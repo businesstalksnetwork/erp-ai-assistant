@@ -73,10 +73,11 @@ export default function SuperAdminLayout() {
                         <SidebarMenuButton asChild>
                           <NavLink
                             to={item.url}
-                            className="flex items-center gap-2.5 px-3 py-2 rounded-md text-[15px] font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                            aria-label={t(item.key as any)}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-md text-[15px] font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
                             activeClassName="bg-sidebar-primary/10 text-sidebar-primary font-medium"
                           >
-                            <item.icon className="h-5 w-5 opacity-50" />
+                            <item.icon className="h-5 w-5 opacity-50" aria-hidden="true" />
                             <span>{t(item.key as any)}</span>
                           </NavLink>
                         </SidebarMenuButton>
@@ -88,8 +89,8 @@ export default function SuperAdminLayout() {
             </SidebarContent>
 
             <div className="mt-auto p-3 border-t border-white/5 relative z-10">
-              <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent">
-                <LogOut className="h-4 w-4" />
+              <Button variant="ghost" size="sm" onClick={handleLogout} aria-label={t("logout")} className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent focus-visible:outline-2 focus-visible:outline-primary">
+                <LogOut className="h-4 w-4" aria-hidden="true" />
                 {t("logout")}
               </Button>
             </div>
