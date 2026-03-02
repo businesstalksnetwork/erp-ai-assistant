@@ -254,9 +254,9 @@ export const loyaltyRoutes = (
 
 export const complianceRoutes = (
   <>
-    <Route path="compliance/capa" element={<ProtectedRoute><B><CapaManagement /></B></ProtectedRoute>} />
-    <Route path="compliance/dsar" element={<ProtectedRoute><B><DsarManagement /></B></ProtectedRoute>} />
-    <Route path="super-admin/ai-model-cards" element={<ProtectedRoute><B><AiModelCards /></B></ProtectedRoute>} />
+    <Route path="capa" element={<ProtectedRoute requireSuperAdmin><B><CapaManagement /></B></ProtectedRoute>} />
+    <Route path="dsar" element={<ProtectedRoute requireSuperAdmin><B><DsarManagement /></B></ProtectedRoute>} />
+    <Route path="ai-model-cards" element={<ProtectedRoute requireSuperAdmin><B><AiModelCards /></B></ProtectedRoute>} />
   </>
 );
 
