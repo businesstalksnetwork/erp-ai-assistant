@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { createErrorResponse } from "../_shared/error-handler.ts";
 import { withSecurityHeaders } from "../_shared/security-headers.ts";
+import { checkRateLimit } from "../_shared/rate-limiter.ts";
 
 function base64Encode(buf: ArrayBuffer): string {
   return btoa(String.fromCharCode(...new Uint8Array(buf)));
@@ -24,6 +25,13 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limit: 30 requests per minute per IP
+    const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
+    const rl = checkRateLimit(`web-order-import:${clientIp}`, 30, 60_000);
+    if (!rl.allowed) {
+      return createErrorResponse("Rate limit exceeded", req, { status: 429, logPrefix: "web-order-import rate-limit" });
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);

@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { createErrorResponse } from "../_shared/error-handler.ts";
 import { withSecurityHeaders } from "../_shared/security-headers.ts";
+import { checkRateLimit } from "../_shared/rate-limiter.ts";
 
 // ── Security: prompt injection patterns ──
 const INJECTION_PATTERNS = [
@@ -932,6 +933,12 @@ serve(async (req) => {
     const { messages, tenant_id, language } = await req.json();
     if (!tenant_id) {
       return createErrorResponse("Missing tenant_id", req, { status: 400, logPrefix: "ai-assistant validation" });
+    }
+
+    // Rate limit: 20 requests per minute per user
+    const rl = checkRateLimit(`ai-assistant:${caller.id}`, 20, 60_000);
+    if (!rl.allowed) {
+      return createErrorResponse("Rate limit exceeded", req, { status: 429, logPrefix: "ai-assistant rate-limit" });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");

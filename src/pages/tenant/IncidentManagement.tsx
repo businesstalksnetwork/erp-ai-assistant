@@ -45,11 +45,9 @@ export default function IncidentManagement() {
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!tenantId) return;
-      const year = new Date().getFullYear();
-      const count = incidents.filter((i: any) => i.incident_number?.startsWith(`INC-${year}`)).length + 1;
       await supabase.from("incidents").insert({
+        incident_number: "", // Server-side trigger generates the actual number
         tenant_id: tenantId,
-        incident_number: `INC-${year}/${String(count).padStart(4, "0")}`,
         title: form.title,
         description: form.description || null,
         severity: form.severity,

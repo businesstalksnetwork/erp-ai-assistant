@@ -101,6 +101,20 @@ serve(async (req) => {
 
     const digest = sections.join("\n");
 
+    // CR7-06: Audit log for AI weekly email
+    try {
+      await supabase.from("ai_action_log").insert({
+        tenant_id: tenant_id,
+        action_type: "weekly_digest_generation",
+        module: "reporting",
+        model_version: "rule-based",
+        user_decision: "auto",
+        reasoning: `Generated weekly digest with ${sections.length} sections`,
+      });
+    } catch (e) {
+      console.warn("Failed to log AI action:", e);
+    }
+
     return new Response(JSON.stringify({
       digest,
       period: { from: fmt(thisWeekStart), to: fmt(now) },

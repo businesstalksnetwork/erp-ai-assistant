@@ -302,6 +302,21 @@ Deno.serve(async (req) => {
 
     const checks = await runComplianceChecks(supabase, tenant_id);
 
+    // CR7-06: Audit log for compliance checker
+    try {
+      await supabase.from("ai_action_log").insert({
+        tenant_id: tenant_id,
+        user_id: user.id,
+        action_type: "compliance_check",
+        module: "compliance",
+        model_version: "rule-based",
+        user_decision: "auto",
+        reasoning: `Compliance check completed: ${checks.length} issues found (${checks.filter(c => c.severity === "error").length} errors, ${checks.filter(c => c.severity === "warning").length} warnings)`,
+      });
+    } catch (e) {
+      console.warn("Failed to log AI action:", e);
+    }
+
     return new Response(JSON.stringify({ success: true, checks }), { headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }) });
   } catch (err) {
     return createErrorResponse(err, req, { logPrefix: "compliance-checker" });

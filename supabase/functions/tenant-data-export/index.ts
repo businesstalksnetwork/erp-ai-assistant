@@ -1,6 +1,7 @@
 /**
  * BC-02: Tenant Data Export Edge Function
  * ISO 22301 — Business Continuity: exports all tenant data as JSON for portability.
+ * CR8-08: Supports cursor-based pagination to handle large datasets.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
@@ -13,6 +14,8 @@ const EXPORT_TABLES = [
   "leads", "opportunities", "bank_accounts", "bank_statements", "bank_statement_lines",
   "archive_book", "legal_entities", "cost_centers", "warehouses",
 ];
+
+const PAGE_SIZE = 1000;
 
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflightRequest(req);
@@ -53,20 +56,64 @@ Deno.serve(async (req) => {
     }
 
     const tenantId = membership.tenant_id;
+
+    // Parse cursor from request body or URL
+    let cursors: Record<string, string> = {};
+    try {
+      const url = new URL(req.url);
+      const cursorParam = url.searchParams.get("cursor");
+      if (cursorParam) {
+        cursors = JSON.parse(atob(cursorParam));
+      } else if (req.method === "POST") {
+        const body = await req.json().catch(() => ({}));
+        if (body.cursor) cursors = body.cursor;
+      }
+    } catch { /* no cursor = start from beginning */ }
+
     const exportData: Record<string, unknown[]> = {};
+    const nextCursors: Record<string, string> = {};
+    let truncated = false;
 
     for (const table of EXPORT_TABLES) {
       try {
-        const { data, error } = await sb.from(table).select("*").eq("tenant_id", tenantId).limit(10000);
-        exportData[table] = error ? [] : (data || []);
-      } catch { exportData[table] = []; }
+        let query = sb.from(table).select("*").eq("tenant_id", tenantId).order("id").limit(PAGE_SIZE);
+
+        // Apply cursor if we have one for this table
+        if (cursors[table]) {
+          query = query.gt("id", cursors[table]);
+        }
+
+        const { data, error } = await query;
+        const rows = error ? [] : (data || []);
+        exportData[table] = rows;
+
+        // If we got exactly PAGE_SIZE rows, there may be more
+        if (rows.length === PAGE_SIZE) {
+          const lastRow = rows[rows.length - 1] as any;
+          if (lastRow?.id) {
+            nextCursors[table] = lastRow.id;
+            truncated = true;
+          }
+        }
+      } catch {
+        exportData[table] = [];
+      }
     }
 
-    const exportPayload = {
-      export_version: "1.0", exported_at: new Date().toISOString(), tenant_id: tenantId,
-      exported_by: user.id, tables: exportData,
+    const exportPayload: Record<string, unknown> = {
+      export_version: "1.1",
+      exported_at: new Date().toISOString(),
+      tenant_id: tenantId,
+      exported_by: user.id,
+      tables: exportData,
       row_counts: Object.fromEntries(Object.entries(exportData).map(([k, v]) => [k, v.length])),
+      page_size: PAGE_SIZE,
     };
+
+    if (truncated) {
+      exportPayload.truncated = true;
+      exportPayload.next_cursor = btoa(JSON.stringify(nextCursors));
+    }
 
     return new Response(JSON.stringify(exportPayload), {
       headers: withSecurityHeaders({
