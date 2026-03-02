@@ -66,7 +66,7 @@ export function LeaveCalendarView({ requests }: Props) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">{t("calendar" as any) || "Kalendar odsustva"}</CardTitle>
+          <CardTitle className="text-base">{t("calendar") || "Kalendar odsustva"}</CardTitle>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="h-7 w-7"
               onClick={() => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1))}>

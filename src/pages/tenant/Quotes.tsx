@@ -353,7 +353,7 @@ export default function Quotes() {
               <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700 p-3">
                 <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
                 <span className="text-sm text-amber-800 dark:text-amber-300">
-                  {t("discountExceedsLimit" as any)} ({maxAllowed}%). {approvalStatus === "pending" ? t("pendingDiscountApproval" as any) : approvalStatus === "approved" ? t("approved") : ""}
+                  {t("discountExceedsLimit")} ({maxAllowed}%). {approvalStatus === "pending" ? t("pendingDiscountApproval") : approvalStatus === "approved" ? t("approved") : ""}
                 </span>
               </div>
             )}

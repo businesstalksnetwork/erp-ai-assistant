@@ -145,12 +145,10 @@ export function PartialPaymentMatchDialog({
       const { error } = await supabase.from("bank_statement_line_matches" as any).insert(inserts);
       if (error) throw error;
 
-      // Update bank line match status
       await supabase.from("bank_statement_lines").update({
         match_status: totalAllocated >= Math.abs(bankLineAmount) ? "matched" : "partial",
       }).eq("id", bankLineId);
 
-      // Update invoice payment amounts
       for (const inv of selected) {
         if (inv.type === "invoice") {
           const newPaid = inv.total - inv.remaining + inv.allocatedAmount;
@@ -170,7 +168,7 @@ export function PartialPaymentMatchDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bank_statement_lines"] });
       queryClient.invalidateQueries({ queryKey: ["open-invoices-for-match"] });
-      toast({ title: t("matchSaved" as any) || "Uparivanje sačuvano" });
+      toast({ title: t("matchSaved") || "Uparivanje sačuvano" });
       onOpenChange(false);
     },
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
@@ -180,7 +178,7 @@ export function PartialPaymentMatchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>{t("partialPaymentMatching" as any) || "Parcijalno uparivanje"}</DialogTitle>
+          <DialogTitle>{t("partialPaymentMatching") || "Parcijalno uparivanje"}</DialogTitle>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Badge variant="outline">{isIncoming ? "Uplata" : "Isplata"}</Badge>
             <span className="font-mono font-bold">{Math.abs(bankLineAmount).toFixed(2)} RSD</span>
@@ -192,7 +190,7 @@ export function PartialPaymentMatchDialog({
           <div className="flex gap-2 mb-3">
             <Button size="sm" variant="outline" className="gap-1" onClick={autoAllocateFIFO}>
               <Zap className="h-3 w-3" />
-              FIFO {t("autoAllocate" as any) || "Automatski"}
+              FIFO {t("autoAllocate") || "Automatski"}
             </Button>
           </div>
 
@@ -207,9 +205,9 @@ export function PartialPaymentMatchDialog({
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium font-mono">{inv.invoice_number}</p>
                 <div className="flex gap-2 text-xs text-muted-foreground">
-                  <span>{t("dueDate" as any)}: {format(new Date(inv.due_date), "dd.MM.yyyy")}</span>
+                  <span>{t("dueDate")}: {format(new Date(inv.due_date), "dd.MM.yyyy")}</span>
                   <span>•</span>
-                  <span>{t("remaining" as any) || "Preostalo"}: {inv.remaining.toFixed(2)}</span>
+                  <span>{t("remaining") || "Preostalo"}: {inv.remaining.toFixed(2)}</span>
                 </div>
               </div>
               <div className="text-right text-sm">
@@ -235,12 +233,12 @@ export function PartialPaymentMatchDialog({
 
         <div className="border-t pt-3 space-y-1 text-sm">
           <div className="flex justify-between">
-            <span>{t("allocated" as any) || "Raspoređeno"}:</span>
+            <span>{t("allocated") || "Raspoređeno"}:</span>
             <span className="font-mono font-bold">{totalAllocated.toFixed(2)}</span>
           </div>
           {unallocated > 0.01 && (
             <div className="flex justify-between text-warning">
-              <span>{t("unallocated" as any) || "Neraspoređeno"}:</span>
+              <span>{t("unallocated") || "Neraspoređeno"}:</span>
               <span className="font-mono">{unallocated.toFixed(2)}</span>
             </div>
           )}

@@ -38,12 +38,12 @@ export function BulkEntitlementGenerator() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Users className="h-5 w-5" />
-          {t("bulkEntitlement" as any) || "Masovno generisanje balansa"}
+          {t("bulkEntitlement") || "Masovno generisanje balansa"}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground mb-4">
-          {t("bulkEntitlementDesc" as any) || "Generiše godišnje balanse za sve aktivne zaposlene kojima nedostaje balans za izabranu godinu. Koristi politiku odsustva za određivanje dana i prenosa."}
+          {t("bulkEntitlementDesc") || "Generiše godišnje balanse za sve aktivne zaposlene kojima nedostaje balans za izabranu godinu. Koristi politiku odsustva za određivanje dana i prenosa."}
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <div className="grid gap-1">
@@ -51,12 +51,12 @@ export function BulkEntitlementGenerator() {
             <Input type="number" className="w-24" value={year} onChange={(e) => setYear(e.target.value)} />
           </div>
           <div className="grid gap-1">
-            <Label className="text-xs">{t("defaultDays" as any) || "Default dani"}</Label>
+            <Label className="text-xs">{t("defaultDays") || "Default dani"}</Label>
             <Input type="number" className="w-24" value={defaultDays} onChange={(e) => setDefaultDays(e.target.value)} />
           </div>
           <Button onClick={() => mutation.mutate()} disabled={mutation.isPending} size="sm">
             {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Zap className="h-4 w-4 mr-1" />}
-            {t("generate" as any) || "Generiši"}
+            {t("generate") || "Generiši"}
           </Button>
         </div>
       </CardContent>

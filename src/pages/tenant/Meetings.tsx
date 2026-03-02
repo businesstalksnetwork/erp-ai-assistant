@@ -387,14 +387,14 @@ export default function Meetings() {
                     <Label>{t("channel")}</Label>
                     <Select value={form.communication_channel} onValueChange={v => setForm({ ...form, communication_channel: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{CHANNELS.map(ch => <SelectItem key={ch} value={ch}>{t(ch as any) || ch}</SelectItem>)}</SelectContent>
+                      <SelectContent>{CHANNELS.map(ch => <SelectItem key={ch} value={ch}>{t(ch) || ch}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>{t("status")}</Label>
                     <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{t(s as any) || s}</SelectItem>)}</SelectContent>
+                      <SelectContent>{STATUSES.map(s => <SelectItem key={s} value={s}>{t(s) || s}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 </div>
@@ -636,7 +636,7 @@ export default function Meetings() {
           <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("allStatuses")}</SelectItem>
-            {STATUSES.map(s => <SelectItem key={s} value={s}>{t(s as any) || s}</SelectItem>)}
+            {STATUSES.map(s => <SelectItem key={s} value={s}>{t(s) || s}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -669,10 +669,10 @@ export default function Meetings() {
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {channelIcon(m.communication_channel)}
-                      <span className="text-xs">{t(m.communication_channel as any) || m.communication_channel}</span>
+                      <span className="text-xs">{t(m.communication_channel) || m.communication_channel}</span>
                     </div>
                   </TableCell>
-                  <TableCell><Badge variant={statusColor(m.status) as any}>{t(m.status as any) || m.status}</Badge></TableCell>
+                  <TableCell><Badge variant={statusColor(m.status) as any}>{t(m.status) || m.status}</Badge></TableCell>
                   <TableCell>
                     <Button size="sm" variant="ghost" onClick={() => openEdit(m)}>{t("edit")}</Button>
                   </TableCell>
