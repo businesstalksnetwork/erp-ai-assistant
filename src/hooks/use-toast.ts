@@ -26,16 +26,24 @@ function toast(props: ToastProps) {
   const opts: any = {};
   if (description) opts.description = description;
 
+  let toastId: string | number;
   if (variant === "destructive") {
-    sonnerToast.error(message, opts);
+    toastId = sonnerToast.error(message, opts);
   } else {
-    sonnerToast(message, opts);
+    toastId = sonnerToast(message, opts);
   }
 
   return {
-    id: String(Date.now()),
-    dismiss: () => sonnerToast.dismiss(),
-    update: () => {},
+    id: String(toastId),
+    // CR11-18: Pass toast ID to dismiss
+    dismiss: () => sonnerToast.dismiss(toastId),
+    // CR11-25: Implement update() via sonner
+    update: (updateProps: Partial<ToastProps>) => {
+      sonnerToast(updateProps.title || message, {
+        id: toastId,
+        description: updateProps.description || description,
+      });
+    },
   };
 }
 

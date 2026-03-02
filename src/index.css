@@ -130,18 +130,18 @@
   }
 }
 
-/* Disable Radix Collapsible animation to prevent sidebar jank */
-[data-radix-collapsible-content] {
+/* CR11-17: Scoped Radix Collapsible override to sidebar only */
+[data-sidebar] [data-radix-collapsible-content] {
   transition: none !important;
   animation: none !important;
   --radix-collapsible-content-height: auto !important;
   --radix-collapsible-content-width: auto !important;
 }
-[data-radix-collapsible-content][data-state="open"] {
+[data-sidebar] [data-radix-collapsible-content][data-state="open"] {
   height: auto !important;
   overflow: visible !important;
 }
-[data-radix-collapsible-content][data-state="closed"] {
+[data-sidebar] [data-radix-collapsible-content][data-state="closed"] {
   height: 0 !important;
   overflow: hidden !important;
   display: none !important;

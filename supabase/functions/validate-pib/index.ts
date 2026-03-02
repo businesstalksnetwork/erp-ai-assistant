@@ -31,11 +31,11 @@ Deno.serve(async (req) => {
     const checkpointToken = Deno.env.get('CHECKPOINT_API_TOKEN');
 
     if (!checkpointToken) {
-      console.error('CHECKPOINT_API_TOKEN not configured - allowing registration');
-      // If token not configured, allow registration (don't block users)
+      console.error('CHECKPOINT_API_TOKEN not configured');
+      // CR11-04: Fail-closed — don't allow registration without validation
       return new Response(
-        JSON.stringify({ valid: true, companyName: null, warning: 'Validacija nije dostupna' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ valid: false, companyName: null, error: 'Validacija nije dostupna — API token nije konfigurisan' }),
+        { status: 503, headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }) }
       );
     }
 
@@ -57,10 +57,10 @@ Deno.serve(async (req) => {
       if (!checkpointResponse.ok) {
         const errorText = await checkpointResponse.text();
         console.error('Checkpoint.rs error:', errorText);
-        // API error - allow registration to not block users
+        // CR11-04: Fail-closed on API error
         return new Response(
-          JSON.stringify({ valid: true, companyName: null, warning: 'Greška API-ja' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ valid: false, companyName: null, error: 'Greška API-ja — pokušajte ponovo' }),
+          { status: 502, headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }) }
         );
       }
 
@@ -94,10 +94,10 @@ Deno.serve(async (req) => {
       
     } catch (apiError) {
       console.error('Checkpoint.rs API error:', apiError);
-      // On API error, allow registration to not block users
+      // CR11-04: Fail-closed on API exception
       return new Response(
-        JSON.stringify({ valid: true, companyName: null, warning: 'API greška' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ valid: false, companyName: null, error: 'Greška pri validaciji PIB-a' }),
+        { status: 502, headers: withSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' }) }
       );
     }
 

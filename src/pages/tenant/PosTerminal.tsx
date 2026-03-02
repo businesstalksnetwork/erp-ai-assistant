@@ -70,6 +70,8 @@ export default function PosTerminal() {
   const [xReportOpen, setXReportOpen] = useState(false);
   const [splitPaymentOpen, setSplitPaymentOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  // CR11-01: Split payment structured array
+  const [splitPayments, setSplitPayments] = useState<{method: string; amount: number}[]>([]);
 
   // POS-01: Discount override state
   const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
@@ -474,6 +476,7 @@ export default function PosTerminal() {
         tax_amount: taxAmount,
         total,
         payment_method: paymentMethod,
+        payment_details: splitPayments.length > 1 ? splitPayments : null,
         customer_name: customerName || null,
         location_id: activeSession.location_id || null,
         warehouse_id: activeSession.warehouse_id || null,
@@ -505,7 +508,7 @@ export default function PosTerminal() {
                 tax_rate: voucherType === "multi_purpose" ? 0 : c.tax_rate,
                 total_amount: c.unit_price * c.quantity,
               })),
-              payments: [{ amount: total, method: paymentMethod }],
+              payments: splitPayments.length > 1 ? splitPayments : [{ amount: total, method: paymentMethod }],
               buyer_id: buyerId || null,
               receipt_type: "normal",
               transaction_type: "sale",
@@ -566,16 +569,19 @@ export default function PosTerminal() {
           toast({ title: "Upozorenje", description: "Fiskalni račun je izdat ali knjiženje nije uspelo. Kontaktirajte administratora.", variant: "destructive" });
         }
 
-        // GAP 3: Bridge cash sale to cash register
-        if (paymentMethod === "cash") {
+        // CR11-01: Bridge cash entries per-method for split payments
+        const cashPayments = splitPayments.length > 1
+          ? splitPayments.filter(p => p.method === "cash")
+          : paymentMethod === "cash" ? [{ method: "cash", amount: total }] : [];
+        for (const cp of cashPayments) {
           try {
             await supabase.from("cash_register").insert({
               tenant_id: tenantId,
               entry_number: `POS-${txNum}`,
               entry_date: new Date().toISOString().split("T")[0],
               direction: "in",
-              amount: total,
-              description: `POS sale ${txNum}`,
+              amount: cp.amount,
+              description: `POS sale ${txNum} (${cp.method})`,
               created_by: user?.id || null,
               pos_transaction_id: tx.id,
               source: "pos",
@@ -625,6 +631,7 @@ export default function PosTerminal() {
       }
       setLoyaltyMember(null);
       setLoyaltySearch("");
+      setSplitPayments([]);
       setCart([]);
       setCustomerName("");
       setBuyerId("");
@@ -943,7 +950,7 @@ export default function PosTerminal() {
       {/* Receipt Reprint Dialog */}
       <ReceiptReprintDialog open={reprintDialogOpen} onOpenChange={setReprintDialogOpen} />
       <PosXReportDialog open={xReportOpen} onOpenChange={setXReportOpen} sessionId={activeSession?.id || null} />
-      <SplitPaymentDialog open={splitPaymentOpen} onOpenChange={setSplitPaymentOpen} total={total} onConfirm={(payments) => { setPaymentMethod(payments.map((p: any) => p.method).join("+")); completeSale.mutate(); }} />
+      <SplitPaymentDialog open={splitPaymentOpen} onOpenChange={setSplitPaymentOpen} total={total} onConfirm={(payments) => { setSplitPayments(payments); setPaymentMethod(payments[0]?.method || "cash"); completeSale.mutate(); }} />
 
       {/* POS-01: Discount Override Request Dialog */}
       <Dialog open={discountDialogOpen} onOpenChange={setDiscountDialogOpen}>
