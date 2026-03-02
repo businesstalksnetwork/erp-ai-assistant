@@ -327,7 +327,7 @@ export default function PosTerminal() {
 
       // GAP 7: Block refund if original has no fiscal receipt number
       if (!selectedOriginalTx.fiscal_receipt_number) {
-        throw new Error(t("noFiscalReceipt" as any));
+        throw new Error(t("noFiscalReceipt"));
       }
 
       const selectedItems = refundItems.filter(i => i.selected && i.quantity > 0);
@@ -625,7 +625,7 @@ export default function PosTerminal() {
         }).then(({ data }) => {
           if (data && typeof data === "object" && (data as any).ok && (data as any).points > 0) {
             const mult = (data as any).multiplier > 1 ? ` (${(data as any).multiplier}x)` : "";
-            toast({ title: `${t("pointsEarned" as any)}: +${(data as any).points}${mult}` });
+            toast({ title: `${t("pointsEarned")}: +${(data as any).points}${mult}` });
           }
         });
         // Also update the POS transaction with loyalty info
@@ -644,7 +644,7 @@ export default function PosTerminal() {
           p_reference_id: tx.id,
         }).then(({ data }) => {
           if (data && typeof data === "object" && (data as any).ok && (data as any).points > 0) {
-            toast({ title: `${t("pointsEarned" as any)}: +${(data as any).points}` });
+            toast({ title: `${t("pointsEarned")}: +${(data as any).points}` });
           }
         });
       }
@@ -718,7 +718,7 @@ export default function PosTerminal() {
             onClick={() => setReprintDialogOpen(true)}
           >
             <Printer className="h-3 w-3" />
-            {t("receiptReprint" as any) || "Reprint"}
+            {t("receiptReprint") || "Reprint"}
           </Button>
           <Button
             size="sm"
@@ -727,7 +727,7 @@ export default function PosTerminal() {
             onClick={() => setXReportOpen(true)}
           >
             <ClipboardList className="h-3 w-3" />
-            X-{t("report" as any) || "Izveštaj"}
+            X-{t("report") || "Izveštaj"}
           </Button>
           <ActionGuard module="pos" action="delete">
             <Button
@@ -837,7 +837,7 @@ export default function PosTerminal() {
                     if (partner?.pib) setBuyerId(partner.pib);
                   }
                 }}
-                placeholder={t("selectBuyerPartner" as any)}
+                placeholder={t("selectBuyerPartner")}
               />
               <Input placeholder={t("buyerId")} value={buyerId} onChange={e => setBuyerId(e.target.value)} />
               {/* POS-04: Loyalty member lookup */}
@@ -870,10 +870,10 @@ export default function PosTerminal() {
                   <Button key={m} size="sm" variant={paymentMethod === m ? "default" : "outline"} onClick={() => {
                     setPaymentMethod(m);
                     if (m !== "voucher") setVoucherType(null);
-                  }}>{t(m as any)}</Button>
+                  }}>{t(m)}</Button>
                 ))}
                 <Button size="sm" variant="outline" className="gap-1" onClick={() => setSplitPaymentOpen(true)}>
-                  <Split className="h-3 w-3" />{t("split" as any) || "Podeli"}
+                  <Split className="h-3 w-3" />{t("split") || "Podeli"}
                 </Button>
               </div>
               {paymentMethod === "voucher" && (
@@ -911,10 +911,10 @@ export default function PosTerminal() {
           <DialogHeader>
             <DialogTitle>{t("refund")}: {selectedOriginalTx?.transaction_number}</DialogTitle>
             {selectedOriginalTx?.fiscal_receipt_number && (
-              <p className="text-xs text-muted-foreground">{t("fiscalReceiptRef" as any)}: {selectedOriginalTx.fiscal_receipt_number}</p>
+              <p className="text-xs text-muted-foreground">{t("fiscalReceiptRef")}: {selectedOriginalTx.fiscal_receipt_number}</p>
             )}
             {!selectedOriginalTx?.fiscal_receipt_number && (
-              <p className="text-xs text-destructive">{t("noFiscalReceipt" as any)}</p>
+              <p className="text-xs text-destructive">{t("noFiscalReceipt")}</p>
             )}
           </DialogHeader>
           <div className="space-y-3">

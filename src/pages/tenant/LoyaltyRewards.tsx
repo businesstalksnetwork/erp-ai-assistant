@@ -64,10 +64,10 @@ export default function LoyaltyRewards() {
 
   const typeLabel = (type: string) => {
     const map: Record<string, string> = {
-      discount_pct: t("loyaltyDiscountPercent" as any),
-      discount_fixed: t("loyaltyDiscountFixed" as any),
-      free_product: t("loyaltyFreeProduct" as any),
-      voucher: t("loyaltyVoucher" as any),
+      discount_pct: t("loyaltyDiscountPercent"),
+      discount_fixed: t("loyaltyDiscountFixed"),
+      free_product: t("loyaltyFreeProduct"),
+      voucher: t("loyaltyVoucher"),
     };
     return map[type] || type;
   };
@@ -75,18 +75,18 @@ export default function LoyaltyRewards() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("loyaltyRewards" as any)}</h1>
+        <h1 className="text-2xl font-bold">{t("loyaltyRewards")}</h1>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-1" />{t("addNew" as any)}</Button>
+            <Button><Plus className="h-4 w-4 mr-1" />{t("addNew")}</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle><Gift className="h-4 w-4 inline mr-1" />{t("loyaltyRewards" as any)}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle><Gift className="h-4 w-4 inline mr-1" />{t("loyaltyRewards")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div><Label>{t("name")}</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-              <div><Label>{t("pointsCost" as any)}</Label><Input type="number" value={form.points_cost} onChange={e => setForm(f => ({ ...f, points_cost: e.target.value }))} /></div>
+              <div><Label>{t("pointsCost")}</Label><Input type="number" value={form.points_cost} onChange={e => setForm(f => ({ ...f, points_cost: e.target.value }))} /></div>
               <div>
-                <Label>{t("rewardType" as any)}</Label>
+                <Label>{t("rewardType")}</Label>
                 <Select value={form.reward_type} onValueChange={v => setForm(f => ({ ...f, reward_type: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -94,7 +94,7 @@ export default function LoyaltyRewards() {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label>{t("rewardValue" as any)}</Label><Input type="number" value={form.reward_value} onChange={e => setForm(f => ({ ...f, reward_value: e.target.value }))} /></div>
+              <div><Label>{t("rewardValue")}</Label><Input type="number" value={form.reward_value} onChange={e => setForm(f => ({ ...f, reward_value: e.target.value }))} /></div>
               <Button onClick={() => createMutation.mutate()} disabled={!form.name || !form.points_cost || createMutation.isPending}>
                 <Save className="h-4 w-4 mr-1" />{t("save")}
               </Button>
@@ -108,9 +108,9 @@ export default function LoyaltyRewards() {
           <TableHeader>
             <TableRow>
               <TableHead>{t("name")}</TableHead>
-              <TableHead>{t("pointsCost" as any)}</TableHead>
-              <TableHead>{t("rewardType" as any)}</TableHead>
-              <TableHead>{t("rewardValue" as any)}</TableHead>
+              <TableHead>{t("pointsCost")}</TableHead>
+              <TableHead>{t("rewardType")}</TableHead>
+              <TableHead>{t("rewardValue")}</TableHead>
               <TableHead>{t("active")}</TableHead>
             </TableRow>
           </TableHeader>

@@ -175,13 +175,13 @@ export default function PosSessions() {
               </Select>
             </div>
             <div><Label>{t("openingBalance")}</Label><Input type="number" value={openingBalance} onChange={e => setOpeningBalance(Number(e.target.value))} /></div>
-            <div><Label>{t("selectFiscalDevice" as any)}</Label>
+            <div><Label>{t("selectFiscalDevice")}</Label>
               {locationFiscalDevices.length === 0 && selectedLocation && (
-                <p className="text-xs text-destructive mt-1">{t("noFiscalDevicesWarning" as any)}</p>
+                <p className="text-xs text-destructive mt-1">{t("noFiscalDevicesWarning")}</p>
               )}
               {locationFiscalDevices.length > 0 && (
                 <Select value={selectedFiscalDevice || (locationFiscalDevices.length === 1 ? locationFiscalDevices[0].id : "")} onValueChange={setSelectedFiscalDevice}>
-                  <SelectTrigger><SelectValue placeholder={t("selectFiscalDevice" as any)} /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("selectFiscalDevice")} /></SelectTrigger>
                   <SelectContent>{locationFiscalDevices.map((d: any) => <SelectItem key={d.id} value={d.id}>{d.device_name}</SelectItem>)}</SelectContent>
                 </Select>
               )}

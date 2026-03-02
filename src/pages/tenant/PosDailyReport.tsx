@@ -204,7 +204,7 @@ export default function PosDailyReport() {
 
       return result;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["pos_daily_reports"] }); toast({ title: t("pfrJournalFetched" as any) }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["pos_daily_reports"] }); toast({ title: t("pfrJournalFetched") }); },
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
   });
 
@@ -363,7 +363,7 @@ export default function PosDailyReport() {
                 <TableHead className="text-right">{t("totalRefunds")}</TableHead>
                 <TableHead className="text-right">{t("netSales")}</TableHead>
                  <TableHead className="text-right">{t("transactions")}</TableHead>
-                 <TableHead>{t("pfrZReport" as any)}</TableHead>
+                 <TableHead>{t("pfrZReport")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -380,7 +380,7 @@ export default function PosDailyReport() {
                         <Badge variant="default" className="text-xs gap-1"><Shield className="h-3 w-3" /> PFR</Badge>
                       ) : (
                         <Button size="sm" variant="outline" onClick={() => fetchPfrJournal.mutate(r.id)} disabled={fetchPfrJournal.isPending}>
-                          <Shield className="h-3 w-3 mr-1" />{t("fetchPfrJournal" as any)}
+                          <Shield className="h-3 w-3 mr-1" />{t("fetchPfrJournal")}
                         </Button>
                       )}
                     </div>

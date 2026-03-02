@@ -179,7 +179,7 @@ export default function JournalEntries() {
       if (tenantId && form.entry_date) {
         const { checkFiscalPeriodOpen } = await import("@/lib/journalUtils");
         const periodError = await checkFiscalPeriodOpen(tenantId, form.entry_date);
-        if (periodError) throw new Error(t("cannotPostToClosedPeriod" as any) || periodError);
+        if (periodError) throw new Error(t("cannotPostToClosedPeriod") || periodError);
       }
 
       const linePayloads = lines.filter(l => l.account_id).map((l, i) => ({
