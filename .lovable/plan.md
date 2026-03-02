@@ -1,62 +1,48 @@
 
 
-## Root Cause
+## Problem
 
-Two separate issues:
+AI assistant responses in the sidebar are cut off / not fully visible. The sidebar panel is 280-300px wide with `overflow-hidden`, and message bubbles use `max-w-[90%]` (~252px). Long content like tables, bullet points, and wrapped text gets clipped horizontally.
 
-1. **22 edge functions reference undefined `corsHeaders` variable** — They import `getCorsHeaders` from `_shared/cors.ts` but never call it, so `corsHeaders` is undefined at runtime. These functions crash with `ReferenceError` on any request.
+Two issues:
 
-2. **All edge functions need redeployment** — The `_shared/cors.ts` was updated to allow `.lovableproject.com` origins, but Supabase bundles shared imports at deploy time. Already-deployed functions still use the old CORS config that blocks `.lovableproject.com`.
+1. **Message bubble too constrained**: `max-w-[90%]` of a 280px sidebar = ~252px for content. Tables and long words overflow.
+2. **No word wrapping / overflow handling**: The `SimpleMarkdown` component and message container don't handle overflow — text and tables spill out and get clipped by the parent `overflow-hidden`.
 
-## Broken Functions (22 total)
+## Fix
 
-Each needs `const corsHeaders = getCorsHeaders(req);` added at the start of their handler, before the OPTIONS check:
+### 1. `AiContextSidebar.tsx` — Message container (line 431)
 
-| # | Function | Handler Line |
-|---|----------|-------------|
-| 1 | `sef-send-invoice` | ~282 |
-| 2 | `storage-fix-logos` | ~25 |
-| 3 | `sef-background-sync` | ~329 |
-| 4 | `parse-pausalni-pdf` | ~32 |
-| 5 | `seed-demo-data` | ~83 |
-| 6 | `sef-fetch-invoices` | ~24 |
-| 7 | `generate-tax-payment-orders` | ~21 |
-| 8 | `send-document-signature` | ~5 |
-| 9 | `storage-cleanup` | ~91 |
-| 10 | `storage-upload` | ~42 |
-| 11 | `sef-fetch-purchase-invoices` | ~210 |
-| 12 | `seed-demo-data-phase3` | ~7 |
-| 13 | `send-revers-notification` | ~12 |
-| 14 | `storage-delete` | ~27 |
-| 15 | `sef-long-sync` | ~501 |
-| 16 | `sef-enrich-invoices` | ~87 |
-| 17 | `send-admin-bulk-email` | ~22 |
-| 18 | `sef-submit` | ~297 |
-| 19 | `sef-poll-status` | ~86 |
-| 20 | `sef-registry-auto-update` | ~55 |
-| 21 | `send-invoice-email` | handler |
-| 22 | `send-verification-email` | ~34 |
+Change assistant message styling from `max-w-[90%]` to `max-w-full` and add `overflow-x-auto break-words` so content wraps properly and tables can scroll horizontally within the bubble:
 
-## Fix Pattern
+```tsx
+// Before:
+<div className={`max-w-[90%] rounded-md px-2 py-1.5 text-xs ${...}`}>
 
-For each function, add `const corsHeaders = getCorsHeaders(req);` right after entering the handler, before the OPTIONS check. Example:
-
-```typescript
-// BEFORE (broken):
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders }); // ← undefined!
-  }
-
-// AFTER (fixed):
-serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders }); // ← now defined
-  }
+// After:
+<div className={`rounded-md px-2 py-1.5 text-xs overflow-x-auto break-words ${
+  msg.role === "user"
+    ? "bg-primary text-primary-foreground whitespace-pre-wrap max-w-[85%]"
+    : "bg-muted max-w-full"
+}`}>
 ```
 
-## Deployment
+### 2. `SimpleMarkdown.tsx` — Table overflow (line 50)
 
-After fixing all 22 functions, all edge functions must be redeployed so the updated `_shared/cors.ts` (with `.lovableproject.com` support) takes effect across the entire fleet.
+The table wrapper already has `overflow-x-auto` which is good, but also add `word-break: break-word` to the root container:
+
+```tsx
+// Line 114 — root div:
+<div ref={ref} className="space-y-0 break-words overflow-hidden">{elements}</div>
+```
+
+### 3. `SimpleMarkdown.tsx` — Paragraph text wrapping (line 110)
+
+Add `break-words` class to paragraph elements to prevent long words/URLs from overflowing:
+
+```tsx
+<p key={i} className="my-0.5 break-words">{applyInlineBold(line)}</p>
+```
+
+These three small CSS changes ensure all AI responses render fully within the sidebar without clipping.
 
