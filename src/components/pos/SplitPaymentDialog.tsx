@@ -3,13 +3,11 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { CreditCard, Banknote, Smartphone, Wallet } from "lucide-react";
 
 interface PaymentSplit {
   method: string;
   amount: number;
-  label: string;
   icon: React.ReactNode;
 }
 
@@ -20,31 +18,36 @@ interface SplitPaymentDialogProps {
   onConfirm: (payments: { method: string; amount: number }[]) => void;
 }
 
-const METHODS = [
-  { method: "cash", label: "Gotovina", icon: <Banknote className="h-4 w-4" /> },
-  { method: "card", label: "Kartica", icon: <CreditCard className="h-4 w-4" /> },
-  { method: "wire_transfer", label: "Prenos", icon: <Wallet className="h-4 w-4" /> },
-  { method: "mobile", label: "Mobilno", icon: <Smartphone className="h-4 w-4" /> },
+const METHOD_DEFS = [
+  { method: "cash", labelKey: "cash" as const, icon: <Banknote className="h-4 w-4" /> },
+  { method: "card", labelKey: "card" as const, icon: <CreditCard className="h-4 w-4" /> },
+  { method: "wire_transfer", labelKey: "wire_transfer" as const, icon: <Wallet className="h-4 w-4" /> },
+  { method: "mobile", labelKey: "mobile" as const, icon: <Smartphone className="h-4 w-4" /> },
 ];
 
 export function SplitPaymentDialog({ open, onOpenChange, total, onConfirm }: SplitPaymentDialogProps) {
   const { t } = useLanguage();
   const [splits, setSplits] = useState<PaymentSplit[]>([
-    { ...METHODS[0], amount: total },
+    { method: METHOD_DEFS[0].method, icon: METHOD_DEFS[0].icon, amount: total },
   ]);
 
   useEffect(() => {
     if (open) {
-      setSplits([{ ...METHODS[0], amount: total }]);
+      setSplits([{ method: METHOD_DEFS[0].method, icon: METHOD_DEFS[0].icon, amount: total }]);
     }
   }, [open, total]);
 
   const allocated = splits.reduce((s, p) => s + p.amount, 0);
-  const remaining = Math.round((total - allocated) * 100) / 100;
+  const remainingAmt = Math.round((total - allocated) * 100) / 100;
 
-  const addMethod = (m: typeof METHODS[0]) => {
+  const getLabel = (method: string) => {
+    const def = METHOD_DEFS.find((m) => m.method === method);
+    return def ? t(def.labelKey) : method;
+  };
+
+  const addMethod = (m: typeof METHOD_DEFS[0]) => {
     if (splits.find((s) => s.method === m.method)) return;
-    setSplits((prev) => [...prev, { ...m, amount: 0 }]);
+    setSplits((prev) => [...prev, { method: m.method, icon: m.icon, amount: 0 }]);
   };
 
   const removeMethod = (method: string) => {
@@ -67,13 +70,13 @@ export function SplitPaymentDialog({ open, onOpenChange, total, onConfirm }: Spl
     ? Math.max(0, allocated - total)
     : 0;
 
-  const isValid = Math.abs(remaining) < 0.01 || (cashSplit && allocated >= total);
+  const isValid = Math.abs(remainingAmt) < 0.01 || (cashSplit && allocated >= total);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{t("splitPayment" as any) || "Podeljeno plaćanje"}</DialogTitle>
+          <DialogTitle>{t("splitPayment")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="flex justify-between text-sm">
@@ -83,7 +86,7 @@ export function SplitPaymentDialog({ open, onOpenChange, total, onConfirm }: Spl
 
           {/* Available methods to add */}
           <div className="flex gap-2 flex-wrap">
-            {METHODS.filter((m) => !splits.find((s) => s.method === m.method)).map((m) => (
+            {METHOD_DEFS.filter((m) => !splits.find((s) => s.method === m.method)).map((m) => (
               <Button
                 key={m.method}
                 size="sm"
@@ -91,7 +94,7 @@ export function SplitPaymentDialog({ open, onOpenChange, total, onConfirm }: Spl
                 className="gap-1"
                 onClick={() => addMethod(m)}
               >
-                {m.icon} + {m.label}
+                {m.icon} + {t(m.labelKey)}
               </Button>
             ))}
           </div>
@@ -102,7 +105,7 @@ export function SplitPaymentDialog({ open, onOpenChange, total, onConfirm }: Spl
               <div key={split.method} className="flex items-center gap-2 p-3 rounded-lg border">
                 <div className="flex items-center gap-2 min-w-0">
                   {split.icon}
-                  <span className="text-sm font-medium">{split.label}</span>
+                  <span className="text-sm font-medium">{getLabel(split.method)}</span>
                 </div>
                 <Input
                   type="number"
@@ -118,7 +121,7 @@ export function SplitPaymentDialog({ open, onOpenChange, total, onConfirm }: Spl
                   className="text-xs h-7 px-2"
                   onClick={() => autoFillRemaining(split.method)}
                 >
-                  {t("rest" as any) || "Ostatak"}
+                  {t("rest")}
                 </Button>
                 {splits.length > 1 && (
                   <Button
@@ -137,18 +140,18 @@ export function SplitPaymentDialog({ open, onOpenChange, total, onConfirm }: Spl
           {/* Summary */}
           <div className="space-y-1 text-sm border-t pt-3">
             <div className="flex justify-between">
-              <span>{t("allocated" as any) || "Raspoređeno"}:</span>
+              <span>{t("allocated")}:</span>
               <span className="font-mono">{allocated.toFixed(2)}</span>
             </div>
-            {remaining > 0.01 && (
+            {remainingAmt > 0.01 && (
               <div className="flex justify-between text-destructive">
-                <span>{t("remaining" as any) || "Preostalo"}:</span>
-                <span className="font-mono">{remaining.toFixed(2)}</span>
+                <span>{t("remaining")}:</span>
+                <span className="font-mono">{remainingAmt.toFixed(2)}</span>
               </div>
             )}
             {cashChange > 0 && (
               <div className="flex justify-between text-success font-bold">
-                <span>{t("changeDue" as any) || "Kusur"}:</span>
+                <span>{t("changeDue")}:</span>
                 <span className="font-mono">{cashChange.toFixed(2)}</span>
               </div>
             )}
@@ -165,7 +168,7 @@ export function SplitPaymentDialog({ open, onOpenChange, total, onConfirm }: Spl
               onOpenChange(false);
             }}
           >
-            {t("confirm" as any) || "Potvrdi"}
+            {t("confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

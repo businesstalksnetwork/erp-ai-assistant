@@ -33,7 +33,7 @@ export default function MarketBasketAnalysis() {
     setLoading(true);
     try {
       await refetch();
-      toast({ title: "Analiza završena" });
+      toast({ title: t("mbAnalysisComplete") });
     } catch (e: any) {
       toast({ title: t("error"), description: e.message, variant: "destructive" });
     } finally {
@@ -42,37 +42,36 @@ export default function MarketBasketAnalysis() {
   };
 
   const liftBadge = (lift: number) => {
-    if (lift >= 3) return <Badge variant="default">Jak ({lift}x)</Badge>;
-    if (lift >= 1.5) return <Badge variant="secondary">Umeren ({lift}x)</Badge>;
-    return <Badge variant="outline">Slab ({lift}x)</Badge>;
+    if (lift >= 3) return <Badge variant="default">{t("mbLiftStrong")} ({lift}x)</Badge>;
+    if (lift >= 1.5) return <Badge variant="secondary">{t("mbLiftModerate")} ({lift}x)</Badge>;
+    return <Badge variant="outline">{t("mbLiftWeak")} ({lift}x)</Badge>;
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Brain className="h-6 w-6 text-primary" />Analiza korpe</h1>
-          <p className="text-sm text-muted-foreground">AI Market Basket Analysis — otkrivanje obrazaca zajedničke kupovine.</p>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Brain className="h-6 w-6 text-primary" />{t("marketBasketTitle")}</h1>
+          <p className="text-sm text-muted-foreground">{t("mbSubtitle")}</p>
         </div>
         <Button onClick={runAnalysis} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} />
-          {loading ? "Analiziram..." : "Pokreni analizu"}
+          {loading ? t("mbAnalyzing") : t("mbRunAnalysis")}
         </Button>
       </div>
 
       {analysis && (
         <>
           <div className="grid gap-4 md:grid-cols-3">
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><ShoppingBasket className="h-4 w-4 text-primary" />Analizirane transakcije</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{analysis.total_transactions}</p></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Pronađeni parovi</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{analysis.pairs?.length || 0}</p></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Period analize</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{analysis.analysis_period_days} dana</p></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><ShoppingBasket className="h-4 w-4 text-primary" />{t("mbAnalyzedTransactions")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{analysis.total_transactions}</p></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("mbFoundPairs")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{analysis.pairs?.length || 0}</p></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">{t("mbAnalysisPeriod")}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{analysis.analysis_period_days} {t("mbDays")}</p></CardContent></Card>
           </div>
 
-          {/* AI Recommendations */}
           {analysis.recommendations?.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" />AI preporuke</CardTitle>
+                <CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" />{t("mbAiRecommendations")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2">
@@ -87,23 +86,22 @@ export default function MarketBasketAnalysis() {
             </Card>
           )}
 
-          {/* Product pairs table */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Parovi proizvoda po lift skoru</CardTitle>
-              <CardDescription>Lift &gt; 1.0 znači da se proizvodi kupuju zajedno češće nego slučajno.</CardDescription>
+              <CardTitle className="text-sm">{t("mbProductPairsByLift")}</CardTitle>
+              <CardDescription>{t("mbLiftDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Proizvod A</TableHead>
+                    <TableHead>{t("mbProductA")}</TableHead>
                     <TableHead></TableHead>
-                    <TableHead>Proizvod B</TableHead>
-                    <TableHead>Zajednička kupovina</TableHead>
-                    <TableHead>Support %</TableHead>
-                    <TableHead>Confidence A→B</TableHead>
-                    <TableHead>Lift</TableHead>
+                    <TableHead>{t("mbProductB")}</TableHead>
+                    <TableHead>{t("mbCoOccurrences")}</TableHead>
+                    <TableHead>{t("mbSupport")} %</TableHead>
+                    <TableHead>{t("mbConfidence")} A→B</TableHead>
+                    <TableHead>{t("mbLift")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -132,7 +130,7 @@ export default function MarketBasketAnalysis() {
         <Card>
           <CardContent className="py-12 text-center">
             <Brain className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Kliknite "Pokreni analizu" za analizu obrazaca kupovine iz POS transakcija.</p>
+            <p className="text-muted-foreground">{t("mbEmptyState")}</p>
           </CardContent>
         </Card>
       )}

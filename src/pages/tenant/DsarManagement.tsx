@@ -3,7 +3,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Clock, AlertTriangle, CheckCircle } from "lucide-react";
+import { Plus } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 
 const REQUEST_TYPES = ["access", "rectification", "erasure", "restriction", "portability", "objection"] as const;
@@ -68,15 +68,15 @@ export default function DsarManagement() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">DSAR Management (ZZPL / PRIV-03)</h1>
-        <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" />New Request</Button>
+        <h1 className="text-2xl font-bold">{t("dsarTitle")}</h1>
+        <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" />{t("dsarNewRequest")}</Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-4"><div className="text-2xl font-bold">{requests.length}</div><p className="text-sm text-muted-foreground">Total Requests</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><div className="text-2xl font-bold">{pending}</div><p className="text-sm text-muted-foreground">Pending</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><div className="text-2xl font-bold text-destructive">{overdue}</div><p className="text-sm text-muted-foreground">Overdue (30-day limit)</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><div className="text-2xl font-bold text-green-600">{requests.filter((r: any) => r.status === "completed").length}</div><p className="text-sm text-muted-foreground">Completed</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><div className="text-2xl font-bold">{requests.length}</div><p className="text-sm text-muted-foreground">{t("dsarTotalRequests")}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><div className="text-2xl font-bold">{pending}</div><p className="text-sm text-muted-foreground">{t("dsarPending")}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><div className="text-2xl font-bold text-destructive">{overdue}</div><p className="text-sm text-muted-foreground">{t("dsarOverdueLimit")}</p></CardContent></Card>
+        <Card><CardContent className="pt-4"><div className="text-2xl font-bold text-green-600">{requests.filter((r: any) => r.status === "completed").length}</div><p className="text-sm text-muted-foreground">{t("dsarCompleted")}</p></CardContent></Card>
       </div>
 
       <Card>
@@ -84,12 +84,12 @@ export default function DsarManagement() {
           <TableHeader>
             <TableRow>
               <TableHead>#</TableHead>
-              <TableHead>Subject</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Deadline</TableHead>
-              <TableHead>Days Left</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead>{t("dsarSubject")}</TableHead>
+              <TableHead>{t("dsarType")}</TableHead>
+              <TableHead>{t("status")}</TableHead>
+              <TableHead>{t("dsarDeadline")}</TableHead>
+              <TableHead>{t("dsarDaysLeft")}</TableHead>
+              <TableHead>{t("dsarActions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -116,25 +116,25 @@ export default function DsarManagement() {
                 </TableRow>
               );
             })}
-            {requests.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No DSAR requests</TableCell></TableRow>}
+            {requests.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">{t("dsarNoRequests")}</TableCell></TableRow>}
           </TableBody>
         </Table>
       </Card>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>New DSAR Request</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("dsarNewRequestTitle")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div><Label>Subject Name</Label><Input value={form.subject_name} onChange={e => setForm(p => ({ ...p, subject_name: e.target.value }))} /></div>
-            <div><Label>Subject Email</Label><Input type="email" value={form.subject_email} onChange={e => setForm(p => ({ ...p, subject_email: e.target.value }))} /></div>
-            <div><Label>Request Type</Label>
+            <div><Label>{t("dsarSubjectName")}</Label><Input value={form.subject_name} onChange={e => setForm(p => ({ ...p, subject_name: e.target.value }))} /></div>
+            <div><Label>{t("dsarSubjectEmail")}</Label><Input type="email" value={form.subject_email} onChange={e => setForm(p => ({ ...p, subject_email: e.target.value }))} /></div>
+            <div><Label>{t("dsarRequestType")}</Label>
               <Select value={form.request_type} onValueChange={v => setForm(p => ({ ...p, request_type: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{REQUEST_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                <SelectContent>{REQUEST_TYPES.map(rt => <SelectItem key={rt} value={rt}>{rt}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div><Label>Description</Label><Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
-            <Button onClick={() => createMut.mutate()} disabled={!form.subject_name || createMut.isPending}>Submit Request</Button>
+            <div><Label>{t("dsarDescription")}</Label><Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
+            <Button onClick={() => createMut.mutate()} disabled={!form.subject_name || createMut.isPending}>{t("dsarSubmitRequest")}</Button>
           </div>
         </DialogContent>
       </Dialog>
