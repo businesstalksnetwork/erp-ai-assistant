@@ -1,11 +1,15 @@
 import { useCallback } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
-import { useTenant } from "@/hooks/useTenant";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-interface ApprovalCheckHook {
+export interface ApprovalCheckHook {
+  checkApproval: (
+    entityId: string,
+    amount: number,
+    onApproved: () => void | Promise<void>
+  ) => Promise<void>;
   checkAndRequestApproval: (
     entityType: string,
     entityId: string,
@@ -14,13 +18,12 @@ interface ApprovalCheckHook {
   ) => Promise<void>;
 }
 
-export function useApprovalCheck(): ApprovalCheckHook {
+export function useApprovalCheck(tenantId?: string | null, entityType?: string): ApprovalCheckHook {
   const { t } = useLanguage();
-  const { tenantId } = useTenant();
   const { user } = useAuth();
 
   const checkAndRequestApproval = useCallback(async (
-    entityType: string,
+    et: string,
     entityId: string,
     amount: number,
     onApproved: () => void | Promise<void>,
@@ -32,7 +35,7 @@ export function useApprovalCheck(): ApprovalCheckHook {
       .from("approval_workflows")
       .select("*")
       .eq("tenant_id", tenantId)
-      .eq("entity_type", entityType)
+      .eq("entity_type", et)
       .eq("is_active", true)
       .order("threshold_amount", { ascending: true });
 
@@ -41,14 +44,13 @@ export function useApprovalCheck(): ApprovalCheckHook {
     );
 
     if (!workflow) {
-      // No workflow → auto-approve
       await onApproved();
       return;
     }
 
     // 2. Check if user has required role (auto-approve if they do)
     const { data: membership } = await supabase
-      .from("user_tenants")
+      .from("tenant_members")
       .select("role")
       .eq("user_id", user?.id || "")
       .eq("tenant_id", tenantId)
@@ -64,7 +66,7 @@ export function useApprovalCheck(): ApprovalCheckHook {
       .from("approval_requests")
       .select("id")
       .eq("tenant_id", tenantId)
-      .eq("entity_type", entityType)
+      .eq("entity_type", et)
       .eq("entity_id", entityId)
       .eq("status", "pending")
       .limit(1)
@@ -79,7 +81,7 @@ export function useApprovalCheck(): ApprovalCheckHook {
     const { error } = await supabase.from("approval_requests").insert([{
       tenant_id: tenantId,
       workflow_id: workflow.id,
-      entity_type: entityType,
+      entity_type: et,
       entity_id: entityId,
       requested_by: user?.id || null,
       status: "pending",
@@ -98,7 +100,7 @@ export function useApprovalCheck(): ApprovalCheckHook {
             tenant_id: tenantId,
             event_type: "approval.requested",
             source_module: "approvals",
-            payload: { entity_type: entityType, entity_id: entityId, amount },
+            payload: { entity_type: et, entity_id: entityId, amount },
           },
         }),
         supabase.functions.invoke("create-notification", {
@@ -106,7 +108,7 @@ export function useApprovalCheck(): ApprovalCheckHook {
             tenant_id: tenantId,
             type: "approval_required",
             title: "Approval Required",
-            message: `A ${entityType} requires approval (amount: ${amount}).`,
+            message: `A ${et} requires approval (amount: ${amount}).`,
           },
         }),
       ]);
@@ -117,5 +119,14 @@ export function useApprovalCheck(): ApprovalCheckHook {
     toast.info(t("approvalSubmitted") || "Approval request submitted. Action requires approval before proceeding.");
   }, [tenantId, user, t]);
 
-  return { checkAndRequestApproval };
+  // Convenience wrapper when entityType is provided at hook level
+  const checkApproval = useCallback(async (
+    entityId: string,
+    amount: number,
+    onApproved: () => void | Promise<void>,
+  ) => {
+    await checkAndRequestApproval(entityType || "", entityId, amount, onApproved);
+  }, [checkAndRequestApproval, entityType]);
+
+  return { checkApproval, checkAndRequestApproval };
 }
