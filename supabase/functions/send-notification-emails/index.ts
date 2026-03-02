@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -512,8 +513,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Sent: ${sent.reminders} reminders, ${sent.subscriptions} subscription warnings, ${sent.limits} limit warnings, ${sent.app_notifications} app notifications, ${sent.push_sent} push notifications`);
     return new Response(JSON.stringify({ success: true, ...sent }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {
-    console.error("Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return createErrorResponse(error, req, { logPrefix: "send-notification-emails" });
   }
 };
 

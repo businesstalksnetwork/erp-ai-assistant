@@ -28,7 +28,8 @@ Deno.serve(async (req) => {
       ...(error && { error: error.message }),
     };
   } catch (e) {
-    checks.database = { status: "down", latency_ms: Date.now() - started, error: String(e) };
+    console.error("Health check DB error:", e);
+    checks.database = { status: "down", latency_ms: Date.now() - started, error: "check failed" };
   }
 
   // 2. Storage check
@@ -44,7 +45,8 @@ Deno.serve(async (req) => {
       ...(error && { error: error.message }),
     };
   } catch (e) {
-    checks.storage = { status: "down", latency_ms: Date.now() - started, error: String(e) };
+    console.error("Health check storage error:", e);
+    checks.storage = { status: "down", latency_ms: Date.now() - started, error: "check failed" };
   }
 
   // 3. AI Gateway check (OpenAI-compatible endpoint)
@@ -54,7 +56,7 @@ Deno.serve(async (req) => {
     if (!aiKey) {
       checks.ai_gateway = { status: "unconfigured", latency_ms: 0 };
     } else {
-      const resp = await fetch("https://api.openai.com/v1/models", {
+      const resp = await fetch("https://ai.gateway.lovable.dev/v1/models", {
         headers: { Authorization: `Bearer ${aiKey}` },
         signal: AbortSignal.timeout(5000),
       });
@@ -65,7 +67,8 @@ Deno.serve(async (req) => {
       };
     }
   } catch (e) {
-    checks.ai_gateway = { status: "down", latency_ms: Date.now() - started, error: String(e) };
+    console.error("Health check AI gateway error:", e);
+    checks.ai_gateway = { status: "down", latency_ms: Date.now() - started, error: "check failed" };
   }
 
   const allHealthy = Object.values(checks).every((c) => c.status === "healthy" || c.status === "unconfigured");
