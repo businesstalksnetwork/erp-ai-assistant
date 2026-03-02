@@ -54,7 +54,7 @@ import {
   ChevronDown, User, LogOut, FileSpreadsheet, ListChecks, ReceiptText, Lock, Search,
   Globe, Command, Plug, Moon, Briefcase, Shield, Heart, Calendar, Grid3X3,
   ScanBarcode, MapPin, RefreshCw, Brain, AlertTriangle, TrendingDown, Sparkles, HardDrive,
-  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane, Download, ShieldAlert, UserMinus, TableProperties, Wrench, Gift, Scale,
+  Building2, List, FolderTree, Trash2, UserX, ShieldCheck, Plane, Download, ShieldAlert, UserMinus, TableProperties, Wrench, Gift, Scale, Tag,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
