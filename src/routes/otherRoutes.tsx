@@ -63,6 +63,10 @@ const RestaurantTables = React.lazy(() => import("@/pages/tenant/RestaurantTable
 const KitchenDisplay = React.lazy(() => import("@/pages/tenant/KitchenDisplay"));
 const RestaurantReservations = React.lazy(() => import("@/pages/tenant/RestaurantReservations"));
 const PosManagerOverride = React.lazy(() => import("@/pages/tenant/PosManagerOverride"));
+const PosPromotions = React.lazy(() => import("@/pages/tenant/PosPromotions"));
+const GiftCards = React.lazy(() => import("@/pages/tenant/GiftCards"));
+const MarketBasketAnalysis = React.lazy(() => import("@/pages/tenant/MarketBasketAnalysis"));
+const LoyaltyAnalytics = React.lazy(() => import("@/pages/tenant/LoyaltyAnalytics"));
 
 // Returns — moved to inventoryRoutes.tsx
 
@@ -182,6 +186,10 @@ export const posRoutes = (
     <Route path="pos/kitchen" element={<ProtectedRoute requiredModule="pos"><B><KitchenDisplay /></B></ProtectedRoute>} />
     <Route path="pos/reservations" element={<ProtectedRoute requiredModule="pos"><B><RestaurantReservations /></B></ProtectedRoute>} />
     <Route path="pos/manager-overrides" element={<ProtectedRoute requiredModule="pos"><B><PosManagerOverride /></B></ProtectedRoute>} />
+    <Route path="pos/promotions" element={<ProtectedRoute requiredModule="pos"><B><PosPromotions /></B></ProtectedRoute>} />
+    <Route path="pos/gift-cards" element={<ProtectedRoute requiredModule="pos"><B><GiftCards /></B></ProtectedRoute>} />
+    <Route path="pos/market-basket" element={<ProtectedRoute requiredModule="pos"><B><MarketBasketAnalysis /></B></ProtectedRoute>} />
+    <Route path="pos/loyalty-analytics" element={<ProtectedRoute requiredModule="pos"><B><LoyaltyAnalytics /></B></ProtectedRoute>} />
   </>
 );
 
