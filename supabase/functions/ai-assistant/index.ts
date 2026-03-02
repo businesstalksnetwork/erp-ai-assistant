@@ -936,7 +936,7 @@ serve(async (req) => {
     }
 
     // Rate limit: 20 requests per minute per user
-    const rl = checkRateLimit(`ai-assistant:${caller.id}`, 20, 60_000);
+    const rl = await checkRateLimit(`ai-assistant:${caller.id}`, "ai");
     if (!rl.allowed) {
       return createErrorResponse("Rate limit exceeded", req, { status: 429, logPrefix: "ai-assistant rate-limit" });
     }

@@ -174,7 +174,7 @@ serve(async (req) => {
     let body: any;
 
     // Rate limit: 10 requests per minute per user
-    const rl = checkRateLimit(`ai-insights:${caller.id}`, 10, 60_000);
+    const rl = await checkRateLimit(`ai-insights:${caller.id}`, "ai");
     if (!rl.allowed) {
       return createErrorResponse("Rate limit exceeded", req, { status: 429, logPrefix: "ai-insights rate-limit" });
     }

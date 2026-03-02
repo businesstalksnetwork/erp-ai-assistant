@@ -27,7 +27,7 @@ serve(async (req) => {
   try {
     // Rate limit: 30 requests per minute per IP
     const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
-    const rl = checkRateLimit(`web-order-import:${clientIp}`, 30, 60_000);
+    const rl = await checkRateLimit(`web-order-import:${clientIp}`, "crud");
     if (!rl.allowed) {
       return createErrorResponse("Rate limit exceeded", req, { status: 429, logPrefix: "web-order-import rate-limit" });
     }

@@ -23,7 +23,7 @@ serve(async (req) => {
     const { tenant_id } = await req.json();
     if (!tenant_id) return createErrorResponse("tenant_id required", req, { status: 400 });
 
-    const rl = checkRateLimit(`classification-${tenant_id}`, 5, 60_000);
+    const rl = await checkRateLimit(`classification-${tenant_id}`, "ai");
     if (!rl.allowed) return createErrorResponse("Rate limited", req, { status: 429 });
 
     // Fetch products
