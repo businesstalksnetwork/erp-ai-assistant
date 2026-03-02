@@ -13255,40 +13255,186 @@ export type Database = {
           },
         ]
       }
+      loyalty_campaigns: {
+        Row: {
+          bonus_points: number | null
+          campaign_type: string
+          created_at: string | null
+          description: string | null
+          end_date: string
+          id: string
+          is_active: boolean | null
+          multiplier: number | null
+          name: string
+          start_date: string
+          target_tier: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          bonus_points?: number | null
+          campaign_type?: string
+          created_at?: string | null
+          description?: string | null
+          end_date: string
+          id?: string
+          is_active?: boolean | null
+          multiplier?: number | null
+          name: string
+          start_date: string
+          target_tier?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          bonus_points?: number | null
+          campaign_type?: string
+          created_at?: string | null
+          description?: string | null
+          end_date?: string
+          id?: string
+          is_active?: boolean | null
+          multiplier?: number | null
+          name?: string
+          start_date?: string
+          target_tier?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_campaigns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_member_purchase_profiles: {
+        Row: {
+          avg_basket_size: number | null
+          clv_estimate: number | null
+          favorite_categories: Json | null
+          id: string
+          last_purchase_date: string | null
+          member_id: string
+          purchase_frequency_days: number | null
+          rebuilt_at: string | null
+          rfm_segment: string | null
+          tenant_id: string
+          total_spend: number | null
+          total_transactions: number | null
+        }
+        Insert: {
+          avg_basket_size?: number | null
+          clv_estimate?: number | null
+          favorite_categories?: Json | null
+          id?: string
+          last_purchase_date?: string | null
+          member_id: string
+          purchase_frequency_days?: number | null
+          rebuilt_at?: string | null
+          rfm_segment?: string | null
+          tenant_id: string
+          total_spend?: number | null
+          total_transactions?: number | null
+        }
+        Update: {
+          avg_basket_size?: number | null
+          clv_estimate?: number | null
+          favorite_categories?: Json | null
+          id?: string
+          last_purchase_date?: string | null
+          member_id?: string
+          purchase_frequency_days?: number | null
+          rebuilt_at?: string | null
+          rfm_segment?: string | null
+          tenant_id?: string
+          total_spend?: number | null
+          total_transactions?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_member_purchase_profiles_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_member_purchase_profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loyalty_members: {
         Row: {
+          card_number: string | null
           created_at: string
           current_tier: string
+          date_of_birth: string | null
+          email: string | null
           enrolled_at: string
+          first_name: string | null
           id: string
+          last_name: string | null
           lifetime_points: number
-          partner_id: string
+          marketing_consent: boolean | null
+          notes: string | null
+          partner_id: string | null
+          phone: string | null
           points_balance: number
           program_id: string
+          referred_by: string | null
+          status: string | null
           tenant_id: string
           updated_at: string
         }
         Insert: {
+          card_number?: string | null
           created_at?: string
           current_tier?: string
+          date_of_birth?: string | null
+          email?: string | null
           enrolled_at?: string
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           lifetime_points?: number
-          partner_id: string
+          marketing_consent?: boolean | null
+          notes?: string | null
+          partner_id?: string | null
+          phone?: string | null
           points_balance?: number
           program_id: string
+          referred_by?: string | null
+          status?: string | null
           tenant_id: string
           updated_at?: string
         }
         Update: {
+          card_number?: string | null
           created_at?: string
           current_tier?: string
+          date_of_birth?: string | null
+          email?: string | null
           enrolled_at?: string
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           lifetime_points?: number
-          partner_id?: string
+          marketing_consent?: boolean | null
+          notes?: string | null
+          partner_id?: string | null
+          phone?: string | null
           points_balance?: number
           program_id?: string
+          referred_by?: string | null
+          status?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -13308,7 +13454,71 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "loyalty_members_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "loyalty_members"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "loyalty_members_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_multiplier_rules: {
+        Row: {
+          category_filter: string | null
+          created_at: string | null
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          multiplier: number
+          name: string
+          start_date: string | null
+          tenant_id: string
+          tier_filter: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category_filter?: string | null
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          multiplier?: number
+          name: string
+          start_date?: string | null
+          tenant_id: string
+          tier_filter?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category_filter?: string | null
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          multiplier?: number
+          name?: string
+          start_date?: string | null
+          tenant_id?: string
+          tier_filter?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_multiplier_rules_category_filter_fkey"
+            columns: ["category_filter"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_multiplier_rules_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -13449,6 +13659,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "loyalty_rewards_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_tier_benefits: {
+        Row: {
+          benefit_type: string
+          benefit_value: number | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          tenant_id: string
+          tier: string
+        }
+        Insert: {
+          benefit_type: string
+          benefit_value?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          tenant_id: string
+          tier: string
+        }
+        Update: {
+          benefit_type?: string
+          benefit_value?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          tenant_id?: string
+          tier?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_tier_benefits_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -17355,6 +17606,9 @@ export type Database = {
           items: Json
           journal_entry_id: string | null
           location_id: string | null
+          loyalty_member_id: string | null
+          loyalty_multiplier: number | null
+          loyalty_points_earned: number | null
           original_transaction_id: string | null
           payment_method: string
           receipt_type: string
@@ -17383,6 +17637,9 @@ export type Database = {
           items?: Json
           journal_entry_id?: string | null
           location_id?: string | null
+          loyalty_member_id?: string | null
+          loyalty_multiplier?: number | null
+          loyalty_points_earned?: number | null
           original_transaction_id?: string | null
           payment_method?: string
           receipt_type?: string
@@ -17411,6 +17668,9 @@ export type Database = {
           items?: Json
           journal_entry_id?: string | null
           location_id?: string | null
+          loyalty_member_id?: string | null
+          loyalty_multiplier?: number | null
+          loyalty_points_earned?: number | null
           original_transaction_id?: string | null
           payment_method?: string
           receipt_type?: string
@@ -17460,6 +17720,13 @@ export type Database = {
             columns: ["location_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_transactions_loyalty_member_id_fkey"
+            columns: ["loyalty_member_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_members"
             referencedColumns: ["id"]
           },
           {
@@ -25457,6 +25724,16 @@ export type Database = {
         }
         Returns: Json
       }
+      accrue_loyalty_points_v2: {
+        Args: {
+          p_amount: number
+          p_member_id: string
+          p_reference_id?: string
+          p_reference_type?: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       adjust_inventory_stock: {
         Args: {
           p_created_by?: string
@@ -25930,6 +26207,10 @@ export type Database = {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
+      lookup_loyalty_member: {
+        Args: { p_query: string; p_tenant_id: string }
+        Returns: Json
+      }
       next_journal_entry_number: {
         Args: { p_tenant_id: string }
         Returns: string
@@ -25999,6 +26280,10 @@ export type Database = {
             }
             Returns: Json
           }
+      refresh_loyalty_tier: {
+        Args: { p_member_id: string; p_tenant_id: string }
+        Returns: undefined
+      }
       refresh_wms_affinity_pairs: {
         Args: { p_tenant_id: string; p_warehouse_id: string }
         Returns: undefined

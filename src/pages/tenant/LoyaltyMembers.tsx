@@ -3,17 +3,19 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Search, UserPlus, Star, Minus, Plus } from "lucide-react";
+import { Search, UserPlus, Star, Minus, Plus, CreditCard, QrCode } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EntitySelector } from "@/components/shared/EntitySelector";
 import { format } from "date-fns";
+import { LoyaltyCardPrint } from "@/components/loyalty/LoyaltyCardPrint";
 
 const TIER_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   bronze: "outline",
@@ -29,10 +31,17 @@ export default function LoyaltyMembers() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [enrollOpen, setEnrollOpen] = useState(false);
-  const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
   const [detailMember, setDetailMember] = useState<any>(null);
   const [adjustPoints, setAdjustPoints] = useState("");
   const [adjustDesc, setAdjustDesc] = useState("");
+  const [printMember, setPrintMember] = useState<any>(null);
+
+  // Enroll form state
+  const [enrollForm, setEnrollForm] = useState({
+    first_name: "", last_name: "", email: "", phone: "",
+    date_of_birth: "", marketing_consent: false, partner_id: null as string | null,
+    referred_by: null as string | null,
+  });
 
   const { data: members = [] } = useQuery({
     queryKey: ["loyalty_members", tenantId],
@@ -81,20 +90,25 @@ export default function LoyaltyMembers() {
 
   const enrollMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedPartner || !programs[0]) throw new Error("Select a partner and ensure an active program exists");
-      // Accruing 0 will auto-enroll via the RPC
-      const { data, error } = await supabase.rpc("accrue_loyalty_points", {
-        p_tenant_id: tenantId!,
-        p_partner_id: selectedPartner,
-        p_amount: 0,
-      });
+      if (!programs[0]) throw new Error("No active loyalty program found");
+      const { error } = await supabase.from("loyalty_members").insert({
+        tenant_id: tenantId!,
+        program_id: programs[0].id,
+        first_name: enrollForm.first_name || null,
+        last_name: enrollForm.last_name || null,
+        email: enrollForm.email || null,
+        phone: enrollForm.phone || null,
+        date_of_birth: enrollForm.date_of_birth || null,
+        marketing_consent: enrollForm.marketing_consent,
+        partner_id: enrollForm.partner_id || null,
+        referred_by: enrollForm.referred_by || null,
+      } as any);
       if (error) throw error;
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["loyalty_members"] });
       setEnrollOpen(false);
-      setSelectedPartner(null);
+      setEnrollForm({ first_name: "", last_name: "", email: "", phone: "", date_of_birth: "", marketing_consent: false, partner_id: null, referred_by: null });
       toast({ title: t("success") });
     },
     onError: (e: any) => toast({ title: t("error"), description: e.message, variant: "destructive" }),
@@ -128,11 +142,23 @@ export default function LoyaltyMembers() {
   });
 
   const filtered = members.filter((m: any) => {
-    const name = (m.partners as any)?.name || "";
-    return name.toLowerCase().includes(search.toLowerCase());
+    const partnerName = (m.partners as any)?.name || "";
+    const memberName = `${m.first_name || ""} ${m.last_name || ""}`.trim();
+    const cardNum = m.card_number || "";
+    const q = search.toLowerCase();
+    return partnerName.toLowerCase().includes(q) || memberName.toLowerCase().includes(q) || cardNum.includes(q);
   });
 
   const partnerOptions = partners.map((p: any) => ({ value: p.id, label: p.name }));
+  const memberOptions = members.filter((m: any) => m.id !== detailMember?.id).map((m: any) => ({
+    value: m.id,
+    label: `${m.first_name || ""} ${m.last_name || (m.partners as any)?.name || m.id}`.trim(),
+  }));
+
+  const getMemberDisplayName = (m: any) => {
+    if (m.first_name || m.last_name) return `${m.first_name || ""} ${m.last_name || ""}`.trim();
+    return (m.partners as any)?.name || "—";
+  };
 
   return (
     <div className="space-y-6">
@@ -150,17 +176,20 @@ export default function LoyaltyMembers() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("partner")}</TableHead>
+              <TableHead>{t("name")}</TableHead>
+              <TableHead><CreditCard className="h-3 w-3 inline mr-1" />Card #</TableHead>
               <TableHead>{t("pointsBalance" as any)}</TableHead>
               <TableHead>{t("lifetimePoints" as any)}</TableHead>
               <TableHead>Tier</TableHead>
               <TableHead>{t("date")}</TableHead>
+              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((m: any) => (
               <TableRow key={m.id} className="cursor-pointer" onClick={() => setDetailMember(m)}>
-                <TableCell className="font-medium">{(m.partners as any)?.name}</TableCell>
+                <TableCell className="font-medium">{getMemberDisplayName(m)}</TableCell>
+                <TableCell className="font-mono text-xs">{m.card_number || "—"}</TableCell>
                 <TableCell>{m.points_balance?.toLocaleString()}</TableCell>
                 <TableCell>{m.lifetime_points?.toLocaleString()}</TableCell>
                 <TableCell>
@@ -169,10 +198,15 @@ export default function LoyaltyMembers() {
                   </Badge>
                 </TableCell>
                 <TableCell>{format(new Date(m.enrolled_at), "dd MMM yyyy")}</TableCell>
+                <TableCell>
+                  <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setPrintMember(m); }}>
+                    <QrCode className="h-3 w-3" />
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
             {filtered.length === 0 && (
-              <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No members</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No members</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -180,12 +214,37 @@ export default function LoyaltyMembers() {
 
       {/* Enroll Dialog */}
       <Dialog open={enrollOpen} onOpenChange={setEnrollOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>{t("enrollMember" as any)}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <Label>{t("partner")}</Label>
-            <EntitySelector options={partnerOptions} value={selectedPartner} onValueChange={setSelectedPartner} placeholder={t("selectPartner")} />
-            <Button onClick={() => enrollMutation.mutate()} disabled={!selectedPartner || enrollMutation.isPending}>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>{t("firstName" as any)}</Label>
+                <Input value={enrollForm.first_name} onChange={e => setEnrollForm(p => ({ ...p, first_name: e.target.value }))} />
+              </div>
+              <div><Label>{t("lastName" as any)}</Label>
+                <Input value={enrollForm.last_name} onChange={e => setEnrollForm(p => ({ ...p, last_name: e.target.value }))} />
+              </div>
+            </div>
+            <div><Label>{t("email")}</Label>
+              <Input type="email" value={enrollForm.email} onChange={e => setEnrollForm(p => ({ ...p, email: e.target.value }))} />
+            </div>
+            <div><Label>{t("phone" as any)}</Label>
+              <Input value={enrollForm.phone} onChange={e => setEnrollForm(p => ({ ...p, phone: e.target.value }))} />
+            </div>
+            <div><Label>{t("dateOfBirth" as any)}</Label>
+              <Input type="date" value={enrollForm.date_of_birth} onChange={e => setEnrollForm(p => ({ ...p, date_of_birth: e.target.value }))} />
+            </div>
+            <div><Label>{t("partner")}</Label>
+              <EntitySelector options={partnerOptions} value={enrollForm.partner_id} onValueChange={v => setEnrollForm(p => ({ ...p, partner_id: v }))} placeholder={t("selectPartner")} />
+            </div>
+            <div><Label>{t("referredBy" as any)}</Label>
+              <EntitySelector options={memberOptions} value={enrollForm.referred_by} onValueChange={v => setEnrollForm(p => ({ ...p, referred_by: v }))} placeholder="Select referrer (optional)" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox checked={enrollForm.marketing_consent} onCheckedChange={c => setEnrollForm(p => ({ ...p, marketing_consent: !!c }))} />
+              <Label className="text-sm">{t("marketingConsent" as any)}</Label>
+            </div>
+            <Button onClick={() => enrollMutation.mutate()} disabled={enrollMutation.isPending} className="w-full">
               <UserPlus className="h-4 w-4 mr-1" />{t("enrollMember" as any)}
             </Button>
           </div>
@@ -195,15 +254,22 @@ export default function LoyaltyMembers() {
       {/* Member Detail Dialog */}
       <Dialog open={!!detailMember} onOpenChange={(v) => !v && setDetailMember(null)}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{(detailMember?.partners as any)?.name}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{getMemberDisplayName(detailMember || {})}</DialogTitle></DialogHeader>
           {detailMember && (
             <div className="space-y-4">
-              <div className="flex gap-4 text-sm">
+              <div className="flex gap-4 text-sm flex-wrap">
                 <div><Star className="h-4 w-4 inline text-yellow-500" /> {detailMember.points_balance?.toLocaleString()} pts</div>
                 <Badge variant={TIER_VARIANT[detailMember.current_tier] || "outline"}>
                   {t((`tier${detailMember.current_tier.charAt(0).toUpperCase() + detailMember.current_tier.slice(1)}`) as any)}
                 </Badge>
+                {detailMember.card_number && <span className="font-mono text-xs bg-muted px-2 py-1 rounded"><CreditCard className="h-3 w-3 inline mr-1" />{detailMember.card_number}</span>}
               </div>
+              {(detailMember.phone || detailMember.email) && (
+                <div className="text-xs text-muted-foreground space-x-3">
+                  {detailMember.phone && <span>📱 {detailMember.phone}</span>}
+                  {detailMember.email && <span>✉️ {detailMember.email}</span>}
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <Input type="number" placeholder={t("adjustPoints" as any)} value={adjustPoints} onChange={e => setAdjustPoints(e.target.value)} className="w-24" />
@@ -225,6 +291,16 @@ export default function LoyaltyMembers() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Print Card Dialog */}
+      {printMember && (
+        <Dialog open={!!printMember} onOpenChange={(v) => !v && setPrintMember(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Loyalty Card</DialogTitle></DialogHeader>
+            <LoyaltyCardPrint member={printMember} />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

@@ -194,3 +194,6 @@ verify_jwt = false
 
 [functions.ai-market-basket]
 verify_jwt = false
+
+[functions.ai-loyalty-recommendations]
+verify_jwt = false
