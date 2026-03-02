@@ -202,24 +202,21 @@ export default function PosTerminal() {
   });
   const partnerOptions = partners.map((p: any) => ({ value: p.id, label: p.name, sublabel: p.pib || "" }));
 
-  // POS-04: Loyalty member lookup
+  // POS-04: Loyalty member lookup via RPC
   const lookupLoyaltyMember = async (searchVal: string) => {
     if (!tenantId || !searchVal.trim()) return;
     const q = searchVal.trim();
-    const { data } = await (supabase
-      .from("loyalty_members") as any)
-      .select("*, loyalty_programs(name, points_per_currency)")
-      .eq("tenant_id", tenantId)
-      .or(`phone.ilike.%${q}%,card_number.ilike.%${q}%`)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
-    if (data) {
-      setLoyaltyMember(data);
-      toast({ title: `Lojalti: ${data.first_name || data.partner_id || ""}`, description: `${data.points_balance || 0} bodova • ${data.current_tier || "Bronze"}` });
-    } else {
+    const { data, error } = await supabase.rpc("lookup_loyalty_member" as any, {
+      p_tenant_id: tenantId,
+      p_query: q,
+    });
+    if (error || !data || Object.keys(data).length === 0) {
       toast({ title: t("error"), description: "Član lojalti programa nije pronađen", variant: "destructive" });
+      return;
     }
+    setLoyaltyMember(data);
+    const name = `${data.first_name || ""} ${data.last_name || ""}`.trim() || data.card_number || "";
+    toast({ title: `Lojalti: ${name}`, description: `${data.points_balance || 0} bodova • ${data.current_tier || "Bronze"}` });
   };
 
   // POS-01: Submit discount override request
@@ -591,8 +588,28 @@ export default function PosTerminal() {
       return tx;
     },
     onSuccess: (tx: any) => {
-      // Accrue loyalty points if buyer partner is linked
-      if (buyerPartnerId && tx?.total) {
+      // LOY-05: Accrue loyalty points via V2 if member is identified
+      if (loyaltyMember?.id && tx?.total) {
+        supabase.rpc("accrue_loyalty_points_v2" as any, {
+          p_tenant_id: tenantId!,
+          p_member_id: loyaltyMember.id,
+          p_amount: tx.total,
+          p_reference_type: "pos_sale",
+          p_reference_id: tx.id,
+        }).then(({ data }) => {
+          if (data && typeof data === "object" && (data as any).ok && (data as any).points > 0) {
+            const mult = (data as any).multiplier > 1 ? ` (${(data as any).multiplier}x)` : "";
+            toast({ title: `${t("pointsEarned" as any)}: +${(data as any).points}${mult}` });
+          }
+        });
+        // Also update the POS transaction with loyalty info
+        supabase.from("pos_transactions").update({
+          loyalty_member_id: loyaltyMember.id,
+          loyalty_points_earned: 0, // will be updated by trigger/RPC
+          loyalty_multiplier: 1.0,
+        } as any).eq("id", tx.id);
+      } else if (buyerPartnerId && tx?.total) {
+        // Fallback: legacy partner-based accrual
         supabase.rpc("accrue_loyalty_points", {
           p_tenant_id: tenantId!,
           p_partner_id: buyerPartnerId,
@@ -605,6 +622,8 @@ export default function PosTerminal() {
           }
         });
       }
+      setLoyaltyMember(null);
+      setLoyaltySearch("");
       setCart([]);
       setCustomerName("");
       setBuyerId("");
