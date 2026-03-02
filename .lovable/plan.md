@@ -1,95 +1,32 @@
 
 
-# ISO Compliance Implementation — Phased Plan
+## Fix: Add `web.erpai.rs` and `.lovableproject.com` to CORS allowed origins
 
-After reviewing all 1258 lines of the PRD, here's the breakdown into 5 implementable phases. Documentation-only items (policies, manuals) and CI/CD pipeline (QMS-01) are out of scope for Lovable but noted for your reference.
+The CORS config in `supabase/functions/_shared/cors.ts` is missing both the production domain `https://web.erpai.rs` and the `.lovableproject.com` preview domain. This blocks all edge function calls from these origins.
 
----
+### Change
 
-## Phase ISO-1: Security Foundation (SEC-01 through SEC-08 + CR7 fixes)
+**File: `supabase/functions/_shared/cors.ts`**
 
-**Shared infrastructure + critical security fixes.** Highest impact, touches all 97+ edge functions.
+1. Add `https://web.erpai.rs` to `DEFAULT_ORIGINS`
+2. Extend the preview check to also allow `.lovableproject.com`
 
-| Item | What | Status |
-|------|------|--------|
-| SEC-01 | Create `_shared/cors.ts`, replace wildcard CORS in all 97+ functions | ✅ Shared module done, ~40/90 functions migrated |
-| SEC-02 | Fix `USING(true)` RLS on voucher_types, supplier_invoice_lines, popdv_records | ✅ Already fixed (tenant-scoped RLS in place) |
-| SEC-03 | Create `_shared/schemas/` with Zod, add validation to all edge functions | ✅ `_shared/validation.ts` created |
-| SEC-04 | `security_events` table + `_shared/security-logger.ts` | ✅ Table + shared module done |
-| SEC-05 | Create `_shared/error-handler.ts`, sanitize all error responses | ✅ Shared module done |
-| SEC-06 | `_shared/security-headers.ts` + CSP meta tag in index.html | ✅ Shared module done, CSP pending |
-| SEC-07 | `secret_rotation_log` table | ✅ Table created |
-| SEC-08 | React ErrorBoundary component wrapping App | ⬜ Already exists, needs review |
-| CR7-01 | Role check for POS discount approvals | ⬜ Pending |
-| CR7-02 | O(n²) → O(n) duplicate detection | ⬜ Pending |
-| CR7-04 | Tool_choice fallback | ⬜ Pending |
-| CR7-06 | Configurable collection probabilities | ⬜ Pending |
-| CR7-07 | Line item validation (no negative qty/price) | ⬜ Pending |
+```typescript
+const DEFAULT_ORIGINS = [
+  "https://proerpai.lovable.app",
+  "https://id-preview--a347532a-0028-44d9-85ae-4e042514628f.lovable.app",
+  "https://web.erpai.rs",
+];
 
-**Remaining work: ~50 edge functions need CORS migration, CR7 fixes, CSP meta tag, ErrorBoundary review.**
+// line 27:
+const isLovablePreview = origin.endsWith(".lovable.app") || origin.endsWith(".lovableproject.com");
+```
 
----
+This single file fix restores CORS for all 97+ edge functions simultaneously since they all import from this shared module.
 
-## Phase ISO-2: AI Governance + Prompt Registry (AI-02 through AI-04)
+Also need to check and fix the two edge functions that reference `corsHeaders` directly instead of using the shared module (`storage-download` and `verify-email`) — they use an undefined `corsHeaders` variable which would cause runtime errors.
 
-| Item | What | Scope |
-|------|------|-------|
-| AI-02 | `ai_prompt_registry` table + shared loader, migrate 17+ hardcoded prompts | Migration + 23 AI functions |
-| AI-03 | Confidence threshold enforcement (auto_approve/suggest/flag/reject) | 4 AI functions |
-| AI-04 | Super Admin AI Governance Dashboard (token usage, action log, prompts, injections) | New page |
+**File: `supabase/functions/storage-download/index.ts`** — Replace `corsHeaders` with `getCorsHeaders(req)` calls and add the import.
 
----
+**File: `supabase/functions/verify-email/index.ts`** — Same fix: replace bare `corsHeaders` references with `getCorsHeaders(req)`.
 
-## Phase ISO-3: Privacy, Cloud & E-Invoicing (CLOUD-02, PRIV-01, EI-01, EI-02)
-
-| Item | What | Scope |
-|------|------|-------|
-| CLOUD-02 | Field-level PII encryption (JMBG, bank accounts) via pgcrypto | Migration + functions |
-| PRIV-01 | `data_breach_incidents` table + breach-notification edge function | Migration + edge function + page |
-| EI-01 | UBL XML schema validator (EN 16931 mandatory elements) | New shared module + sef-submit edit |
-| EI-02 | Replace string concatenation with XmlBuilder class | sef-submit refactor |
-
----
-
-## Phase ISO-4: Business Continuity & Archival (BC-01 to BC-03, ARCH-01, ARCH-02) ✅
-
-| Item | What | Status |
-|------|------|--------|
-| BC-01 | `health-check` edge function (DB, Storage, AI Gateway status) | ✅ Done |
-| BC-02 | `tenant-data-export` edge function + DataExport.tsx page | ✅ Done |
-| BC-03 | Super Admin SystemHealth.tsx dashboard (uptime, response times) | ✅ Done |
-| ARCH-01 | `generate-pdfa` edge function (PDF/A-3 with embedded UBL XML) | ✅ Done |
-| ARCH-02 | `enforce_document_retention()` DB function | ✅ Done |
-
----
-
-## Phase ISO-5: ITSM & Quality Model (ITSM-01, ITSM-02, SQ-02) ✅
-
-| Item | What | Status |
-|------|------|--------|
-| ITSM-01 | `sla_definitions` + `sla_measurements` tables + SLA management page | ✅ Done |
-| ITSM-02 | `incidents` table + Incident Management page | ✅ Done |
-| SQ-02 | WCAG 2.1 AA accessibility pass (aria-labels, contrast, keyboard nav) | ✅ Done |
-
----
-
-## Out of Scope (documentation / external tooling)
-
-These items from the PRD require non-code deliverables:
-- AI-01, AI-05: AI governance policy & impact assessment docs
-- QMS-01: GitHub Actions CI/CD pipeline (not Lovable-buildable)
-- QMS-02: Test coverage expansion (limited in Lovable)
-- QMS-03, CLOUD-01, CLOUD-03, PRIV-02: Policy documents
-- Phase 5/6 from PRD: Documentation & external audit prep
-
----
-
-## Summary
-
-| Phase | Items | Key Standards |
-|-------|-------|---------------|
-| ISO-1: Security Foundation | 13 items (SEC-01–08 + 5 CR fixes) | ISO 27001 |
-| ISO-2: AI Governance | 3 items (AI-02–04) | ISO 42001 |
-| ISO-3: Privacy & E-Invoicing | 4 items (CLOUD-02, PRIV-01, EI-01–02) | ISO 27017/18/27701, EN 16931 |
-| ISO-4: Continuity & Archival | 5 items (BC-01–03, ARCH-01–02) | ISO 22301, 19005 |
-| ISO-5: ITSM & Quality | 3 items (ITSM-01–02, SQ-02) | ISO 20000, 25010 |
