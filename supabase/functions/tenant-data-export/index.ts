@@ -4,6 +4,8 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/error-handler.ts";
+import { withSecurityHeaders } from "../_shared/security-headers.ts";
 
 const EXPORT_TABLES = [
   "partners", "invoices", "invoice_lines", "products", "chart_of_accounts",
@@ -15,15 +17,13 @@ const EXPORT_TABLES = [
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflightRequest(req);
   if (preflight) return preflight;
-
   const corsHeaders = getCorsHeaders(req);
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -31,36 +31,24 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(supabaseUrl, supabaseKey);
 
-    // Verify user
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
     const { data: { user }, error: authError } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
-    // Get tenant_id from user membership
-    const { data: membership } = await sb
-      .from("tenant_users")
-      .select("tenant_id, role")
-      .eq("user_id", user.id)
-      .limit(1)
-      .single();
-
+    const { data: membership } = await sb.from("tenant_users").select("tenant_id, role").eq("user_id", user.id).limit(1).single();
     if (!membership) {
       return new Response(JSON.stringify({ error: "No tenant membership" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
-    // Only admin/owner can export
     if (!["admin", "owner", "super_admin"].includes(membership.role)) {
       return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403, headers: withSecurityHeaders({ ...corsHeaders, "Content-Type": "application/json" }),
       });
     }
 
@@ -69,39 +57,25 @@ Deno.serve(async (req) => {
 
     for (const table of EXPORT_TABLES) {
       try {
-        const { data, error } = await sb
-          .from(table)
-          .select("*")
-          .eq("tenant_id", tenantId)
-          .limit(10000);
+        const { data, error } = await sb.from(table).select("*").eq("tenant_id", tenantId).limit(10000);
         exportData[table] = error ? [] : (data || []);
-      } catch {
-        exportData[table] = [];
-      }
+      } catch { exportData[table] = []; }
     }
 
     const exportPayload = {
-      export_version: "1.0",
-      exported_at: new Date().toISOString(),
-      tenant_id: tenantId,
-      exported_by: user.id,
-      tables: exportData,
-      row_counts: Object.fromEntries(
-        Object.entries(exportData).map(([k, v]) => [k, v.length])
-      ),
+      export_version: "1.0", exported_at: new Date().toISOString(), tenant_id: tenantId,
+      exported_by: user.id, tables: exportData,
+      row_counts: Object.fromEntries(Object.entries(exportData).map(([k, v]) => [k, v.length])),
     };
 
     return new Response(JSON.stringify(exportPayload), {
-      headers: {
+      headers: withSecurityHeaders({
         ...corsHeaders,
         "Content-Type": "application/json",
         "Content-Disposition": `attachment; filename="tenant-export-${tenantId}-${new Date().toISOString().slice(0, 10)}.json"`,
-      },
+      }),
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createErrorResponse(e, req, { logPrefix: "tenant-data-export" });
   }
 });
