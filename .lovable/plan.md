@@ -51,15 +51,15 @@ After reviewing all 1258 lines of the PRD, here's the breakdown into 5 implement
 
 ---
 
-## Phase ISO-4: Business Continuity & Archival (BC-01 to BC-03, ARCH-01, ARCH-02)
+## Phase ISO-4: Business Continuity & Archival (BC-01 to BC-03, ARCH-01, ARCH-02) ✅
 
-| Item | What | Scope |
-|------|------|-------|
-| BC-01 | `health-check` edge function (DB, Storage, AI Gateway status) | New edge function |
-| BC-02 | `tenant-data-export` edge function + DataExport.tsx page | Edge function + page |
-| BC-03 | Super Admin SystemHealth.tsx dashboard (uptime, response times) | New page |
-| ARCH-01 | `generate-pdfa` edge function (PDF/A-3 with embedded UBL XML) | New edge function |
-| ARCH-02 | `enforce_document_retention()` DB function | Migration |
+| Item | What | Status |
+|------|------|--------|
+| BC-01 | `health-check` edge function (DB, Storage, AI Gateway status) | ✅ Done |
+| BC-02 | `tenant-data-export` edge function + DataExport.tsx page | ✅ Done |
+| BC-03 | Super Admin SystemHealth.tsx dashboard (uptime, response times) | ✅ Done |
+| ARCH-01 | `generate-pdfa` edge function (PDF/A-3 with embedded UBL XML) | ✅ Done |
+| ARCH-02 | `enforce_document_retention()` DB function | ✅ Done |
 
 ---
 

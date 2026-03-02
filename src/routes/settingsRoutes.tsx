@@ -38,6 +38,7 @@ const RolePermissions = React.lazy(() => import("@/pages/tenant/RolePermissions"
 const NotificationHistory = React.lazy(() => import("@/pages/tenant/NotificationHistory"));
 const ModuleSettings = React.lazy(() => import("@/pages/tenant/ModuleSettings"));
 const DataBreachIncidents = React.lazy(() => import("@/pages/tenant/DataBreachIncidents"));
+const DataExport = React.lazy(() => import("@/pages/tenant/DataExport"));
 
 export const settingsRoutes = (
   <>
@@ -76,5 +77,6 @@ export const settingsRoutes = (
     <Route path="settings/notification-history" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><NotificationHistory /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/modules" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><ModuleSettings /></PageErrorBoundary></ProtectedRoute>} />
     <Route path="settings/data-breach" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><DataBreachIncidents /></PageErrorBoundary></ProtectedRoute>} />
+    <Route path="settings/data-export" element={<ProtectedRoute requiredModule="settings"><PageErrorBoundary><DataExport /></PageErrorBoundary></ProtectedRoute>} />
   </>
 );
