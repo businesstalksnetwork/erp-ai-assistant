@@ -185,3 +185,12 @@ verify_jwt = false
 
 [functions.ai-payroll-predict]
 verify_jwt = false
+
+[functions.ai-ordering-prediction]
+verify_jwt = false
+
+[functions.inventory-classification]
+verify_jwt = false
+
+[functions.ai-market-basket]
+verify_jwt = false
